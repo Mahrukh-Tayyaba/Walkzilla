@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1043059024783",
+    "project_id": "walkzilla-fyp",
+    "storage_bucket": "walkzilla-fyp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1043059024783:android:5bf4e50d7fdea5241de1fa",
+        "android_client_info": {
+          "package_name": "com.mt.walkzilla"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4a9RMzxkM50zLP80M-_Pmy8czAGqiEz4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,4 +1,4 @@
-package com.example.loun
+package com.example.walkzilla
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,8 +1,32 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart'; // Import the LoginScreen
+import 'login_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SignupScreen extends StatelessWidget {
-  const SignupScreen({super.key});
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  SignupScreen({super.key});
+
+  Future<void> _signup(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Signup successful!")),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,72 +38,55 @@ class SignupScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(height: 80), // Add some top padding
-              // Walkzilla Image
-              Container(
-                width: 150, // Consistent width with LoginScreen
-                height: 150, // Consistent height with LoginScreen
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/images/logo2.png'), // Logo image
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30), // Same spacing as in LoginScreen
-
-              // Email Input
+              const SizedBox(height: 80),
+              // Logo
+              Image.asset('assets/images/logo2.png', height: 150),
+              const SizedBox(height: 30),
+              // Email field
               TextField(
+                controller: _emailController,
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.person, color: Colors.orange),
+                  prefixIcon: const Icon(Icons.email, color: Colors.orange),
                   hintText: 'Your Email',
+                  filled: true,
+                  fillColor: const Color(0xFFFFF3E0),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
                     borderSide: BorderSide.none,
                   ),
-                  filled: true,
-                  fillColor: const Color(0xFFFFF3E0), // Match LoginScreen
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Password Input
+              // Password field
               TextField(
+                controller: _passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.lock, color: Colors.orange),
-                  suffixIcon: const Icon(Icons.visibility, color: Colors.grey),
                   hintText: 'Password',
+                  filled: true,
+                  fillColor: const Color(0xFFFFF3E0),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
                     borderSide: BorderSide.none,
                   ),
-                  filled: true,
-                  fillColor: const Color(0xFFFFF3E0), // Match LoginScreen
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Signup Button
+              // Signup button
               ElevatedButton(
-                onPressed: () {
-                  // Handle signup logic here
-                },
+                onPressed: () => _signup(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF9800), // Orange color
+                  backgroundColor: const Color(0xFFFF9800),
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                child: const Text(
-                  'SIGN UP',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
+                child: const Text('SIGN UP', style: TextStyle(fontSize: 18)),
               ),
               const SizedBox(height: 20),
-
-              // Sign In Text
+              // Login link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -91,65 +98,17 @@ class SignupScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                            builder: (context) => const LoginScreen()),
+                        MaterialPageRoute(builder: (context) => LoginScreen()),
                       );
                     },
                     child: const Text(
                       "Log in",
                       style: TextStyle(
+                        fontSize: 16,
                         color: Colors.orange,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Divider with OR
-              Row(
-                children: const [
-                  Expanded(child: Divider(thickness: 1, color: Colors.grey)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      "OR",
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                  ),
-                  Expanded(child: Divider(thickness: 1, color: Colors.grey)),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Social Media Icons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.facebook,
-                        color: Colors.black, size: 40),
-                    onPressed: () {
-                      // Handle Facebook signup
-                    },
-                  ),
-                  const SizedBox(width: 20),
-                  IconButton(
-                    icon:
-                        const Icon(Icons.email, color: Colors.black, size: 40),
-                    onPressed: () {
-                      // Handle Email signup
-                    },
-                  ),
-                  const SizedBox(width: 20),
-                  IconButton(
-                    icon: const Icon(Icons.g_translate,
-                        color: Colors.black, size: 40),
-                    onPressed: () {
-                      // Handle Google signup
-                    },
                   ),
                 ],
               ),
