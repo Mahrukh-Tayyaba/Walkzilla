@@ -9,35 +9,30 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color.fromARGB(255, 255, 253, 243), // Light beige background
+      backgroundColor: const Color(0xFFD9D9D9), // Light gray background
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Top Spacer
-          const Spacer(),
-          // Logo and Subtitle
-          Column(
-            children: [
-              // Walkzilla Logo (GIF) - Doubled size
-              Image.asset(
-                'assets/gifs/logo.gif',
-                height: 600, // Logo size
-                width: 600,
-              ),
-              // Subtitle
-              Text(
-                "The Couch Potato’s Worst Nightmare",
-                textAlign: TextAlign.center,
-                style: GoogleFonts.leagueGothic(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
+          // Walkzilla Logo (GIF)
+          Image.asset(
+            'assets/gifs/logo.gif', // Replace with the actual path to your GIF
+            height: 200,
+            width: 500,
+            fit: BoxFit.contain,
           ),
-          const Spacer(),
+
+          Text(
+            "The Couch Potato’s Worst Nightmare",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.leagueGothic(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+
+          const SizedBox(height: 30), // Spacing between subtitle and buttons
+
           // Buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 30.0),
@@ -64,30 +59,36 @@ class WelcomeScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 18),
                   ),
                 ),
-                const SizedBox(height: 15),
+
+                const SizedBox(height: 15), // Spacing between buttons
+
                 // Signup Button
-                OutlinedButton(
+                ElevatedButton(
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => SignupScreen()),
                     );
                   },
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.black87),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white, // White background
+                    foregroundColor: Colors.black, // Black text color
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius:
+                          BorderRadius.circular(25), // Rounded corners
                     ),
                   ),
                   child: const Text(
                     'SIGN UP',
-                    style: TextStyle(fontSize: 18, color: Colors.black87),
+                    style: TextStyle(fontSize: 18),
                   ),
                 ),
               ],
             ),
           ),
+
+          const SizedBox(height: 40), // Bottom spacing
         ],
       ),
     );

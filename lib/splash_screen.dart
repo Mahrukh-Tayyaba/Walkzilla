@@ -16,7 +16,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _navigateToWelcomeScreen() async {
-    await Future.delayed(Duration(seconds: 3)); // Set splash duration
+    await Future.delayed(const Duration(seconds: 5)); // Set splash duration
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => WelcomeScreen()),
@@ -26,31 +26,52 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.pinkAccent,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              // 'assets/splash_logo.png', // Replace with your splash logo
+      backgroundColor: const Color(0xFFD9D9D9),
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Ground (GIF 3) at the bottom
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Image.asset(
+              'assets/gifs/ground.gif',
+              height: 200,
+              width: 500,
+            ),
+          ),
+
+          // Dino Image (centered above ground)
+          Positioned(
+            bottom: 120,
+            child: Image.asset(
               'assets/images/dino.png',
-              height: 150,
+              height: 250,
             ),
-            SizedBox(height: 20),
-            Text(
-              'WALKZILLA',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+          ),
+
+          // Walkzilla Logo (GIF 1) at the top
+          Positioned(
+            top: 100,
+            child: Image.asset(
+              'assets/gifs/logo.gif',
+              height: 200,
+              width: 500,
+              fit: BoxFit.contain,
             ),
-            SizedBox(height: 10),
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+
+          // Tagline (GIF 2) below the logo
+          Positioned(
+            top: 320,
+            child: Image.asset(
+              'assets/gifs/tagline.gif',
+              height: 50,
+              fit: BoxFit.contain,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
