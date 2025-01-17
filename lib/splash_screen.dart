@@ -19,7 +19,7 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 5)); // Set splash duration
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => WelcomeScreen()),
+      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
     );
   }
 
@@ -28,46 +28,53 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
       body: Stack(
-        alignment: Alignment.center,
         children: [
-          // Ground (GIF 3) at the bottom
+          // Ground (GIF) at the bottom
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Image.asset(
               'assets/gifs/ground.gif',
-              height: 200,
-              width: 500,
+              height: 150, // Adjust height as needed
+              width: MediaQuery.of(context).size.width,
+              fit: BoxFit.cover, // Make the GIF span the full width
             ),
           ),
 
           // Dino Image (centered above ground)
           Positioned(
-            bottom: 120,
+            bottom: 60, // Positioned above the ground
+            left: MediaQuery.of(context).size.width / 2 -
+                160, // Center horizontally
             child: Image.asset(
               'assets/images/dino.png',
-              height: 250,
+              height: 300,
+              width: 300,
             ),
           ),
 
-          // Walkzilla Logo (GIF 1) at the top
+          // Walkzilla Logo (GIF) at the top
           Positioned(
-            top: 100,
+            top: 60,
+            left: 0,
+            right: 0,
             child: Image.asset(
               'assets/gifs/logo.gif',
               height: 200,
-              width: 500,
+              width: 600,
               fit: BoxFit.contain,
             ),
           ),
 
-          // Tagline (GIF 2) below the logo
+          // Tagline (GIF) below the logo
           Positioned(
-            top: 320,
+            top: 220,
+            left: 0,
+            right: 0,
             child: Image.asset(
               'assets/gifs/tagline.gif',
-              height: 50,
+              height: 100,
               fit: BoxFit.contain,
             ),
           ),

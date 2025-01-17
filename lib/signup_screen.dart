@@ -48,8 +48,8 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 30),
               // Walkzilla Image
               Container(
-                width: 150,
-                height: 250,
+                width: 200, // Adjust width
+                height: 250, // Adjust height
                 decoration: const BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage('assets/images/logo2.png'),
@@ -168,7 +168,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Social Media Icons (Black)
+              // Social Media Icons (Updated with custom Google PNG)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -188,12 +188,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     },
                   ),
                   const SizedBox(width: 20),
-                  IconButton(
-                    icon: const Icon(Icons.g_translate,
-                        color: Colors.black, size: 40),
-                    onPressed: () {
+                  InkWell(
+                    onTap: () {
                       // Handle Google signup
                     },
+                    child: Image.asset(
+                      'assets/images/google-Icon.png', // Path to your custom Google icon
+                      height: 40,
+                      width: 40,
+                    ),
                   ),
                 ],
               ),

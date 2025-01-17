@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 30),
               // Walkzilla image with text
               Container(
-                width: 150, // Adjust width
+                width: 200, // Adjust width
                 height: 250, // Adjust height
                 decoration: const BoxDecoration(
                   image: DecorationImage(

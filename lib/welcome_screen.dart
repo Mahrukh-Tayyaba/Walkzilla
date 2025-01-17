@@ -14,24 +14,24 @@ class WelcomeScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Walkzilla Logo (GIF)
+          const SizedBox(height: 70),
           Image.asset(
             'assets/gifs/logo.gif', // Replace with the actual path to your GIF
-            height: 200,
-            width: 500,
+
             fit: BoxFit.contain,
           ),
-
+          const SizedBox(height: 10),
           Text(
             "The Couch Potato’s Worst Nightmare",
             textAlign: TextAlign.center,
             style: GoogleFonts.leagueGothic(
-              fontSize: 24,
+              fontSize: 30,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: const Color.fromARGB(255, 0, 0, 0),
             ),
           ),
 
-          const SizedBox(height: 30), // Spacing between subtitle and buttons
+          const SizedBox(height: 80), // Spacing between subtitle and buttons
 
           // Buttons
           Padding(
