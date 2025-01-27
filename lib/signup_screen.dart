@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart'; // Import the LoginScreen
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'home.dart'; // Import the HomeScreen
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  _SignupScreenState createState() => _SignupScreenState();
+  SignupScreenState createState() => SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class SignupScreenState extends State<SignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isPasswordVisible = false; // Updated toggle state
+  bool _isPasswordVisible = false;
 
   Future<void> _signup(BuildContext context) async {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Email and Password cannot be empty")),
+      );
+      return;
+    }
     try {
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -25,7 +33,38 @@ class _SignupScreenState extends State<SignupScreen> {
       );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
+        MaterialPageRoute(builder: (context) => const Home()),
+      );
+    } catch (e) {
+      String errorMessage = e.toString();
+      if (e is FirebaseAuthException) {
+        errorMessage = e.message ?? "An error occurred.";
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $errorMessage")),
+      );
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      await googleSignIn.signOut();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Home()),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -46,10 +85,10 @@ class _SignupScreenState extends State<SignupScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 30),
-              // Walkzilla Image
+              // Walkzilla Logo
               Container(
-                width: 200, // Adjust width
-                height: 250, // Adjust height
+                width: 200,
+                height: 250,
                 decoration: const BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage('assets/images/logo2.png'),
@@ -57,14 +96,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 0), // Minimal spacing below logo
-
+              const SizedBox(height: 10), // Minimal spacing below logo
               // Email TextField
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: const Color.fromARGB(255, 255, 255, 255),
+                  fillColor: Colors.white,
                   hintText: 'Your Email',
                   prefixIcon: const Icon(Icons.person, color: Colors.orange),
                   border: OutlineInputBorder(
@@ -74,14 +112,13 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               const SizedBox(height: 15),
-
               // Password TextField
               TextField(
                 controller: _passwordController,
-                obscureText: !_isPasswordVisible, // Toggle visibility
+                obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: const Color.fromARGB(255, 255, 255, 255), // White
+                  fillColor: Colors.white,
                   hintText: 'Password',
                   prefixIcon: const Icon(Icons.lock, color: Colors.orange),
                   suffixIcon: IconButton(
@@ -93,8 +130,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     onPressed: () {
                       setState(() {
-                        _isPasswordVisible =
-                            !_isPasswordVisible; // Toggle state
+                        _isPasswordVisible = !_isPasswordVisible;
                       });
                     },
                   ),
@@ -105,12 +141,11 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Signup Button (Full Width)
+              // Signup Button
               ElevatedButton(
                 onPressed: () => _signup(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF9800), // Orange color
+                  backgroundColor: const Color(0xFFFF9800),
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
@@ -123,8 +158,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Sign-in Text
+              // Already have an account
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -134,10 +168,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => LoginScreen()),
-                      );
+                      Navigator.pop(context);
                     },
                     child: const Text(
                       "Log in",
@@ -151,8 +182,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Divider with OR
+              // OR Divider
               Row(
                 children: const [
                   Expanded(child: Divider(thickness: 1, color: Colors.grey)),
@@ -167,36 +197,25 @@ class _SignupScreenState extends State<SignupScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Social Media Icons (Updated with custom Google PNG)
+              // Social Media Icons
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.facebook,
-                        color: Colors.black, size: 40),
-                    onPressed: () {
-                      // Handle Facebook signup
-                    },
-                  ),
-                  const SizedBox(width: 20),
-                  IconButton(
-                    icon:
-                        const Icon(Icons.email, color: Colors.black, size: 40),
-                    onPressed: () {
-                      // Handle Email signup
-                    },
-                  ),
-                  const SizedBox(width: 20),
+                  // Google Sign-In
                   InkWell(
-                    onTap: () {
-                      // Handle Google signup
-                    },
+                    onTap: signInWithGoogle,
                     child: Image.asset(
-                      'assets/images/google-Icon.png', // Path to your custom Google icon
+                      'assets/images/google-Icon.png',
                       height: 40,
                       width: 40,
                     ),
+                  ),
+                  const SizedBox(width: 20), // Space between icons
+                  // Apple Logo (Static)
+                  Image.asset(
+                    'assets/images/apple-Icon.png',
+                    height: 40,
+                    width: 40,
                   ),
                 ],
               ),

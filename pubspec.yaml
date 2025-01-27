@@ -41,6 +41,9 @@ dependencies:
   firebase_messaging: ^14.7.20
   firebase_storage: ^11.6.10
   flutter_svg: ^2.0.9
+  google_sign_in: ^6.2.0
+  sign_in_with_apple: ^6.1.4
+
 
 dev_dependencies:
   flutter_test:
@@ -100,6 +103,7 @@ flutter:
     - assets/images/logo2.png
     - assets/images/dino.png
     - assets/images/google-Icon.png
+    - assets/images/apple-Icon.png
     - assets/gifs/ground.gif
     - assets/gifs/logo.gif
     - assets/gifs/tagline.gif
