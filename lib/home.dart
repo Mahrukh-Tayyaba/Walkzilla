@@ -1,33 +1,79 @@
 import 'package:flutter/material.dart';
+import 'package:health/health.dart';
 
-class Home extends StatelessWidget {
+class Home extends StatefulWidget {
   const Home({super.key});
+
+  @override
+  State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  final health = Health();
+  int _steps = 0; // Step count variable
+
+  @override
+  void initState() {
+    super.initState();
+    fetchSteps();
+  }
+
+  // Function to fetch steps
+  Future<void> fetchSteps() async {
+    final types = [HealthDataType.STEPS];
+    final startDate =
+        DateTime.now().subtract(const Duration(days: 1)); // Last 24 hours
+    final endDate = DateTime.now();
+
+    try {
+      // Request permissions
+      bool permissionsGranted = await health.requestAuthorization(types);
+
+      if (permissionsGranted) {
+        // Fetch step data
+        List<HealthDataPoint> healthData =
+            await health.getHealthAggregateDataFromTypes(
+          endDate: endDate,
+          startDate: startDate,
+          types: types,
+        );
+
+        // Calculate total steps
+        int totalSteps = healthData.fold<int>(
+          0,
+          (previousValue, element) => previousValue + (element.value as int),
+        );
+
+        setState(() {
+          _steps = totalSteps; // Update the steps variable
+        });
+      } else {
+        print("Permissions not granted");
+      }
+    } catch (e) {
+      print("Error fetching health data: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-          0xFFD9D9D9), // Set the background color for the whole screen
+      backgroundColor: const Color(0xFFD9D9D9),
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(50), // Increases AppBar height
+        preferredSize: const Size.fromHeight(50),
         child: AppBar(
-          backgroundColor: const Color(0xFFD9D9D9), // Updated background color
-          automaticallyImplyLeading: false, // Removes the back arrow
+          backgroundColor: const Color(0xFFD9D9D9),
+          automaticallyImplyLeading: false,
           leading: Padding(
-            padding: const EdgeInsets.only(
-                top: 10.0), // Adds space above the menu icon
+            padding: const EdgeInsets.only(top: 10.0),
             child: IconButton(
-              icon: Icon(
-                Icons.menu,
-                color: Colors.black,
-                size: 40, // Increased the size of the menu icon
-              ),
+              icon: const Icon(Icons.menu, color: Colors.black, size: 40),
               onPressed: () {
                 // Handle menu tap
               },
             ),
           ),
-          elevation: 0, // Removes the shadow below the AppBar
+          elevation: 0,
         ),
       ),
       body: Column(
@@ -38,15 +84,15 @@ class Home extends StatelessWidget {
             child: Container(
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 20.0),
-              height: 80, // Height of the rectangle
+              height: 80,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.black, width: 2),
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Center(
                 child: Text(
-                  'Steps',
-                  style: TextStyle(
+                  'Steps: $_steps', // Display the fetched step count
+                  style: const TextStyle(
                     color: Colors.black,
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
@@ -63,14 +109,12 @@ class Home extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Daily Challenge
                 GestureDetector(
                   onTap: () {
-                    // Handle Daily Challenge tap
                     print("Daily Challenge tapped!");
                   },
                   child: Column(
-                    children: [
+                    children: const [
                       Icon(
                         Icons.sports_martial_arts,
                         size: 40,
@@ -81,15 +125,12 @@ class Home extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // Events
                 GestureDetector(
                   onTap: () {
-                    // Handle Events tap
                     print("Events tapped!");
                   },
                   child: Column(
-                    children: [
+                    children: const [
                       Icon(
                         Icons.calendar_today,
                         size: 40,
@@ -103,7 +144,7 @@ class Home extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: 60),
+          const SizedBox(height: 60),
           // Character and steps display
           Center(
             child: Column(
@@ -115,7 +156,7 @@ class Home extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.grey, width: 2),
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Icon(
                       Icons.person,
                       size: 100,
@@ -126,27 +167,21 @@ class Home extends StatelessWidget {
               ],
             ),
           ),
-
-          // Spacer for pushing the icons to the bottom
-          Spacer(),
-
-          // Bottom row with Solo Mode, Health Tracker, and Challenge Friends
+          const Spacer(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                // Solo Mode
                 GestureDetector(
                   onTap: () {
-                    // Handle Solo Mode tap
                     print("Solo Mode tapped!");
                   },
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 10.0), // Adjust here
+                    padding: const EdgeInsets.only(left: 10.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
+                      children: const [
                         Icon(
                           Icons.gamepad,
                           size: 40,
@@ -158,18 +193,15 @@ class Home extends StatelessWidget {
                     ),
                   ),
                 ),
-
-                // Health Tracker (moved slightly right)
                 GestureDetector(
                   onTap: () {
-                    // Handle Health Tracker tap
                     print("Health Tracker tapped!");
                   },
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 20.0), // Adjust here
+                    padding: const EdgeInsets.only(left: 20.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
+                      children: const [
                         Icon(
                           Icons.health_and_safety,
                           size: 40,
@@ -181,16 +213,13 @@ class Home extends StatelessWidget {
                     ),
                   ),
                 ),
-
-                // Challenge Friends
                 GestureDetector(
                   onTap: () {
-                    // Handle Challenge Friends tap
                     print("Challenge Friends tapped!");
                   },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
+                    children: const [
                       Icon(
                         Icons.group,
                         size: 40,
@@ -204,9 +233,7 @@ class Home extends StatelessWidget {
               ],
             ),
           ),
-
-          // Adds space below the icons to position them at the bottom
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
         ],
       ),
     );

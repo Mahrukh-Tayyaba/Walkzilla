@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+ <resources>
+    <string name="app_name">walkzilla</string>
+    <string name="facebook_app_id">1706412086963998</string>
+    <string name="fb_login_protocol_scheme">fb1706412086963998</string>
+    <string name="facebook_client_token">d43d54c838dd1c16b96553b089b08cff</string> 
+</resources> 
