@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'welcome_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -9,75 +10,57 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  late VideoPlayerController _controller;
+
   @override
   void initState() {
     super.initState();
-    _navigateToWelcomeScreen();
+    _controller = VideoPlayerController.asset('assets/videos/splash-screen.mp4')
+      ..initialize().then((_) {
+        setState(() {});
+        _controller.play();
+        _controller.setLooping(false);
+        _navigateToWelcomeScreen();
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   void _navigateToWelcomeScreen() async {
-    await Future.delayed(const Duration(seconds: 5)); // Set splash duration
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-    );
+    await Future.delayed(const Duration(seconds: 5));
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFD9D9D9),
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Ground (GIF) at the bottom
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              'assets/gifs/ground.gif',
-              height: 150, // Adjust height as needed
-              width: MediaQuery.of(context).size.width,
-              fit: BoxFit.cover, // Make the GIF span the full width
+          if (_controller.value.isInitialized)
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller.value.size.width,
+                  height: _controller.value.size.height,
+                  child: VideoPlayer(_controller),
+                ),
+              ),
+            )
+          else
+            const Center(
+              child: CircularProgressIndicator(),
             ),
-          ),
-
-          // Dino Image (centered above ground)
-          Positioned(
-            bottom: 60, // Positioned above the ground
-            left: MediaQuery.of(context).size.width / 2 -
-                160, // Center horizontally
-            child: Image.asset(
-              'assets/images/dino.png',
-              height: 300,
-              width: 300,
-            ),
-          ),
-
-          // Walkzilla Logo (GIF) at the top
-          Positioned(
-            top: 60,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              'assets/gifs/logo.gif',
-              height: 200,
-              width: 600,
-              fit: BoxFit.contain,
-            ),
-          ),
-
-          // Tagline (GIF) below the logo
-          Positioned(
-            top: 220,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              'assets/gifs/tagline.gif',
-              height: 100,
-              fit: BoxFit.contain,
-            ),
-          ),
         ],
       ),
     );

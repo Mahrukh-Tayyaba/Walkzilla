@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+
+import 'welcome_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +22,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.pink,
       ),
-      home: const SplashScreen(),
+      home: kDebugMode ? WelcomeScreen() : const SplashScreen(),
     );
   }
 }
