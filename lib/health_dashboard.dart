@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'home.dart';
 import 'dart:async';
+import 'steps_screen.dart';
 
 class HealthDashboard extends StatefulWidget {
   const HealthDashboard({super.key});
@@ -24,7 +25,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
   String _reminderFrequency = 'Every 2 hours';
   bool _notificationsEnabled = true;
   int _currentWaterGlasses = 0;
-  DateTime _lastReminderTime = DateTime.now();
+  final DateTime _lastReminderTime = DateTime.now();
   bool _isReminderActive = false;
   Timer? _reminderTimer;
 
@@ -186,200 +187,209 @@ class _HealthDashboardState extends State<HealthDashboard> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Hydration Reminder Setup',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 20),
-                          onPressed: () => Navigator.pop(context),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Set your daily water intake goal and get reminders throughout the day.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'How many glasses of water do you want to drink today?',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () {
-                            if (tempWaterGlasses > 1) {
-                              setState(() => tempWaterGlasses--);
-                            }
-                          },
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 16),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Icon(Icons.water_drop,
-                                color: Colors.blue[400], size: 20),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$tempWaterGlasses glasses',
-                              style: const TextStyle(
+              child: SingleChildScrollView(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.85,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Hydration Reminder Setup',
+                              style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: () => Navigator.pop(context),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Set your daily water intake goal and get reminders throughout the day.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
                         ),
-                        const SizedBox(width: 16),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'How many glasses of water do you want to drink today?',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline),
+                            onPressed: () {
+                              if (tempWaterGlasses > 1) {
+                                setState(() => tempWaterGlasses--);
+                              }
+                            },
+                            color: Colors.blue,
+                            padding: EdgeInsets.zero,
+                          ),
+                          const SizedBox(width: 16),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Icon(Icons.water_drop,
+                                  color: Colors.blue[400], size: 20),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$tempWaterGlasses glasses',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 16),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline),
+                            onPressed: () {
+                              setState(() => tempWaterGlasses++);
+                            },
+                            color: Colors.blue,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Reminder Frequency',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 45,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade200),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: tempReminderFrequency,
+                            isExpanded: true,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            items: [
+                              'Every hour',
+                              'Every 2 hours',
+                              'Every 3 hours',
+                              'Every 4 hours'
+                            ].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(
+                                  value,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(
+                                    () => tempReminderFrequency = newValue);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Enable Notifications',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: tempNotificationsEnabled,
+                            onChanged: (bool value) {
+                              setState(() => tempNotificationsEnabled = value);
+                            },
+                            activeColor: Colors.green,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
                           onPressed: () {
-                            setState(() => tempWaterGlasses++);
-                          },
-                          color: Colors.blue,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Reminder Frequency',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: tempReminderFrequency,
-                          isExpanded: true,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          items: [
-                            'Every hour',
-                            'Every 2 hours',
-                            'Every 3 hours',
-                            'Every 4 hours'
-                          ].map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(
-                                value,
-                                style: const TextStyle(fontSize: 14),
+                            // Save all changes
+                            this.setState(() {
+                              _waterGlasses = tempWaterGlasses;
+                              _reminderFrequency = tempReminderFrequency;
+                              _notificationsEnabled = tempNotificationsEnabled;
+                              _isReminderActive = tempNotificationsEnabled;
+                              _currentWaterGlasses =
+                                  0; // Reset current glasses count
+                            });
+
+                            // Setup reminder if enabled
+                            if (tempNotificationsEnabled) {
+                              _setupWaterReminder();
+                            } else {
+                              _stopReminder();
+                            }
+
+                            Navigator.pop(context);
+
+                            // Show confirmation
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                    'Water reminder settings saved!'),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() => tempReminderFrequency = newValue);
-                            }
                           },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Enable Notifications',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Switch.adaptive(
-                          value: tempNotificationsEnabled,
-                          onChanged: (bool value) {
-                            setState(() => tempNotificationsEnabled = value);
-                          },
-                          activeColor: Colors.green,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Save all changes
-                          this.setState(() {
-                            _waterGlasses = tempWaterGlasses;
-                            _reminderFrequency = tempReminderFrequency;
-                            _notificationsEnabled = tempNotificationsEnabled;
-                            _isReminderActive = tempNotificationsEnabled;
-                            _currentWaterGlasses =
-                                0; // Reset current glasses count
-                          });
-
-                          // Setup reminder if enabled
-                          if (tempNotificationsEnabled) {
-                            _setupWaterReminder();
-                          } else {
-                            _stopReminder();
-                          }
-
-                          Navigator.pop(context);
-
-                          // Show confirmation
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  const Text('Water reminder settings saved!'),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1A237E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A237E),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ),
-                        child: const Text(
-                          'Set Goal',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                          child: const Text(
+                            'Set Goal',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -506,9 +516,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F8F8),
+        backgroundColor: const Color(0xFFF5F5F5),
         // elevation: 2,
         shadowColor: Colors.black.withOpacity(0.1),
         centerTitle: false,
@@ -525,29 +535,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.grey.shade200,
-                  width: 1,
-                ),
-              ),
-              child: CircleAvatar(
-                backgroundColor: Colors.grey[200],
-                radius: 18,
-                child: const Icon(
-                  Icons.person_outline_rounded,
-                  color: Colors.black54,
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -571,18 +558,22 @@ class _HealthDashboardState extends State<HealthDashboard> {
               Row(
                 children: [
                   Expanded(
-                      child: _buildMetricCard(
-                          'Calories',
-                          '${_calories.toInt()} kcal',
-                          Icons.bolt_rounded,
-                          Colors.orange)),
+                    child: _buildMetricCard(
+                      'Calories',
+                      '${_calories.toInt()} kcal',
+                      Icons.bolt_rounded,
+                      Colors.orange,
+                    ),
+                  ),
                   const SizedBox(width: 16),
                   Expanded(
-                      child: _buildMetricCard(
-                          'Heart Rate',
-                          '${_heartRate.toInt()} BPM',
-                          Icons.favorite,
-                          Colors.red)),
+                    child: _buildMetricCard(
+                      'Heart Rate',
+                      '${_heartRate.toInt()} BPM',
+                      Icons.favorite,
+                      Colors.red,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -704,100 +695,137 @@ class _HealthDashboardState extends State<HealthDashboard> {
   }
 
   Widget _buildStepsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    // Dummy data for steps
+    final List<double> weeklySteps = [2000, 2500, 5000, 2800, 4500, 3800, 2580];
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StepsScreen(
+              currentSteps: weeklySteps.last.toInt(),
+              goalSteps: _goalSteps,
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.directions_walk, color: Colors.green),
-              ),
-              const SizedBox(width: 12),
-              Column(
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2E7D32).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.directions_walk,
+                            color: Color(0xFF2E7D32), size: 18),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Steps',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${weeklySteps.last.toInt()} steps',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
                   const Text(
-                    'Steps',
+                    'Today',
                     style: TextStyle(
                       color: Colors.black54,
-                      fontSize: 16,
+                      fontSize: 13,
                     ),
                   ),
-                  Text(
-                    '$_steps',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            height: 100,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: 10000,
-                barTouchData: BarTouchData(enabled: false),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                        return Text(
-                          days[value.toInt()],
-                          style: const TextStyle(
-                              color: Colors.black54, fontSize: 12),
-                        );
-                      },
-                      reservedSize: 22,
-                    ),
-                  ),
-                  leftTitles:
-                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles:
-                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles:
-                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                borderData: FlBorderData(show: false),
-                gridData: FlGridData(show: false),
-                barGroups: [
-                  _generateBarGroup(0, 5000),
-                  _generateBarGroup(1, 6000),
-                  _generateBarGroup(2, 7500),
-                  _generateBarGroup(3, 5500),
-                  _generateBarGroup(4, 8000),
-                  _generateBarGroup(5, 7000),
-                  _generateBarGroup(6, _steps.toDouble()),
                 ],
               ),
             ),
-          ),
-        ],
+            Expanded(
+              flex: 3,
+              child: SizedBox(
+                height: 80,
+                child: BarChart(
+                  BarChartData(
+                    groupsSpace: 6,
+                    alignment: BarChartAlignment.spaceEvenly,
+                    maxY: 6000,
+                    minY: 0,
+                    barTouchData: BarTouchData(enabled: false),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            final now = DateTime.now();
+                            final date =
+                                now.subtract(Duration(days: 6 - value.toInt()));
+                            final dayInitial = DateFormat('E').format(date)[0];
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 5.0),
+                              child: Text(
+                                dayInitial,
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          },
+                          reservedSize: 16,
+                        ),
+                      ),
+                      leftTitles:
+                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles:
+                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles:
+                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    gridData: FlGridData(show: false),
+                    barGroups: List.generate(
+                        7,
+                        (index) =>
+                            _generateBarGroup(index, weeklySteps[index])),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -808,11 +836,14 @@ class _HealthDashboardState extends State<HealthDashboard> {
       barRods: [
         BarChartRodData(
           toY: y,
-          color: Colors.green,
-          width: 12,
-          borderRadius: BorderRadius.circular(4),
+          color: const Color(0xFF2E7D32),
+          width: 18,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(3),
+            topRight: Radius.circular(3),
+          ),
           backDrawRodData: BackgroundBarChartRodData(
-            show: true,
+            show: false,
             toY: 10000,
             color: Colors.grey[200],
           ),
@@ -824,7 +855,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
   Widget _buildMetricCard(
       String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -837,34 +868,39 @@ class _HealthDashboardState extends State<HealthDashboard> {
         ],
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color),
+            child: Icon(icon, color: color, size: 16),
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.black54,
-                  fontSize: 14,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 13,
+                  ),
                 ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                Text(
+                  value,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -962,8 +998,11 @@ class _HealthDashboardState extends State<HealthDashboard> {
   }
 
   Widget _buildGoalSection() {
-    final progress = _steps / _goalSteps;
-    final remainingSteps = _goalSteps - _steps;
+    // Dummy data for steps
+    final List<double> weeklySteps = [2000, 2500, 5000, 2800, 4500, 3800, 2580];
+    final currentSteps = weeklySteps.last.toInt();
+    final progress = currentSteps / _goalSteps;
+    final remainingSteps = _goalSteps - currentSteps;
 
     return Container(
       width: double.infinity,
@@ -1085,7 +1124,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Today: ${_steps.toString()} steps',
+                  'Today: $currentSteps steps',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -1093,7 +1132,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                   ),
                 ),
                 Text(
-                  '${remainingSteps.toString()} steps to go',
+                  '$remainingSteps steps to go',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,

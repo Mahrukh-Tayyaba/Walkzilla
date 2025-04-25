@@ -15,57 +15,162 @@ class _HomeState extends State<Home> {
   final health = Health();
   int _steps = 0; // Step count variable
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _isLoading = true;
+
+  Future<void> _showPermissionDialog() async {
+    if (!mounted) return;
+
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Health Data Access Required'),
+          content: const Text(
+            'Walkzilla needs access to your step count data to track your daily activity. '
+            'Please grant the necessary permissions to continue.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() => _isLoading = false);
+              },
+            ),
+            TextButton(
+              child: const Text('Grant Permission'),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _requestHealthPermissions();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _requestHealthPermissions() async {
+    setState(() => _isLoading = true);
+    final types = [HealthDataType.STEPS];
+
+    try {
+      // First check if we have permission
+      bool? hasPermissions =
+          await health.hasPermissions([HealthDataType.STEPS]);
+
+      // If we don't have permissions, show the dialog
+      if (hasPermissions == null || !hasPermissions) {
+        if (!mounted) return;
+        await _showPermissionDialog();
+        return;
+      }
+
+      bool permissionsGranted =
+          await health.requestAuthorization([HealthDataType.STEPS]);
+
+      if (permissionsGranted) {
+        await fetchSteps();
+      } else {
+        if (!mounted) return;
+        // Show dialog again if permissions not granted
+        await _showPermissionDialog();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      print("Permission error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error requesting permissions: ${e.toString()}'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _requestHealthPermissions(),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    fetchSteps();
+    // Delay the permission request slightly to ensure the context is ready
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _requestHealthPermissions();
+    });
   }
 
-  // Function to fetch steps
   Future<void> fetchSteps() async {
     final types = [HealthDataType.STEPS];
-    final startDate = DateTime.now().subtract(const Duration(days: 1));
+
+    // Set start date to beginning of today
+    final startDate = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
     final endDate = DateTime.now();
 
     try {
-      // Request permissions
-      bool permissionsGranted = await health.requestAuthorization(types);
-
-      if (permissionsGranted) {
-        // Fetch step data
-        List<HealthDataPoint> healthData =
-            await health.getHealthAggregateDataFromTypes(
-          endDate: endDate,
-          startDate: startDate,
-          types: types,
-        );
-
-        if (!mounted) return;
-
-        // Calculate total steps
-        int totalSteps = healthData.fold<int>(
-          0,
-          (previousValue, element) =>
-              previousValue + (element.value as int? ?? 0),
-        );
-
-        setState(() {
-          _steps = totalSteps;
-        });
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Health permissions not granted")),
-        );
+      // Check permissions before fetching
+      bool? hasPermissions = await health.hasPermissions(types);
+      if (hasPermissions == null || !hasPermissions) {
+        await _requestHealthPermissions();
+        return;
       }
+
+      // Fetch step data
+      List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
+        startTime: startDate,
+        endTime: endDate,
+        types: types,
+      );
+
+      if (!mounted) return;
+
+      // Calculate total steps
+      int totalSteps = healthData.fold<int>(
+        0,
+        (previousValue, element) =>
+            previousValue +
+            (element.value as NumericHealthValue).numericValue.toInt(),
+      );
+
+      setState(() {
+        _steps = totalSteps;
+        _isLoading = false;
+      });
     } catch (e) {
       if (!mounted) return;
       print("Error fetching health data: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Unable to fetch step count")),
+        SnackBar(
+          content: const Text("Unable to fetch step count"),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => fetchSteps(),
+          ),
+        ),
       );
+      setState(() => _isLoading = false);
     }
+  }
+
+  // Add a method to refresh steps periodically
+  void _startStepRefresh() {
+    // Refresh steps every 5 minutes
+    Future.delayed(const Duration(minutes: 5), () {
+      if (mounted) {
+        fetchSteps();
+        _startStepRefresh(); // Schedule next refresh
+      }
+    });
   }
 
   Future<void> _logout() async {
@@ -177,14 +282,16 @@ class _HomeState extends State<Home> {
                           ],
                         ),
                         child: Center(
-                          child: Text(
-                            'Steps: $_steps',
-                            style: const TextStyle(
-                              color: Color(0xFF2D2D2D),
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator()
+                              : Text(
+                                  'Steps: $_steps',
+                                  style: const TextStyle(
+                                    color: Color(0xFF2D2D2D),
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
 
