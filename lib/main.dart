@@ -3,20 +3,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
-
 import 'welcome_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    print('Flutter binding initialized');
 
-  // Set preferred orientations to portrait only
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+    // Set preferred orientations to portrait only
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    print('Screen orientation set');
 
-  await Firebase.initializeApp();
-  runApp(const MyApp());
+    try {
+      await Firebase.initializeApp();
+      print('Firebase initialized successfully');
+    } catch (e) {
+      print('Error initializing Firebase: $e');
+      // Continue without Firebase for now
+    }
+
+    runApp(const MyApp());
+    print('App started successfully');
+  } catch (e) {
+    print('Error in main: $e');
+    // Show some UI even if there's an error
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text('Error initializing app: $e'),
+        ),
+      ),
+    ));
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -26,11 +47,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Auth UI',
+      title: 'Walkzilla',
       theme: ThemeData(
-        primarySwatch: Colors.pink,
+        primarySwatch: Colors.orange,
+        scaffoldBackgroundColor: Colors.white,
       ),
-      home: kDebugMode ? WelcomeScreen() : const SplashScreen(),
+      home: kDebugMode ? const WelcomeScreen() : const SplashScreen(),
     );
   }
 }

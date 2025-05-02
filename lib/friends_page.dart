@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:health/health.dart';
 import 'health_dashboard.dart'; // Import the health dashboard screen
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
-import 'services/health_service.dart';
+import 'notification_page.dart';
+import 'profile_page.dart';
+import 'settings_page.dart';
+import 'friends_page.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -14,86 +16,60 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  final HealthService _healthService = HealthService();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  int _steps = 0;
-  double _calories = 0.0;
-  double _heartRate = 0.0;
+  final health = Health();
+  int _steps = 0; // Step count variable
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchHealthData();
-    _startHealthDataRefresh();
+    fetchSteps();
   }
 
-  Future<void> _fetchHealthData() async {
-    if (!mounted) return;
-
-    setState(() => _isLoading = true);
+  // Function to fetch steps
+  Future<void> fetchSteps() async {
+    final types = [HealthDataType.STEPS];
+    final startDate = DateTime.now().subtract(const Duration(days: 1));
+    final endDate = DateTime.now();
 
     try {
-      print("Starting health data fetch...");
-      // First check if we have permissions
-      bool hasPermissions = await _healthService.checkExistingPermissions();
+      // Check if we have permissions
+      bool? hasPermissions = await health.hasPermissions(types);
 
-      print("Health permissions status: $hasPermissions");
+      if (hasPermissions == true) {
+        // Fetch step data
+        List<HealthDataPoint> healthData =
+            await health.getHealthAggregateDataFromTypes(
+          endDate: endDate,
+          startDate: startDate,
+          types: types,
+        );
 
-      if (!hasPermissions) {
-        print("No health permissions granted");
+        if (!mounted) return;
+
+        // Calculate total steps
+        int totalSteps = healthData.fold<int>(
+          0,
+          (previousValue, element) =>
+              previousValue + (element.value as int? ?? 0),
+        );
+
+        setState(() {
+          _steps = totalSteps;
+        });
+      } else {
         if (!mounted) return;
         setState(() {
           _steps = 0;
-          _heartRate = 0.0;
-          _calories = 0.0;
-          _isLoading = false;
         });
-        return;
       }
-
-      print("Fetching health data from service...");
-      final healthData = await _healthService.fetchHealthData();
-
-      if (!mounted) return;
-
-      // Extract data from the nested structure
-      final stepsData = healthData['steps'] as Map<String, dynamic>;
-      final heartRateData = healthData['heartRate'] as Map<String, dynamic>;
-      final caloriesData = healthData['calories'] as Map<String, dynamic>;
-
-      setState(() {
-        _steps = stepsData['count'] as int;
-        _heartRate = (heartRateData['beatsPerMinute'] as num).toDouble();
-        _calories =
-            (caloriesData['energy']['inKilocalories'] as num).toDouble();
-        _isLoading = false;
-      });
-
-      print(
-          "Updated UI with health data: Steps: $_steps, Heart Rate: $_heartRate, Calories: $_calories");
     } catch (e) {
+      if (!mounted) return;
       print("Error fetching health data: $e");
-      if (mounted) {
-        setState(() {
-          _steps = 0;
-          _heartRate = 0.0;
-          _calories = 0.0;
-          _isLoading = false;
-        });
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Unable to fetch step count")),
+      );
     }
-  }
-
-  void _startHealthDataRefresh() {
-    // Refresh health data every 5 minutes
-    Future.delayed(const Duration(minutes: 5), () {
-      if (mounted) {
-        _fetchHealthData();
-        _startHealthDataRefresh(); // Schedule next refresh
-      }
-    });
   }
 
   Future<void> _logout() async {
@@ -205,16 +181,14 @@ class _HomeState extends State<Home> {
                           ],
                         ),
                         child: Center(
-                          child: _isLoading
-                              ? const CircularProgressIndicator()
-                              : Text(
-                                  'Steps: $_steps',
-                                  style: const TextStyle(
-                                    color: Color(0xFF2D2D2D),
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                          child: Text(
+                            'Steps: $_steps',
+                            style: const TextStyle(
+                              color: Color(0xFF2D2D2D),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
 
@@ -331,80 +305,135 @@ class _HomeState extends State<Home> {
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.95),
           ),
-          child: ListView(
-            padding: EdgeInsets.zero,
+          child: Column(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                padding: const EdgeInsets.only(
+                  top: 50,
+                  bottom: 25,
+                  left: 20,
+                  right: 20,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.blue[400]!.withOpacity(0.9),
-                      Colors.blue[300]!.withOpacity(0.9),
+                      Colors.orange[400]!.withOpacity(0.9),
+                      Colors.orange[300]!.withOpacity(0.9),
                     ],
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white.withOpacity(0.9),
-                      child: Icon(
-                        Icons.person,
-                        size: 45,
-                        color: Colors.blue[300],
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ProfilePage()),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 35,
+                          backgroundColor: Colors.white.withOpacity(0.9),
+                          child: Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.orange[300],
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      "Dummy MCC",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Tayyaba Amanat",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                "Premium Member",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Group: dairy, User Type: ChillingPlant",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
               _buildDrawerItem(
-                icon: Icons.home_outlined,
-                title: "Home",
-                onTap: () => Navigator.pop(context),
+                icon: Icons.notifications_active_outlined,
+                title: "Notifications",
+                notificationCount: 2,
+                color: Colors.blue,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const NotificationPage()),
+                  );
+                },
               ),
               _buildDrawerItem(
-                icon: Icons.history_outlined,
-                title: "Order History",
+                icon: Icons.alarm_outlined,
+                title: "Reminders",
+                color: Colors.purple,
                 onTap: () {},
               ),
               _buildDrawerItem(
-                icon: Icons.payment_outlined,
-                title: "Payment History",
+                icon: Icons.people_outlined,
+                title: "Friends",
+                color: Colors.green,
                 onTap: () {},
               ),
               _buildDrawerItem(
                 icon: Icons.settings_outlined,
                 title: "Settings",
-                onTap: () {},
+                color: Colors.grey[700],
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const SettingsPage()),
+                  );
+                },
               ),
-              _buildDrawerItem(
-                icon: Icons.system_update_outlined,
-                title: "Update",
-                onTap: () {},
-              ),
+              const Spacer(),
+              const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Divider(
@@ -418,6 +447,7 @@ class _HomeState extends State<Home> {
                 color: Colors.red[400]!,
                 onTap: _logout,
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -532,22 +562,54 @@ class _HomeState extends State<Home> {
     required String title,
     required VoidCallback onTap,
     Color? color,
+    double? iconSize,
+    int? notificationCount,
   }) {
     final itemColor = color ?? Colors.grey[700]!;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: itemColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          color: itemColor,
-          size: 24,
-        ),
+      leading: Stack(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: itemColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: itemColor,
+              size: iconSize ?? 24,
+            ),
+          ),
+          if (notificationCount != null && notificationCount > 0)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 20,
+                  minHeight: 20,
+                ),
+                child: Text(
+                  notificationCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
       ),
       title: Text(
         title,
@@ -562,6 +624,33 @@ class _HomeState extends State<Home> {
         borderRadius: BorderRadius.circular(10),
       ),
       hoverColor: itemColor.withOpacity(0.05),
+    );
+  }
+}
+
+class FriendsPage extends StatefulWidget {
+  const FriendsPage({super.key});
+
+  @override
+  State<FriendsPage> createState() => _FriendsPageState();
+}
+
+class _FriendsPageState extends State<FriendsPage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Friends'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: const Center(
+        child: Text(
+          'Friends Page',
+          style: TextStyle(fontSize: 24),
+        ),
+      ),
     );
   }
 }

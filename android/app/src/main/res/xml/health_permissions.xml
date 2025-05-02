@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<permissions>
+    <permission name="android.permission.health.READ_STEPS">
+        <description>Read your daily step count</description>
+        <reason>To track your daily activity and progress</reason>
+    </permission>
+    <permission name="android.permission.health.WRITE_STEPS">
+        <description>Record your steps</description>
+        <reason>To save your walking and running activity</reason>
+    </permission>
+    <permission name="android.permission.health.READ_HEART_RATE">
+        <description>Read your heart rate data</description>
+        <reason>To monitor your heart rate during activities</reason>
+    </permission>
+    <permission name="android.permission.health.READ_ACTIVE_CALORIES_BURNED">
+        <description>Read calories burned</description>
+        <reason>To track calories burned during activities</reason>
+    </permission>
+</permissions> 

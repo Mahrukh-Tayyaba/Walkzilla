@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ForgotPasswordScreen.dart'; // Import the ForgotPasswordScreen
+import 'services/health_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,7 @@ class LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final HealthService _healthService = HealthService();
 
   bool _isPasswordVisible = false; // Toggle password visibility
   bool _isLoading = false; // Show loading indicator
@@ -26,19 +28,124 @@ class LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _checkAuthState();
+    // Remove the automatic auth state check on login screen
+    // _checkAuthState();
   }
 
   Future<void> _checkAuthState() async {
-    _auth.authStateChanges().listen((User? user) {
-      if (user != null && mounted) {
+    final user = _auth.currentUser;
+    if (user != null && mounted) {
+      // Only navigate to home if user is verified
+      if (user.emailVerified) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const Home()),
+          (route) => false,
+        );
+      } else {
+        // If email is not verified, sign out the user
+        await _auth.signOut();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Please verify your email before logging in."),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleSuccessfulLogin(UserCredential userCredential) async {
+    try {
+      // Get the user's document from Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      // Create user document if it doesn't exist (needed for Google Sign In)
+      if (!userDoc.exists) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+          'email': userCredential.user!.email,
+          'username': userCredential.user!.displayName ??
+              userCredential.user!.email?.split('@')[0],
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'hasHealthPermissions': false,
+          'profileImage': userCredential.user!.photoURL,
+          'bio': '',
+          'steps': 0,
+          'distance': 0.0,
+          'calories': 0,
+          'weeklyGoal': 0,
+          'monthlyGoal': 0,
+        });
+      }
+
+      // Update last login time
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .update({
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      // Check and request health permissions before navigation
+      final bool hasHealthPermissions = userDoc.exists
+          ? (userDoc.data()?['hasHealthPermissions'] ?? false)
+          : false;
+
+      if (!hasHealthPermissions) {
+        bool permissionsGranted =
+            await _healthService.requestHealthPermissions(context);
+
+        if (permissionsGranted) {
+          // Update the permissions status in Firestore
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .update({
+            'hasHealthPermissions': true,
+          });
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "Some features may be limited without health data access."),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+      }
+
+      // Navigate to home screen after permissions are handled
+      if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const Home()),
           (route) => false,
         );
       }
-    });
+    } catch (e) {
+      print('Error in handling successful login: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              "Error setting up health permissions. Some features may be limited."),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   Future<void> _login(BuildContext context) async {
@@ -47,52 +154,109 @@ class LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login successful!")),
-      );
+      if (!mounted) return;
+      await _handleSuccessfulLogin(userCredential);
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = "An error occurred";
+      if (e.code == 'user-not-found') {
+        errorMessage = 'No user found with this email.';
+      } else if (e.code == 'wrong-password') {
+        errorMessage = 'Wrong password provided.';
+      } else if (e.code == 'invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (e.code == 'user-disabled') {
+        errorMessage = 'This account has been disabled.';
+      } else if (e.code == 'too-many-requests') {
+        errorMessage =
+            'Too many failed login attempts. Please try again later.';
+      }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Home()),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $errorMessage")),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: ${e.toString()}")),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> signInWithGoogle() async {
     try {
+      setState(() => _isLoading = true);
+
+      // Initialize Google Sign In
       final GoogleSignIn googleSignIn = GoogleSignIn();
+
+      // Sign out first to ensure a fresh sign-in attempt
       await googleSignIn.signOut();
+
+      // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return;
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      // If user cancels the sign-in flow
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+      try {
+        // Get auth details from request
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Home()),
-      );
+        // Create credential
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // Sign in with Firebase
+        final UserCredential userCredential =
+            await FirebaseAuth.instance.signInWithCredential(credential);
+
+        // Google Sign In users are automatically email verified
+        // No need to manually verify their email
+
+        if (!mounted) return;
+        await _handleSuccessfulLogin(userCredential);
+      } catch (e) {
+        print('Error during Google Sign In: $e');
+        if (!mounted) return;
+        await googleSignIn.signOut(); // Sign out from Google
+        await FirebaseAuth.instance.signOut(); // Sign out from Firebase
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to sign in with Google. Please try again.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
+      print('Error in Google Sign In: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
+        const SnackBar(
+          content: Text('Failed to sign in with Google. Please try again.'),
+          duration: Duration(seconds: 3),
+        ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -172,18 +336,19 @@ class LoginScreenState extends State<LoginScreen> {
                     ),
                     child: TextFormField(
                       controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(
                             vertical: 18.0, horizontal: 16.0),
-                        hintText: 'Enter your Username',
+                        hintText: 'Enter your Email',
                         hintStyle: GoogleFonts.poppins(
                           color: const Color.fromARGB(255, 76, 73, 73),
                           fontSize: 14,
                         ),
                         prefixIcon:
-                            const Icon(Icons.person, color: Color(0xFFFEB14C)),
+                            const Icon(Icons.email, color: Color(0xFFFEB14C)),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -202,7 +367,12 @@ class LoginScreenState extends State<LoginScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your username';
+                          return 'Please enter your email';
+                        }
+                        final emailRegex =
+                            RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        if (!emailRegex.hasMatch(value)) {
+                          return 'Please enter a valid email address';
                         }
                         return null;
                       },
@@ -322,7 +492,7 @@ class LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     child: ElevatedButton(
-                      onPressed: () => _login(context),
+                      onPressed: _isLoading ? null : () => _login(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         foregroundColor: Colors.white,
@@ -374,12 +544,12 @@ class LoginScreenState extends State<LoginScreen> {
                     children: [
                       _buildSocialButton(
                         'assets/images/google-logo-icon.png',
-                        onTap: signInWithGoogle,
+                        onTap: _isLoading ? null : signInWithGoogle,
                       ),
                       const SizedBox(width: 16),
                       _buildSocialButton(
                         'assets/images/apple-Icon.png',
-                        onTap: () {},
+                        onTap: null,
                       ),
                     ],
                   ),
@@ -427,14 +597,14 @@ class LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildSocialButton(String imagePath, {required VoidCallback onTap}) {
+  Widget _buildSocialButton(String imagePath, {VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 120,
         height: 55,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: onTap == null ? Colors.grey[200] : Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -448,60 +618,10 @@ class LoginScreenState extends State<LoginScreen> {
           child: Image.asset(
             imagePath,
             height: 24,
+            color: onTap == null ? Colors.grey[400] : null,
           ),
         ),
       ),
     );
-  }
-}
-
-class GoogleSignInProvider {
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  Future<void> signInWithGoogle() async {
-    try {
-      // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      // Obtain the auth details from the request
-      final GoogleSignInAuthentication? googleAuth =
-          await googleUser?.authentication;
-
-      // Create a new credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth?.accessToken,
-        idToken: googleAuth?.idToken,
-      );
-
-      // Sign in to Firebase with the Google user credential
-      UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
-
-      // Get the user
-      User? user = userCredential.user;
-
-      if (user != null) {
-        // Check if the user already exists in Firestore
-        DocumentSnapshot userDoc =
-            await _firestore.collection('users').doc(user.uid).get();
-
-        if (!userDoc.exists) {
-          // If the user does not exist, create a new document
-          await _firestore.collection('users').doc(user.uid).set({
-            'name': user.displayName,
-            'email': user.email,
-            'photoURL': user.photoURL,
-            'lastSignInTime': user.metadata.lastSignInTime,
-          });
-        } else {
-          // User already exists, proceed with login
-          print("User already exists, logging in...");
-        }
-      }
-    } catch (e) {
-      print("Error signing in with Google: $e");
-    }
   }
 }

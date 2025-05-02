@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.walkzilla"
+    namespace = "com.mt.walkzilla"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

@@ -32,7 +32,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
   @override
   void initState() {
     super.initState();
-    fetchHealthData();
+    _initializeHealth();
     _setupWaterReminder();
   }
 
@@ -40,6 +40,34 @@ class _HealthDashboardState extends State<HealthDashboard> {
   void dispose() {
     _reminderTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initializeHealth() async {
+    try {
+      bool isAndroid = Theme.of(context).platform == TargetPlatform.android;
+      if (isAndroid) {
+        // Check if Health Connect is available
+        bool? healthConnectAvailable = await health.hasPermissions([
+          HealthDataType.STEPS,
+          HealthDataType.ACTIVE_ENERGY_BURNED,
+          HealthDataType.HEART_RATE,
+        ], permissions: [
+          HealthDataAccess.READ,
+          HealthDataAccess.READ,
+          HealthDataAccess.READ,
+        ]);
+
+        if (healthConnectAvailable != true) {
+          // Show dialog to install Health Connect
+          _showHealthConnectInstallDialog();
+          return;
+        }
+      }
+
+      await fetchHealthData();
+    } catch (e) {
+      print("Error initializing health: $e");
+    }
   }
 
   Future<void> fetchHealthData() async {
@@ -50,17 +78,14 @@ class _HealthDashboardState extends State<HealthDashboard> {
     ];
     final now = DateTime.now();
     final midnight = DateTime(now.year, now.month, now.day);
-    final startDate = midnight;
-    final endDate = now;
 
     try {
       bool permissionsGranted = await health.requestAuthorization(types);
 
       if (permissionsGranted) {
-        // Get steps specifically
         List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
-          startTime: startDate,
-          endTime: endDate,
+          startTime: midnight,
+          endTime: now,
           types: types,
         );
 
@@ -87,10 +112,73 @@ class _HealthDashboardState extends State<HealthDashboard> {
         }
       } else {
         print("Permissions not granted");
+        // Show permission request dialog
+        _showPermissionRequestDialog();
       }
     } catch (e) {
       print("Error fetching health data: $e");
     }
+  }
+
+  void _showHealthConnectInstallDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Health Connect Required'),
+          content: const Text(
+            'This app requires Health Connect to track your health data. '
+            'Please install Health Connect from the Play Store to continue.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                // Open device settings since there's no direct method to open Health Connect settings
+                await health.requestAuthorization([
+                  HealthDataType.STEPS,
+                  HealthDataType.ACTIVE_ENERGY_BURNED,
+                  HealthDataType.HEART_RATE,
+                ]);
+              },
+              child: const Text('Grant Access'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPermissionRequestDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Health Permissions Required'),
+          content: const Text(
+            'This app needs access to your health data to track your activities. '
+            'Please grant the necessary permissions to continue.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await fetchHealthData();
+              },
+              child: const Text('Grant Permissions'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _onItemTapped(int index) {

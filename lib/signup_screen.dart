@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'home.dart'; // Import the HomeScreen
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
+import 'services/health_service.dart'; // Add this import
+import 'package:flutter/services.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -19,6 +21,7 @@ class SignupScreenState extends State<SignupScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  final HealthService _healthService = HealthService(); // Add this
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
@@ -26,20 +29,47 @@ class SignupScreenState extends State<SignupScreen> {
     if (_emailController.text.trim().isEmpty ||
         _passwordController.text.trim().isEmpty ||
         _usernameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("All fields are required")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("All fields are required")),
+        );
+      }
       return;
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Passwords do not match")),
+        );
+      }
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Password must be at least 6 characters")),
+        );
+      }
       return;
     }
 
     try {
+      // First check if email already exists
+      final methods = await FirebaseAuth.instance
+          .fetchSignInMethodsForEmail(_emailController.text.trim());
+      if (methods.isNotEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("An account already exists with this email")),
+          );
+        }
+        return;
+      }
+
       // Create authentication record
       final UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -63,16 +93,41 @@ class SignupScreenState extends State<SignupScreen> {
         'calories': 0,
         'weeklyGoal': 0,
         'monthlyGoal': 0,
+        'hasHealthPermissions': false,
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Signup successful!")),
-      );
+      // Request health permissions before navigation
+      if (mounted) {
+        bool permissionsGranted =
+            await _healthService.requestHealthPermissions(context);
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Home()),
-      );
+        if (permissionsGranted) {
+          // Update the permissions status in Firestore
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .update({
+            'hasHealthPermissions': true,
+          });
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "Some features may be limited without health data access."),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+
+        // Navigate to home screen after permissions are handled
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const Home()),
+          (route) => false,
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String errorMessage = "An error occurred";
       if (e.code == 'weak-password') {
@@ -81,14 +136,20 @@ class SignupScreenState extends State<SignupScreen> {
         errorMessage = 'An account already exists for that email.';
       } else if (e.code == 'invalid-email') {
         errorMessage = 'Please enter a valid email address.';
+      } else if (e.code == 'operation-not-allowed') {
+        errorMessage = 'Email/password accounts are not enabled.';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $errorMessage")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $errorMessage")),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
     }
   }
 
@@ -110,6 +171,14 @@ class SignupScreenState extends State<SignupScreen> {
       final UserCredential userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
 
+      // Check if this is a new user
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      bool isNewUser = !userDoc.exists;
+
       // Create/Update user profile in Firestore
       await FirebaseFirestore.instance
           .collection('users')
@@ -126,13 +195,48 @@ class SignupScreenState extends State<SignupScreen> {
         'calories': 0,
         'weeklyGoal': 0,
         'monthlyGoal': 0,
-      }, SetOptions(merge: true)); // merge: true will update existing documents
+        'hasHealthPermissions': false,
+      }, SetOptions(merge: true));
 
-      Navigator.pushReplacement(
+      if (!mounted) return;
+
+      // Navigate to home screen
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const Home()),
+        (route) => false,
       );
+
+      // After navigation, check and request health permissions if needed
+      if (mounted && isNewUser) {
+        // Small delay to ensure navigation is complete
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        bool permissionsGranted =
+            await _healthService.requestHealthPermissions(context);
+
+        if (permissionsGranted) {
+          // Update the permissions status in Firestore
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .update({
+            'hasHealthPermissions': true,
+          });
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "Some features may be limited without health data access."),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+      }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: ${e.toString()}")),
       );

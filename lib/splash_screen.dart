@@ -11,17 +11,36 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   late VideoPlayerController _controller;
+  bool _hasError = true; // Set to true to skip video playback
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/videos/splash-screen.mp4')
-      ..initialize().then((_) {
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      _controller =
+          VideoPlayerController.asset('assets/videos/splash-screen.mp4');
+
+      await _controller.initialize();
+      if (mounted) {
         setState(() {});
-        _controller.play();
-        _controller.setLooping(false);
+        // Commented out video playback
+        // _controller.play();
+        // _controller.setLooping(false);
         _navigateToWelcomeScreen();
-      });
+      }
+    } catch (e) {
+      print('Error initializing video: $e');
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+        });
+        _navigateToWelcomeScreen();
+      }
+    }
   }
 
   @override
@@ -31,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _navigateToWelcomeScreen() async {
-    await Future.delayed(const Duration(seconds: 5));
+    await Future.delayed(Duration(seconds: _hasError ? 2 : 5)); // Removed const
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -43,10 +62,10 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          if (_controller.value.isInitialized)
+          if (!_hasError && _controller.value.isInitialized)
             SizedBox.expand(
               child: FittedBox(
                 fit: BoxFit.cover,
@@ -58,8 +77,22 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             )
           else
-            const Center(
-              child: CircularProgressIndicator(),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/images/logo2.png',
+                    height: 150,
+                    width: 150,
+                  ),
+                  const SizedBox(height: 20),
+                  const CircularProgressIndicator(
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Color(0xFFFEB14C)),
+                  ),
+                ],
+              ),
             ),
         ],
       ),
