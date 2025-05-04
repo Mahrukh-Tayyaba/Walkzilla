@@ -264,6 +264,9 @@ class SignupScreenState extends State<SignupScreen> {
               // Username TextField
               TextFormField(
                 controller: _usernameController,
+                keyboardType: TextInputType.name,
+                textInputAction: TextInputAction.next,
+                enableInteractiveSelection: true,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
@@ -295,6 +298,9 @@ class SignupScreenState extends State<SignupScreen> {
               // Email TextField
               TextFormField(
                 controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                enableInteractiveSelection: true,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
@@ -326,6 +332,9 @@ class SignupScreenState extends State<SignupScreen> {
               TextFormField(
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
+                keyboardType: TextInputType.visiblePassword,
+                textInputAction: TextInputAction.next,
+                enableInteractiveSelection: true,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
@@ -376,6 +385,10 @@ class SignupScreenState extends State<SignupScreen> {
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: !_isConfirmPasswordVisible,
+                keyboardType: TextInputType.visiblePassword,
+                textInputAction: TextInputAction.done,
+                enableInteractiveSelection: true,
+                onFieldSubmitted: (_) => _signup(context),
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,

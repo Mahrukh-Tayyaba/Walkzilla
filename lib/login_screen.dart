@@ -337,6 +337,9 @@ class LoginScreenState extends State<LoginScreen> {
                     child: TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofocus: false,
+                      enableInteractiveSelection: true,
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: Colors.white,
@@ -395,6 +398,10 @@ class LoginScreenState extends State<LoginScreen> {
                     child: TextFormField(
                       controller: _passwordController,
                       obscureText: !_isPasswordVisible,
+                      keyboardType: TextInputType.visiblePassword,
+                      textInputAction: TextInputAction.done,
+                      enableInteractiveSelection: true,
+                      onFieldSubmitted: (_) => _login(context),
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: Colors.white,
