@@ -7,6 +7,12 @@ import 'dart:async';
 import 'steps_screen.dart';
 import 'calories_screen.dart';
 import 'heartrate_screen.dart';
+import 'services/health_service.dart';
+import 'widgets/steps_goal_card.dart';
+import 'package:provider/provider.dart';
+import 'providers/step_goal_provider.dart';
+import 'streaks_screen.dart';
+import 'providers/streak_provider.dart';
 
 class HealthDashboard extends StatefulWidget {
   const HealthDashboard({super.key});
@@ -16,13 +22,13 @@ class HealthDashboard extends StatefulWidget {
 }
 
 class _HealthDashboardState extends State<HealthDashboard> {
+  final HealthService _healthService = HealthService();
   final Health health = Health();
   int _steps = 0;
   double _calories = 0.0;
   double _heartRate = 0.0;
   bool _isGoalEnabled = true;
-  int _goalSteps = 15000;
-  int _selectedIndex = 1; // Health section selected by default
+  int _selectedIndex = 1;
   int _waterGlasses = 8;
   String _reminderFrequency = 'Every 2 hours';
   bool _notificationsEnabled = true;
@@ -30,6 +36,36 @@ class _HealthDashboardState extends State<HealthDashboard> {
   final DateTime _lastReminderTime = DateTime.now();
   bool _isReminderActive = false;
   Timer? _reminderTimer;
+  bool _isLoading = true;
+
+  // Simulated data for the week
+  final List<Map<String, dynamic>> _weeklyData = [
+    {'steps': 1200, 'calories': 120.5, 'heartRate': 72},
+    {'steps': 1500, 'calories': 150.2, 'heartRate': 75},
+    {'steps': 1800, 'calories': 180.7, 'heartRate': 68},
+    {'steps': 2000, 'calories': 200.8, 'heartRate': 82},
+    {'steps': 2500, 'calories': 250.3, 'heartRate': 76},
+    {'steps': 3000, 'calories': 300.5, 'heartRate': 65},
+    {'steps': 1200, 'calories': 120.8, 'heartRate': 70},
+  ];
+
+  // Simulated heart rate data for the day (24 hours)
+  final List<Map<String, dynamic>> _heartRateData = List.generate(
+    24,
+    (index) => {
+      'hour': index,
+      'bpm': 65 + (index % 3) * 5 + (index % 2) * 3,
+    },
+  );
+
+  // Simulated calories data for the day (by hour)
+  final List<Map<String, dynamic>> _caloriesData = List.generate(
+    24,
+    (index) => {
+      'hour': index,
+      'calories': 5.0 + (index % 4) * 3.5 + (index % 3) * 2.2,
+    },
+  );
 
   @override
   void initState() {
@@ -48,7 +84,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
     try {
       bool isAndroid = Theme.of(context).platform == TargetPlatform.android;
       if (isAndroid) {
-        // Check if Health Connect is available
         bool? healthConnectAvailable = await health.hasPermissions([
           HealthDataType.STEPS,
           HealthDataType.ACTIVE_ENERGY_BURNED,
@@ -60,7 +95,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
         ]);
 
         if (healthConnectAvailable != true) {
-          // Show dialog to install Health Connect
           _showHealthConnectInstallDialog();
           return;
         }
@@ -69,57 +103,74 @@ class _HealthDashboardState extends State<HealthDashboard> {
       await fetchHealthData();
     } catch (e) {
       print("Error initializing health: $e");
+      // Use simulated data as fallback
+      _updateWithSimulatedData();
     }
   }
 
   Future<void> fetchHealthData() async {
-    final types = [
-      HealthDataType.STEPS,
-      HealthDataType.ACTIVE_ENERGY_BURNED,
-      HealthDataType.HEART_RATE
-    ];
-    final now = DateTime.now();
-    final midnight = DateTime(now.year, now.month, now.day);
+    if (!mounted) return;
+
+    setState(() => _isLoading = true);
 
     try {
-      bool permissionsGranted = await health.requestAuthorization(types);
+      print("Starting health data fetch...");
+      bool hasPermissions = await _healthService.checkExistingPermissions();
 
-      if (permissionsGranted) {
-        List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
-          startTime: midnight,
-          endTime: now,
-          types: types,
-        );
-
-        int totalSteps = 0;
-        double totalCalories = 0.0;
-        double heartRate = 0.0;
-
-        for (var data in healthData) {
-          if (data.type == HealthDataType.STEPS) {
-            totalSteps += (data.value as double).toInt();
-          } else if (data.type == HealthDataType.ACTIVE_ENERGY_BURNED) {
-            totalCalories += data.value as double;
-          } else if (data.type == HealthDataType.HEART_RATE) {
-            heartRate = data.value as double;
-          }
-        }
-
-        if (mounted) {
-          setState(() {
-            _steps = totalSteps;
-            _calories = totalCalories;
-            _heartRate = heartRate;
-          });
-        }
-      } else {
-        print("Permissions not granted");
-        // Show permission request dialog
-        _showPermissionRequestDialog();
+      if (!hasPermissions) {
+        print("No health permissions granted");
+        if (!mounted) return;
+        _updateWithSimulatedData();
+        return;
       }
+
+      print("Fetching health data from service...");
+      final healthData = await _healthService.fetchHealthData();
+
+      if (!mounted) return;
+
+      // Extract data from the nested structure
+      final stepsData = healthData['steps'] as Map<String, dynamic>;
+      final heartRateData = healthData['heartRate'] as Map<String, dynamic>;
+      final caloriesData = healthData['calories'] as Map<String, dynamic>;
+
+      setState(() {
+        _steps = stepsData['count'] as int;
+        _heartRate = (heartRateData['beatsPerMinute'] as num).toDouble();
+        _calories =
+            (caloriesData['energy']['inKilocalories'] as num).toDouble();
+        _isLoading = false;
+      });
+
+      print(
+          "Updated UI with health data: Steps: $_steps, Heart Rate: $_heartRate, Calories: $_calories");
     } catch (e) {
       print("Error fetching health data: $e");
+      if (mounted) {
+        _updateWithSimulatedData();
+      }
     }
+  }
+
+  void _updateWithSimulatedData() {
+    if (!mounted) return;
+    setState(() {
+      _steps = _weeklyData.last['steps'];
+      _calories = _weeklyData.last['calories'];
+      _heartRate = _weeklyData.last['heartRate'].toDouble();
+      _isLoading = false;
+    });
+    // Update streaks with simulated data
+    final streakProvider = Provider.of<StreakProvider>(context, listen: false);
+    final stepGoal =
+        Provider.of<StepGoalProvider>(context, listen: false).goalSteps;
+    final today = DateTime.now();
+    final Map<DateTime, int> dailySteps = {};
+    for (int i = 0; i < 7; i++) {
+      final date = today.subtract(Duration(days: 6 - i));
+      dailySteps[date] = _weeklyData[i]['steps'] as int;
+    }
+    streakProvider.updateStreaks(dailySteps, stepGoal);
   }
 
   void _showHealthConnectInstallDialog() {
@@ -490,8 +541,8 @@ class _HealthDashboardState extends State<HealthDashboard> {
   }
 
   void _showStepGoalDialog() {
-    int tempGoalSteps = _goalSteps;
-
+    final stepGoalProvider = context.read<StepGoalProvider>();
+    int tempGoalSteps = stepGoalProvider.goalSteps;
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -562,9 +613,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          this.setState(() {
-                            _goalSteps = tempGoalSteps;
-                          });
+                          stepGoalProvider.setGoal(tempGoalSteps);
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -601,6 +650,16 @@ class _HealthDashboardState extends State<HealthDashboard> {
         );
       },
     );
+  }
+
+  void _updateCurrentMetrics() {
+    // Get today's data (last item in weekly data)
+    final todayData = _weeklyData.last;
+    setState(() {
+      _steps = todayData['steps'];
+      _calories = todayData['calories'];
+      _heartRate = todayData['heartRate'].toDouble();
+    });
   }
 
   @override
@@ -785,17 +844,14 @@ class _HealthDashboardState extends State<HealthDashboard> {
   }
 
   Widget _buildStepsCard() {
-    // Dummy data for steps
-    final List<double> weeklySteps = [2000, 2500, 5000, 2800, 4500, 3800, 2580];
-
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => StepsScreen(
-              currentSteps: weeklySteps.last.toInt(),
-              goalSteps: _goalSteps,
+              currentSteps: _steps,
+              goalSteps: context.watch<StepGoalProvider>().goalSteps,
             ),
           ),
         );
@@ -844,7 +900,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${weeklySteps.last.toInt()} steps',
+                    '$_steps steps',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
@@ -869,7 +925,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                   BarChartData(
                     groupsSpace: 6,
                     alignment: BarChartAlignment.spaceEvenly,
-                    maxY: 6000,
+                    maxY: 15000,
                     minY: 0,
                     barTouchData: BarTouchData(enabled: false),
                     titlesData: FlTitlesData(
@@ -907,9 +963,12 @@ class _HealthDashboardState extends State<HealthDashboard> {
                     borderData: FlBorderData(show: false),
                     gridData: FlGridData(show: false),
                     barGroups: List.generate(
-                        7,
-                        (index) =>
-                            _generateBarGroup(index, weeklySteps[index])),
+                      7,
+                      (index) => _generateBarGroup(
+                        index,
+                        _weeklyData[index]['steps'].toDouble(),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -948,9 +1007,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          print("Card tapped: $title");
           if (title == 'Calories') {
-            print("Navigating to CaloriesScreen");
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -961,13 +1018,14 @@ class _HealthDashboardState extends State<HealthDashboard> {
               ),
             );
           } else if (title == 'Heart Rate') {
-            print("Navigating to HeartRateScreen");
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => HeartRateScreen(
                   currentBpm: _heartRate.toInt(),
-                  // You can pass real values for lowestBpm, highestBpm, yesterdayBpm if available
+                  lowestBpm: 65,
+                  highestBpm: 85,
+                  yesterdayBpm: 72,
                 ),
               ),
             );
@@ -1011,7 +1069,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       ),
                     ),
                     Text(
-                      value,
+                      title == 'Heart Rate'
+                          ? '${_heartRate.toInt()} BPM'
+                          : value,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 14,
@@ -1030,242 +1090,144 @@ class _HealthDashboardState extends State<HealthDashboard> {
   }
 
   Widget _buildDailyStreak() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(8),
+    final streak = context.watch<StreakProvider>().currentStreak;
+    final goalMetDays = context.watch<StreakProvider>().goalMetDays;
+    final today = DateTime.now();
+    final weekDates =
+        List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const StreaksScreen()),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.local_fire_department_rounded,
+                    color: Colors.orange,
+                    size: 18,
+                  ),
                 ),
-                child: const Icon(
+                const SizedBox(width: 10),
+                const Text(
+                  'Daily Streak',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                Spacer(),
+                Text(
+                  '$streak',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
                   Icons.local_fire_department_rounded,
                   color: Colors.orange,
                   size: 18,
                 ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Daily Streak',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(7, (index) {
-              final isCompleted = index < 3;
-              return Column(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: isCompleted ? Colors.orange : Colors.grey[100],
-                      shape: BoxShape.circle,
-                      boxShadow: isCompleted
-                          ? [
-                              BoxShadow(
-                                color: Colors.orange.withOpacity(0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                          : null,
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(7, (index) {
+                final date = weekDates[index];
+                final isCompleted = goalMetDays.any((d) =>
+                    d.year == date.year &&
+                    d.month == date.month &&
+                    d.day == date.day);
+                final isToday = date.year == today.year &&
+                    date.month == today.month &&
+                    date.day == today.day;
+                return Column(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isCompleted ? Colors.orange : Colors.grey[100],
+                        shape: BoxShape.circle,
+                        boxShadow: isCompleted
+                            ? [
+                                BoxShadow(
+                                  color: Colors.orange.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                        border: isToday
+                            ? Border.all(
+                                color: Colors.black.withOpacity(0.15), width: 2)
+                            : null,
+                      ),
+                      child: Icon(
+                        Icons.check_rounded,
+                        size: 20,
+                        color: isCompleted ? Colors.white : Colors.grey[300],
+                      ),
                     ),
-                    child: Icon(
-                      Icons.check_rounded,
-                      size: 20,
-                      color: isCompleted ? Colors.white : Colors.grey[300],
+                    const SizedBox(height: 6),
+                    Text(
+                      DateFormat('E').format(date)[0],
+                      style: TextStyle(
+                        color: isCompleted ? Colors.orange : Colors.grey[400],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index],
-                    style: TextStyle(
-                      color: isCompleted ? Colors.orange : Colors.grey[400],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              );
-            }),
-          ),
-        ],
+                  ],
+                );
+              }),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildGoalSection() {
-    // Dummy data for steps
-    final List<double> weeklySteps = [2000, 2500, 5000, 2800, 4500, 3800, 2580];
-    final currentSteps = weeklySteps.last.toInt();
-    final progress = currentSteps / _goalSteps;
-    final remainingSteps = _goalSteps - currentSteps;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.star_rounded,
-                      color: Colors.blue,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Goal',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-              Transform.scale(
-                scale: 0.8,
-                child: Switch.adaptive(
-                  value: _isGoalEnabled,
-                  onChanged: (value) => setState(() => _isGoalEnabled = value),
-                  activeColor: Colors.green,
-                ),
-              ),
-            ],
-          ),
-          if (_isGoalEnabled) ...[
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: _showStepGoalDialog,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${_goalSteps.toString()} Steps per day',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Icon(
-                      Icons.edit_outlined,
-                      size: 16,
-                      color: Colors.blue[400],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Stack(
-              children: [
-                Container(
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(2.5),
-                  ),
-                ),
-                FractionallySizedBox(
-                  widthFactor: progress.clamp(0.0, 1.0),
-                  child: Container(
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.blue[400],
-                      borderRadius: BorderRadius.circular(2.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Today: $currentSteps steps',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                Text(
-                  '$remainingSteps steps to go',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
+    final goalSteps = context.watch<StepGoalProvider>().goalSteps;
+    return StepsGoalCard(
+      currentSteps: _steps,
+      goalSteps: goalSteps,
+      isGoalEnabled: _isGoalEnabled,
+      isEditable: true,
+      onEdit: _showStepGoalDialog,
+      onToggle: (value) => setState(() => _isGoalEnabled = value),
     );
   }
 

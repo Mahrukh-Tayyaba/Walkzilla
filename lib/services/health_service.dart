@@ -21,76 +21,6 @@ class HealthService {
   static const String _heartRateCollection = 'heart_rate';
   static const String _caloriesCollection = 'calories';
 
-  // Store health data in Firestore with validation and error handling
-  Future<void> _storeHealthData(
-      String userId, String collection, Map<String, dynamic> data) async {
-    try {
-      print('Attempting to store $collection data for user $userId');
-
-      // Validate the data before storing
-      if (!_validateHealthData(data, collection)) {
-        throw Exception('Invalid health data format for $collection');
-      }
-
-      // Create a reference to the health data collection
-      final collectionRef = _firestore
-          .collection(_healthDataCollection)
-          .doc(userId)
-          .collection(collection);
-
-      // Generate a unique document ID
-      String docId = DateTime.now().millisecondsSinceEpoch.toString();
-
-      // Add additional metadata
-      final dataToStore = {
-        ...data,
-        'timestamp': FieldValue.serverTimestamp(),
-        'syncTime': DateTime.now().toIso8601String(),
-        'userId': userId,
-        'dataType': collection,
-        'id': docId,
-      };
-
-      print('Storing data: $dataToStore');
-
-      // Store the data
-      await collectionRef.doc(docId).set(dataToStore);
-
-      // Verify the data was stored
-      final storedDoc = await collectionRef.doc(docId).get();
-      if (!storedDoc.exists) {
-        throw Exception(
-            'Data verification failed: Document not found after storage');
-      }
-
-      print('Successfully stored and verified $collection data in Firestore');
-    } catch (e) {
-      print('Error storing $collection data: $e');
-      throw Exception('Failed to store health data: $e');
-    }
-  }
-
-  // Validate health data structure
-  bool _validateHealthData(Map<String, dynamic> data, String type) {
-    switch (type) {
-      case _stepsCollection:
-        return data.containsKey('count') &&
-            data.containsKey('startTime') &&
-            data.containsKey('endTime') &&
-            data.containsKey('metadata');
-      case _heartRateCollection:
-        return data.containsKey('beatsPerMinute') &&
-            data.containsKey('time') &&
-            data.containsKey('metadata');
-      case _caloriesCollection:
-        return data.containsKey('energy') &&
-            data['energy'].containsKey('inKilocalories') &&
-            data.containsKey('metadata');
-      default:
-        return false;
-    }
-  }
-
   // Simulated health data with proper schema
   Map<String, dynamic> _getSimulatedStepsData() {
     final now = DateTime.now();
@@ -329,10 +259,6 @@ class HealthService {
       // Get simulated data
       final stepsData = _getSimulatedStepsData();
 
-      print('Storing steps data in Firestore...');
-      // Store in Firestore
-      await _storeHealthData(user.uid, _stepsCollection, stepsData);
-
       return stepsData;
     } catch (e) {
       print('Error in fetchStepsData: $e');
@@ -351,10 +277,6 @@ class HealthService {
       // Get simulated data
       final heartRateData = _getSimulatedHeartRateData();
 
-      print('Storing heart rate data in Firestore...');
-      // Store in Firestore
-      await _storeHealthData(user.uid, _heartRateCollection, heartRateData);
-
       return heartRateData;
     } catch (e) {
       print('Error in fetchHeartRateData: $e');
@@ -372,10 +294,6 @@ class HealthService {
 
       // Get simulated data
       final caloriesData = _getSimulatedCaloriesData();
-
-      print('Storing calories data in Firestore...');
-      // Store in Firestore
-      await _storeHealthData(user.uid, _caloriesCollection, caloriesData);
 
       return caloriesData;
     } catch (e) {
@@ -411,22 +329,6 @@ class HealthService {
       print(
           "Calories data fetched: ${caloriesData['energy']['inKilocalories']} kcal");
 
-      // Verify data was stored in Firestore
-      final stepsRef = _firestore
-          .collection(_healthDataCollection)
-          .doc(user.uid)
-          .collection(_stepsCollection);
-
-      final stepsSnapshot =
-          await stepsRef.orderBy('timestamp', descending: true).limit(1).get();
-
-      if (stepsSnapshot.docs.isEmpty) {
-        print("Warning: Steps data not found in Firestore after storage");
-      } else {
-        print(
-            "Verified steps data in Firestore: ${stepsSnapshot.docs.first.data()['count']} steps");
-      }
-
       return {
         'steps': stepsData,
         'heartRate': heartRateData,
@@ -440,42 +342,6 @@ class HealthService {
         'heartRate': await fetchHeartRateData(),
         'calories': await fetchCaloriesData()
       };
-    }
-  }
-
-  // Method to retrieve historical health data from Firestore
-  Future<Map<String, List<Map<String, dynamic>>>> getHistoricalHealthData(
-    String userId,
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
-    try {
-      final results = <String, List<Map<String, dynamic>>>{};
-
-      // Fetch historical data for each type
-      for (final collection in [
-        _stepsCollection,
-        _heartRateCollection,
-        _caloriesCollection
-      ]) {
-        final querySnapshot = await _firestore
-            .collection(_healthDataCollection)
-            .doc(userId)
-            .collection(collection)
-            .where('timestamp', isGreaterThanOrEqualTo: startDate)
-            .where('timestamp', isLessThanOrEqualTo: endDate)
-            .orderBy('timestamp', descending: true)
-            .get();
-
-        results[collection] = querySnapshot.docs
-            .map((doc) => doc.data() as Map<String, dynamic>)
-            .toList();
-      }
-
-      return results;
-    } catch (e) {
-      print('Error fetching historical health data: $e');
-      return {};
     }
   }
 }

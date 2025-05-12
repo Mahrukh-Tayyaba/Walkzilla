@@ -3,6 +3,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'dart:math' as math;
 import 'package:intl/intl.dart';
 import 'home.dart';
+import 'widgets/steps_goal_card.dart';
+import 'package:provider/provider.dart';
+import 'providers/step_goal_provider.dart';
 
 class StepsScreen extends StatefulWidget {
   final int currentSteps;
@@ -28,6 +31,107 @@ class _StepsScreenState extends State<StepsScreen> {
   int? _selectedBarIndex;
   double? _selectedBarValue;
   int _selectedIndex = 1; // Health section selected by default
+  bool _isGoalEnabled = true;
+
+  // Simulated data for the week - matching home.dart and health_dashboard.dart
+  final List<Map<String, dynamic>> _weeklyData = [
+    {'steps': 1200, 'calories': 120.5, 'heartRate': 72},
+    {'steps': 1500, 'calories': 150.2, 'heartRate': 75},
+    {'steps': 1800, 'calories': 180.7, 'heartRate': 68},
+    {'steps': 2000, 'calories': 200.8, 'heartRate': 82},
+    {'steps': 2500, 'calories': 250.3, 'heartRate': 76},
+    {'steps': 3000, 'calories': 300.5, 'heartRate': 65},
+    {'steps': 1200, 'calories': 120.8, 'heartRate': 70},
+  ];
+
+  List<double> _generateDayData() {
+    final todaySteps = _weeklyData.last['steps'] as int; // 1200
+    final pattern = [
+      0.04,
+      0.03,
+      0.02,
+      0.01,
+      0.02,
+      0.04,
+      0.06,
+      0.08,
+      0.05,
+      0.04,
+      0.05,
+      0.05,
+      0.07,
+      0.06,
+      0.04,
+      0.05,
+      0.05,
+      0.07,
+      0.06,
+      0.05,
+      0.04,
+      0.03,
+      0.02,
+      0.01
+    ];
+    final sum = pattern.reduce((a, b) => a + b);
+    return pattern.map((v) => todaySteps * v / sum).toList();
+  }
+
+  List<double> _generateWeekData() {
+    // Use the weekly data directly from _weeklyData
+    return _weeklyData.map((day) => (day['steps'] as int).toDouble()).toList();
+  }
+
+  List<double> _generateMonthData() {
+    final random = math.Random(42); // Fixed seed for consistency
+    return List.generate(30, (index) {
+      // Simulate a realistic pattern: weekdays lower, weekends higher, plus some noise
+      final isWeekend = (index % 7 == 5) || (index % 7 == 6);
+      final base = isWeekend ? 2500 : 1400; // weekends much higher
+      final trend =
+          (index > 14) ? 200 : 0; // second half of month slightly higher
+      final noise = random.nextInt(600) - 300; // -300 to +300
+      return (base + trend + noise).clamp(900, 4000).toDouble();
+    });
+  }
+
+  List<double> _generateYearData() {
+    final random = math.Random(99); // Fixed seed for consistency
+    return List.generate(12, (index) {
+      // Stronger seasonal variation: much more steps in summer (months 4-8)
+      final seasonBoost = (index >= 4 && index <= 8) ? 2000 : 0;
+      final base = 2200 + seasonBoost;
+      final trend = (index >= 9) ? -300 : 0; // last quarter slightly lower
+      final noise = random.nextInt(1200) - 600; // -600 to +600
+      // Each month is the average of 30 days
+      return (base + trend + noise).clamp(1200, 7000).toDouble();
+    });
+  }
+
+  // Sample data for different periods
+  final Map<String, List<double>> periodData = {
+    'Day': [], // Will be populated in initState
+    'Week': [], // Will be populated in initState
+    'Month': [], // Will be populated in initState
+    'Year': [], // Will be populated in initState
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    periodData['Day'] = _generateDayData();
+    periodData['Week'] = _generateWeekData();
+    periodData['Month'] = _generateMonthData();
+    periodData['Year'] = _generateYearData();
+  }
+
+  @override
+  void didUpdateWidget(StepsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    periodData['Day'] = _generateDayData();
+    periodData['Week'] = _generateWeekData();
+    periodData['Month'] = _generateMonthData();
+    periodData['Year'] = _generateYearData();
+  }
 
   String _getMonthName(int month) {
     const months = [
@@ -71,289 +175,6 @@ class _StepsScreenState extends State<StepsScreen> {
     final year = currentDate.year;
     // If index is after December (7), it's the next year
     return index > 7 ? (year + 1).toString() : year.toString();
-  }
-
-  List<double> _generateDayData() {
-    // Base hourly pattern
-    final basePattern = [
-      50, // 12 AM - Minimal movement during sleep
-      30, // 1 AM
-      20, // 2 AM
-      15, // 3 AM
-      25, // 4 AM
-      300, // 5 AM - Early risers starting to move
-      1500, // 6 AM - Morning routine, getting ready
-      2800, // 7 AM - Morning walk/commute
-      1200, // 8 AM - Arriving at work/school
-      400, // 9 AM - Seated work time
-      600, // 10 AM - Short walks, meetings
-      800, // 11 AM - More movement
-      1400, // 12 PM - Lunch break walking
-      900, // 1 PM - Post-lunch activity
-      500, // 2 PM - Afternoon work
-      700, // 3 PM - Brief walks
-      1000, // 4 PM - End of work movement
-      2500, // 5 PM - Evening commute/exercise
-      1800, // 6 PM - Evening activities
-      1200, // 7 PM - Dinner prep, house tasks
-      800, // 8 PM - Evening routine
-      400, // 9 PM - Winding down
-      200, // 10 PM - Getting ready for bed
-      100 // 11 PM - Minimal movement
-    ];
-
-    return List.generate(24, (index) {
-      // Calculate day-specific variations
-      final dayOfWeek = (_dayOffset + DateTime.now().weekday) % 7;
-      final currentDate = DateTime.now().subtract(Duration(days: _dayOffset));
-      final isWeekend = dayOfWeek == 0 || dayOfWeek == 6;
-      double dayMultiplier = 1.0;
-      double activityBonus = 0.0;
-
-      // Weather variations (simulated based on day offset)
-      final weatherMultiplier = 1.0 +
-          (math.sin(_dayOffset * 0.2) * 0.3); // Varies between 0.7 and 1.3
-
-      // Weekend patterns
-      if (isWeekend) {
-        // More activity in the morning and evening
-        if (index >= 6 && index <= 9) {
-          // Morning hours
-          dayMultiplier = 1.3;
-        } else if (index >= 16 && index <= 19) {
-          // Evening hours
-          dayMultiplier = 1.4;
-        }
-        // Less activity during typical work hours
-        if (index >= 9 && index <= 16) {
-          dayMultiplier *= 0.8;
-        }
-      } else {
-        // Weekdays
-        // Higher activity during commute times
-        if (index >= 6 && index <= 8) {
-          // Morning commute
-          dayMultiplier = 1.2;
-        } else if (index >= 16 && index <= 18) {
-          // Evening commute
-          dayMultiplier = 1.2;
-        }
-        // Less activity during work hours
-        if (index >= 9 && index <= 16) {
-          dayMultiplier *= 0.9;
-        }
-      }
-
-      // Special day patterns
-      if (_dayOffset % 5 == 0) {
-        // Every 5th day - exercise day
-        if (index >= 6 && index <= 8) {
-          // Morning exercise
-          activityBonus += 1000;
-        } else if (index >= 17 && index <= 19) {
-          // Evening workout
-          activityBonus += 800;
-        }
-      }
-      if (_dayOffset % 7 == 3) {
-        // Every 7th day - rest day
-        dayMultiplier *= 0.8;
-      }
-
-      // Monthly patterns (more active in spring/summer)
-      final month = currentDate.month;
-      double seasonalMultiplier = 1.0;
-      if (month >= 3 && month <= 5) {
-        // Spring
-        seasonalMultiplier = 1.2;
-      } else if (month >= 6 && month <= 8) {
-        // Summer
-        seasonalMultiplier = 1.3;
-      } else if (month >= 9 && month <= 11) {
-        // Fall
-        seasonalMultiplier = 1.1;
-      } else {
-        // Winter
-        seasonalMultiplier = 0.9;
-      }
-
-      // Special events (simulated)
-      if (_dayOffset % 10 == 0) {
-        // Every 10th day - shopping day
-        if (index >= 10 && index <= 15) {
-          activityBonus += 500;
-        }
-      }
-      if (_dayOffset % 14 == 0) {
-        // Every 14th day - family outing
-        if (index >= 14 && index <= 18) {
-          activityBonus += 700;
-        }
-      }
-
-      // Add random daily variation
-      final randomVariation = (_dayOffset * 17 + index * 13) % 500 - 250;
-
-      // Calculate final value with all variations
-      return (basePattern[index] *
-                  dayMultiplier *
-                  weatherMultiplier *
-                  seasonalMultiplier +
-              activityBonus +
-              randomVariation)
-          .clamp(10.0, 4000.0);
-    });
-  }
-
-  List<double> _generateWeekData() {
-    // Base weekly pattern
-    final basePattern = [
-      6800, // Sunday - Relaxed day, some leisure walks
-      9200, // Monday - Work day with morning exercise
-      8500, // Tuesday - Regular work day
-      9800, // Wednesday - Work + evening activity
-      8900, // Thursday - Regular work day
-      8200, // Friday - Work day, tired from week
-      7400 // Saturday - Weekend errands, relaxation
-    ];
-
-    return List.generate(7, (index) {
-      final currentDate =
-          DateTime.now().subtract(Duration(days: _weekOffset * 7 + index));
-      final dayOfWeek = currentDate.weekday;
-      double dayMultiplier = 1.0;
-      double activityBonus = 0.0;
-
-      // Weather variations (simulated based on week offset)
-      final weatherMultiplier = 1.0 +
-          (math.sin(_weekOffset * 0.2) * 0.3); // Varies between 0.7 and 1.3
-
-      // Monthly patterns (more active in spring/summer)
-      final month = currentDate.month;
-      double seasonalMultiplier = 1.0;
-      if (month >= 3 && month <= 5) {
-        // Spring
-        seasonalMultiplier = 1.2;
-      } else if (month >= 6 && month <= 8) {
-        // Summer
-        seasonalMultiplier = 1.3;
-      } else if (month >= 9 && month <= 11) {
-        // Fall
-        seasonalMultiplier = 1.1;
-      } else {
-        // Winter
-        seasonalMultiplier = 0.9;
-      }
-
-      // Special week patterns
-      if (_weekOffset % 2 == 0) {
-        // Every other week - active week
-        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-          // Weekdays
-          activityBonus += 500;
-        }
-      }
-      if (_weekOffset % 4 == 0) {
-        // Every 4th week - rest week
-        dayMultiplier *= 0.9;
-      }
-
-      // Weekend variations
-      if (dayOfWeek == 6 || dayOfWeek == 7) {
-        // Saturday or Sunday
-        if (_weekOffset % 3 == 0) {
-          // Every 3rd week - active weekend
-          activityBonus += 800;
-        }
-      }
-
-      // Add random weekly variation
-      final randomVariation = (_weekOffset * 17 + index * 13) % 1000 - 500;
-
-      // Calculate final value with all variations
-      return (basePattern[index] *
-                  dayMultiplier *
-                  weatherMultiplier *
-                  seasonalMultiplier +
-              activityBonus +
-              randomVariation)
-          .clamp(5000.0, 12000.0);
-    });
-  }
-
-  // Sample data for different periods
-  final Map<String, List<double>> periodData = {
-    'Day': [], // Will be populated in initState
-    'Week': [], // Will be populated in initState
-    'Month': List.generate(30, (index) {
-      // Generate realistic daily step patterns
-      final dayOffset = index;
-
-      // Base steps depending on day of week
-      final dayOfWeek = dayOffset % 7;
-      double baseSteps;
-
-      switch (dayOfWeek) {
-        case 0: // Sunday
-          baseSteps = 7000.0;
-          break;
-        case 6: // Saturday
-          baseSteps = 7500.0;
-          break;
-        default: // Weekdays
-          baseSteps = 8500.0;
-      }
-
-      // Add weather/seasonal variation (assuming it's a 30-day cycle)
-      final seasonalVariation = 500.0 * math.sin(dayOffset * 0.2);
-
-      // Add random daily variation (-1000 to +1000 steps)
-      final dailyVariation = (dayOffset * 17 % 2000) - 1000.0;
-
-      // Add activity patterns
-      double activityBonus = 0.0;
-
-      // Morning exercise days (Monday, Wednesday, Friday)
-      if (dayOfWeek == 1 || dayOfWeek == 3 || dayOfWeek == 5) {
-        activityBonus += 2000.0;
-      }
-
-      // Weekend long walk (Saturday afternoon)
-      if (dayOfWeek == 6 && dayOffset % 2 == 0) {
-        activityBonus += 3000.0;
-      }
-
-      // Special high-activity days (every 5th day)
-      if (dayOffset % 5 == 0) {
-        activityBonus += 1500.0;
-      }
-
-      // Occasional low-activity days (every 7th day)
-      if (dayOffset % 7 == 3) {
-        activityBonus -= 2000.0;
-      }
-
-      // Combine all factors and ensure steps stay within realistic bounds
-      return (baseSteps + seasonalVariation + dailyVariation + activityBonus)
-          .clamp(5000.0, 13500.0);
-    }),
-    'Year': [], // Will be populated in initState
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    periodData['Day'] = _generateDayData();
-    periodData['Week'] = _generateWeekData();
-    periodData['Year'] = _generateYearData();
-  }
-
-  @override
-  void didUpdateWidget(StepsScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    periodData['Day'] = _generateDayData();
-    periodData['Week'] = _generateWeekData();
-    periodData['Year'] = _generateYearData();
   }
 
   // Helper function to format step counts
@@ -479,7 +300,7 @@ class _StepsScreenState extends State<StepsScreen> {
           final endText =
               '${formatter.format(endDate)} ${yearFormatter.format(endDate)}';
 
-          // Calculate weekly average
+          // Calculate weekly average from periodData['Week']
           final weekData = periodData['Week']!;
           final average = weekData.reduce((a, b) => a + b) / weekData.length;
 
@@ -488,7 +309,9 @@ class _StepsScreenState extends State<StepsScreen> {
       case 'Month':
         final endDate = _currentViewDate;
         final startDate = endDate.subtract(const Duration(days: 29));
-        return 'AVERAGE\n1,726 steps\n${startDate.day} ${_getMonthName(startDate.month)}–${endDate.day} ${_getMonthName(endDate.month)} ${endDate.year}';
+        final monthData = periodData['Month']!;
+        final average = monthData.reduce((a, b) => a + b) / monthData.length;
+        return 'AVERAGE\n${_formatSteps(average)} steps\n${startDate.day} ${_getMonthName(startDate.month)}–${endDate.day} ${_getMonthName(endDate.month)} ${endDate.year}';
       case 'Year':
         if (_selectedBarIndex != null && _selectedBarValue != null) {
           final monthName = _getMonthNameFromIndex(_selectedBarIndex!);
@@ -499,7 +322,9 @@ class _StepsScreenState extends State<StepsScreen> {
               DateTime.now().subtract(Duration(days: _yearOffset * 365));
           final yearEnd = yearStart.add(const Duration(days: 364));
           final formatter = DateFormat('MMM yyyy');
-          return 'DAILY AVERAGE\n${_formatSteps(_calculateYearlyAverage())}\n${formatter.format(yearStart)}–${formatter.format(yearEnd)}';
+          final yearData = periodData['Year']!;
+          final average = yearData.reduce((a, b) => a + b) / yearData.length;
+          return 'DAILY AVERAGE\n${_formatSteps(average)}\n${formatter.format(yearStart)}–${formatter.format(yearEnd)}';
         }
       default:
         return '';
@@ -1350,7 +1175,7 @@ class _StepsScreenState extends State<StepsScreen> {
                       children: [
                         const SizedBox(height: 2),
                         Text(
-                          '2,580',
+                          '1,200',
                           style: const TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.w600,
@@ -1399,7 +1224,8 @@ class _StepsScreenState extends State<StepsScreen> {
                     Expanded(
                       child: Container(
                         height: 120,
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(
+                            MediaQuery.of(context).size.width * 0.025),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -1411,55 +1237,66 @@ class _StepsScreenState extends State<StepsScreen> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Icon(
-                              Icons.trending_up_rounded,
-                              color: Colors.blue[600],
-                              size: 20,
-                            ),
-                            Text(
-                              'Last Week',
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Icon(
+                                Icons.trending_up_rounded,
+                                color: Colors.blue[600],
+                                size: MediaQuery.of(context).size.width * 0.05,
                               ),
-                            ),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  '10,000',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.blue[600],
-                                  ),
+                              Text(
+                                'Last Week',
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.032,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'steps',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              'Best from last week',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey[500],
-                                fontWeight: FontWeight.w400,
                               ),
-                            ),
-                          ],
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    '1,200',
+                                    style: TextStyle(
+                                      fontSize:
+                                          MediaQuery.of(context).size.width *
+                                              0.04,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue[600],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                      width: MediaQuery.of(context).size.width *
+                                          0.01),
+                                  Text(
+                                    'steps',
+                                    style: TextStyle(
+                                      fontSize:
+                                          MediaQuery.of(context).size.width *
+                                              0.028,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Best from last week',
+                                style: TextStyle(
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.025,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1467,7 +1304,8 @@ class _StepsScreenState extends State<StepsScreen> {
                     Expanded(
                       child: Container(
                         height: 120,
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(
+                            MediaQuery.of(context).size.width * 0.025),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -1479,55 +1317,66 @@ class _StepsScreenState extends State<StepsScreen> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Icon(
-                              Icons.trending_up_rounded,
-                              color: Colors.green[600],
-                              size: 20,
-                            ),
-                            Text(
-                              'Progress',
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Icon(
+                                Icons.trending_up_rounded,
+                                color: Colors.green[600],
+                                size: MediaQuery.of(context).size.width * 0.05,
                               ),
-                            ),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  '12,500',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.green[600],
-                                  ),
+                              Text(
+                                'Progress',
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.032,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'steps',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              'Higher than last week',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey[500],
-                                fontWeight: FontWeight.w400,
                               ),
-                            ),
-                          ],
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    '1,200',
+                                    style: TextStyle(
+                                      fontSize:
+                                          MediaQuery.of(context).size.width *
+                                              0.04,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.green[600],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                      width: MediaQuery.of(context).size.width *
+                                          0.01),
+                                  Text(
+                                    'steps',
+                                    style: TextStyle(
+                                      fontSize:
+                                          MediaQuery.of(context).size.width *
+                                              0.028,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Higher than last week',
+                                style: TextStyle(
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.025,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1535,7 +1384,8 @@ class _StepsScreenState extends State<StepsScreen> {
                     Expanded(
                       child: Container(
                         height: 120,
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(
+                            MediaQuery.of(context).size.width * 0.025),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -1547,55 +1397,66 @@ class _StepsScreenState extends State<StepsScreen> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Icon(
-                              Icons.flag_rounded,
-                              color: Colors.orange[600],
-                              size: 20,
-                            ),
-                            Text(
-                              'Target',
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Icon(
+                                Icons.flag_rounded,
+                                color: Colors.orange[600],
+                                size: MediaQuery.of(context).size.width * 0.05,
                               ),
-                            ),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  '15,000',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.orange[600],
-                                  ),
+                              Text(
+                                'Target',
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.032,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'steps',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              '2,500 steps to your target',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey[500],
-                                fontWeight: FontWeight.w400,
                               ),
-                            ),
-                          ],
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    '1,200',
+                                    style: TextStyle(
+                                      fontSize:
+                                          MediaQuery.of(context).size.width *
+                                              0.04,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.orange[600],
+                                    ),
+                                  ),
+                                  SizedBox(
+                                      width: MediaQuery.of(context).size.width *
+                                          0.01),
+                                  Text(
+                                    'steps',
+                                    style: TextStyle(
+                                      fontSize:
+                                          MediaQuery.of(context).size.width *
+                                              0.028,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '2,500 steps to your target',
+                                style: TextStyle(
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.025,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1607,11 +1468,11 @@ class _StepsScreenState extends State<StepsScreen> {
               const SizedBox(height: 16),
               StepsGoalCard(
                 currentSteps: widget.currentSteps,
-                goalSteps: widget.goalSteps,
+                goalSteps: context.watch<StepGoalProvider>().goalSteps,
+                isGoalEnabled: _isGoalEnabled,
                 isEditable: true,
-                onEdit: () {
-                  // Handle edit action
-                },
+                onEdit: _showStepGoalDialog,
+                onToggle: (value) => setState(() => _isGoalEnabled = value),
               ),
               _buildStatsGrid(),
               const SizedBox(height: 16),
@@ -1935,37 +1796,6 @@ class _StepsScreenState extends State<StepsScreen> {
     );
   }
 
-  List<double> _generateYearData() {
-    // Generate realistic daily average data for each month
-    final baseData = [
-      3200, // May - Spring activity
-      2800, // June - Summer starts
-      2600, // July - Hot weather
-      2400, // August - Late summer
-      2900, // September - Back to routine
-      2700, // October - Fall weather
-      2500, // November - Getting colder
-      1800, // December - Winter, holidays
-      2100, // January - New Year
-      2300, // February - Still winter
-      2700, // March - Spring begins
-      3000 // April - Spring activity
-    ];
-
-    // Apply seasonal and yearly variations based on year offset
-    return List.generate(12, (index) {
-      final monthData = baseData[index];
-
-      // Add yearly variation
-      final yearVariation = _yearOffset * 100 * math.sin(index / 2);
-
-      // Add weather impact
-      final weatherImpact = 200 * math.sin((_yearOffset * 12 + index) * 0.5);
-
-      return (monthData + yearVariation + weatherImpact).clamp(1500.0, 5500.0);
-    });
-  }
-
   double _calculateYearlyAverage() {
     if (_selectedPeriod == 'Year' && periodData['Year'] != null) {
       final yearData = periodData['Year']!;
@@ -2094,135 +1924,116 @@ class _StepsScreenState extends State<StepsScreen> {
       });
     }
   }
-}
 
-class StepsGoalCard extends StatelessWidget {
-  final int currentSteps;
-  final int goalSteps;
-  final bool isEditable;
-  final VoidCallback? onEdit;
-
-  const StepsGoalCard({
-    super.key,
-    required this.currentSteps,
-    required this.goalSteps,
-    this.isEditable = false,
-    this.onEdit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final stepsToGo = goalSteps - currentSteps;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.star_rounded,
-                  color: Colors.blue,
-                  size: 16,
-                ),
+  void _showStepGoalDialog() {
+    final stepGoalProvider = context.read<StepGoalProvider>();
+    int tempGoalSteps = stepGoalProvider.goalSteps;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              const SizedBox(width: 8),
-              const Text(
-                'Goal',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const Spacer(),
-              Switch(
-                value: true,
-                onChanged: (value) {},
-                activeColor: Colors.green,
-                activeTrackColor: Colors.green.withOpacity(0.3),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  '$goalSteps Steps per day',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-                const Spacer(),
-                if (isEditable)
-                  GestureDetector(
-                    onTap: onEdit,
-                    child: const Icon(
-                      Icons.edit,
-                      color: Colors.blue,
-                      size: 20,
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Set Step Goal',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.pop(context),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
                     ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.blue,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Today: ${NumberFormat('#,###').format(currentSteps)} steps',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline),
+                          onPressed: () {
+                            if (tempGoalSteps > 1000) {
+                              setState(() => tempGoalSteps -= 1000);
+                            }
+                          },
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          '$tempGoalSteps steps',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline),
+                          onPressed: () {
+                            setState(() => tempGoalSteps += 1000);
+                          },
+                          color: Colors.blue,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          stepGoalProvider.setGoal(tempGoalSteps);
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Step goal updated!'),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A237E),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Set Goal',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                '${NumberFormat('#,###').format(stepsToGo)} steps to go',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:health/health.dart';
+// import 'package:health/health.dart';
 import 'health_dashboard.dart'; // Import the health dashboard screen
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,6 +10,7 @@ import 'notification_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'friends_page.dart';
+import 'chat_list_page.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -459,7 +460,27 @@ class _HomeState extends State<Home> {
                 icon: Icons.people_outlined,
                 title: "Friends",
                 color: Colors.green,
-                onTap: () {},
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const FriendsPage()),
+                  );
+                },
+              ),
+              _buildDrawerItem(
+                icon: Icons.chat_bubble_outline,
+                title: "Chats",
+                color: Colors.blue,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const ChatListPage()),
+                  );
+                },
               ),
               _buildDrawerItem(
                 icon: Icons.settings_outlined,

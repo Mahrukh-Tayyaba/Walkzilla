@@ -68,14 +68,16 @@ class FriendProfilePage extends StatelessWidget {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 3),
                         ),
-                        child: Center(
-                          child: Text(
+                        child: ClipOval(
+                          child: Image.network(
                             avatar,
-                            style: TextStyle(
-                              color: color,
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.grey),
                           ),
                         ),
                       ),

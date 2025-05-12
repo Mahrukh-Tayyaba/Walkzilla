@@ -87,12 +87,6 @@ class SignupScreenState extends State<SignupScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'lastLogin': FieldValue.serverTimestamp(),
         'profileImage': null,
-        'bio': '',
-        'steps': 0,
-        'distance': 0.0,
-        'calories': 0,
-        'weeklyGoal': 0,
-        'monthlyGoal': 0,
         'hasHealthPermissions': false,
       });
 

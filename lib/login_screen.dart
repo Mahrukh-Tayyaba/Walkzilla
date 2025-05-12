@@ -78,12 +78,6 @@ class LoginScreenState extends State<LoginScreen> {
           'lastLogin': FieldValue.serverTimestamp(),
           'hasHealthPermissions': false,
           'profileImage': userCredential.user!.photoURL,
-          'bio': '',
-          'steps': 0,
-          'distance': 0.0,
-          'calories': 0,
-          'weeklyGoal': 0,
-          'monthlyGoal': 0,
         });
       }
 

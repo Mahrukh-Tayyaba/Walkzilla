@@ -7,6 +7,9 @@ import 'notification_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'friends_page.dart';
+import 'chat_list_page.dart';
+import 'chat_detail_page.dart';
+import 'friend_profile_page.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -173,10 +176,10 @@ class _HomeState extends State<Home> {
                           borderRadius: BorderRadius.circular(15.0),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
+                              color: Colors.grey.withOpacity(0.25),
                               spreadRadius: 2,
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
@@ -420,6 +423,19 @@ class _HomeState extends State<Home> {
                 onTap: () {},
               ),
               _buildDrawerItem(
+                icon: Icons.chat_bubble_outline,
+                title: "Chats",
+                color: Colors.blue,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const ChatListPage()),
+                  );
+                },
+              ),
+              _buildDrawerItem(
                 icon: Icons.settings_outlined,
                 title: "Settings",
                 color: Colors.grey[700],
@@ -635,20 +651,744 @@ class FriendsPage extends StatefulWidget {
   State<FriendsPage> createState() => _FriendsPageState();
 }
 
-class _FriendsPageState extends State<FriendsPage> {
+class _FriendsPageState extends State<FriendsPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  final List<Map<String, dynamic>> friends = [
+    {
+      'avatar': 'https://randomuser.me/api/portraits/men/1.jpg',
+      'name': 'FitQueen01',
+      'streak': 7,
+      'online': true,
+      'steps': 6102,
+    },
+    {
+      'avatar': 'https://randomuser.me/api/portraits/men/2.jpg',
+      'name': 'RunnerJames',
+      'streak': 14,
+      'online': false,
+      'steps': 8543,
+    },
+    {
+      'avatar': 'https://randomuser.me/api/portraits/women/1.jpg',
+      'name': 'WalkMaster',
+      'streak': 21,
+      'online': true,
+      'steps': 7212,
+    },
+    {
+      'avatar': 'https://randomuser.me/api/portraits/men/3.jpg',
+      'name': 'HealthyHero',
+      'streak': 5,
+      'online': false,
+      'steps': 5320,
+    },
+    {
+      'avatar': 'https://randomuser.me/api/portraits/women/2.jpg',
+      'name': 'StepQueen',
+      'streak': 30,
+      'online': true,
+      'steps': 9104,
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Friends'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: SafeArea(
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.black),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Friends',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    // Search icon
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.search,
+                            color: Colors.black, size: 24),
+                        onPressed: () {},
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Add friend icon
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF03A9F4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.person_add,
+                            color: Colors.white, size: 26),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: true,
+                            builder: (context) => _AddFriendDialog(),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      body: const Center(
-        child: Text(
-          'Friends Page',
-          style: TextStyle(fontSize: 24),
+      body: Column(
+        children: [
+          // Tabs
+          Material(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: Colors.blue,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Colors.blue,
+              tabs: const [
+                Tab(icon: Icon(Icons.people), text: 'All Friends'),
+                Tab(icon: Icon(Icons.access_time), text: 'Requests'),
+                Tab(icon: Icon(Icons.send), text: 'Invites Sent'),
+              ],
+            ),
+          ),
+          // Tab content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // All Friends Tab
+                ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  itemCount: friends.length,
+                  itemBuilder: (context, index) {
+                    final friend = friends[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.25),
+                              spreadRadius: 2,
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: ListTile(
+                          leading: Stack(
+                            children: [
+                              CircleAvatar(
+                                backgroundImage: NetworkImage(friend['avatar']),
+                                radius: 28,
+                              ),
+                              if (friend['online'])
+                                Positioned(
+                                  bottom: 2,
+                                  right: 2,
+                                  child: Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: Colors.white, width: 2),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          title: Row(
+                            children: [
+                              Text(
+                                friend['name'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(Icons.local_fire_department,
+                                  color: Colors.orange, size: 18),
+                              Text(
+                                ' ${friend['streak']} days',
+                                style: const TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text(
+                            friend['online'] ? 'Online' : 'Offline',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color:
+                                  friend['online'] ? Colors.green : Colors.grey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          onTap: () {
+                            print(
+                                'Navigating to profile of \\${friend['name']}');
+                            showModalBottomSheet(
+                              context: context,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(22)),
+                              ),
+                              builder: (context) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 24, horizontal: 16),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 5,
+                                        margin:
+                                            const EdgeInsets.only(bottom: 20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[200],
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      ListTile(
+                                        leading: const Icon(
+                                            Icons.account_circle,
+                                            color: Colors.lightBlue,
+                                            size: 28),
+                                        title: const Text('View Profile',
+                                            style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w500)),
+                                        onTap: () {
+                                          print(
+                                              'Navigating to profile of \\${friend['name']}');
+                                          Navigator.pop(context);
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  FriendProfilePage(
+                                                name: friend['name'],
+                                                avatar: friend['avatar'],
+                                                steps:
+                                                    friend['steps'].toString(),
+                                                color: Colors.orange,
+                                                isOnline: friend['online'],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      ListTile(
+                                        leading: const Icon(
+                                            Icons.chat_bubble_outline,
+                                            color: Colors.lightBlue,
+                                            size: 26),
+                                        title: const Text('Chat',
+                                            style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w500)),
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ChatDetailPage(
+                                                name: friend['name'],
+                                                avatar: friend['avatar'],
+                                                online: friend['online'],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      ListTile(
+                                        leading: const Icon(Icons.emoji_events,
+                                            color: Colors.lightBlue, size: 26),
+                                        title: const Text('Challenge',
+                                            style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w500)),
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          // TODO: Navigate to challenge
+                                        },
+                                      ),
+                                      const SizedBox(height: 10),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // Requests Tab
+                ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  children: [
+                    _buildRequestTile(
+                      avatarUrl:
+                          'https://randomuser.me/api/portraits/men/10.jpg',
+                      name: 'ActiveAlex',
+                      level: 15,
+                      steps: 5000,
+                    ),
+                    _buildRequestTile(
+                      avatarUrl:
+                          'https://randomuser.me/api/portraits/men/11.jpg',
+                      name: 'WalkingWonder',
+                      level: 8,
+                      steps: 3500,
+                    ),
+                  ],
+                ),
+                // Invites Sent Tab
+                ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  children: [
+                    _buildInviteSentTile(
+                      avatarUrl:
+                          'https://randomuser.me/api/portraits/women/3.jpg',
+                      name: 'MoveMore',
+                      pendingSince: 'May 2',
+                    ),
+                    _buildInviteSentTile(
+                      avatarUrl:
+                          'https://randomuser.me/api/portraits/men/12.jpg',
+                      name: 'StepByStep',
+                      pendingSince: 'May 3',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestTile({
+    required String avatarUrl,
+    required String name,
+    required int level,
+    required int steps,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.25),
+              spreadRadius: 2,
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: NetworkImage(avatarUrl),
+                    radius: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF03A9F4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                      ),
+                      child: const Text('Accept',
+                          style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {},
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF5F5F5),
+                        side: BorderSide.none,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                      ),
+                      child: const Text('Decline',
+                          style: TextStyle(color: Colors.black)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInviteSentTile({
+    required String avatarUrl,
+    required String name,
+    required String pendingSince,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.12),
+              spreadRadius: 1,
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    backgroundImage: NetworkImage(avatarUrl),
+                    radius: 26,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                            color: Color(0xFF23272F),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Pending since $pendingSince',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton(
+                  onPressed: () {},
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF5F5F5),
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 0),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Color(0xFF23272F),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddFriendDialog extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Add Friends',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 26,
+                    color: Color(0xFF23272F),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close,
+                      size: 26, color: Color(0xFF23272F)),
+                  onPressed: () => Navigator.of(context).pop(),
+                  splashRadius: 22,
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Color(0xFFE5E7EB)),
+              ),
+              child: Row(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child:
+                        Icon(Icons.search, color: Color(0xFFB1B1B1), size: 24),
+                  ),
+                  const Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Search by username',
+                        hintStyle:
+                            TextStyle(color: Color(0xFFB1B1B1), fontSize: 17),
+                        isCollapsed: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      style: TextStyle(fontSize: 17),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: SizedBox(
+                      height: 38,
+                      child: ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF03A9F4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 22),
+                          elevation: 0,
+                        ),
+                        child: const Text('Add',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.white)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            const Text(
+              'OR INVITE FROM',
+              style: TextStyle(
+                color: Color(0xFF8A8F98),
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                letterSpacing: 1.1,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _InviteOption(
+              icon: Icons.phone_iphone,
+              title: 'Invite from contacts',
+              subtitle: 'Find friends from your phone contacts',
+              iconColor: Color(0xFF03A9F4),
+              onTap: () {},
+            ),
+            const SizedBox(height: 12),
+            _InviteOption(
+              icon: Icons.qr_code,
+              title: 'Scan QR code',
+              subtitle: "Scan your friend's QR code to connect",
+              iconColor: Color(0xFFFF9800),
+              onTap: () {},
+            ),
+            const SizedBox(height: 12),
+            _InviteOption(
+              icon: Icons.share,
+              title: 'Share invite link',
+              subtitle: 'Share via WhatsApp, SMS, Email',
+              iconColor: Color(0xFF4CAF50),
+              onTap: () {},
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InviteOption extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _InviteOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Color(0xFFE5E7EB)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Icon(icon, color: iconColor, size: 28),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Color(0xFF23272F),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF8A8F98),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -4,6 +4,11 @@ import 'package:flutter/services.dart';
 import 'splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'welcome_screen.dart';
+import 'package:provider/provider.dart';
+import 'providers/step_goal_provider.dart';
+import 'providers/streak_provider.dart';
+import 'health_dashboard.dart';
+import 'streaks_screen.dart';
 
 void main() async {
   try {
@@ -25,7 +30,16 @@ void main() async {
       // Continue without Firebase for now
     }
 
-    runApp(const MyApp());
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => StepGoalProvider()),
+          ChangeNotifierProvider(create: (_) => StreakSettingsProvider()),
+          ChangeNotifierProvider(create: (_) => StreakProvider()),
+        ],
+        child: const MyApp(),
+      ),
+    );
     print('App started successfully');
   } catch (e) {
     print('Error in main: $e');
@@ -50,9 +64,10 @@ class MyApp extends StatelessWidget {
       title: 'Walkzilla',
       theme: ThemeData(
         primarySwatch: Colors.orange,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: kDebugMode ? const WelcomeScreen() : const SplashScreen(),
+      home: kDebugMode ? const WelcomeScreen() : const HealthDashboard(),
     );
   }
 }
