@@ -191,9 +191,11 @@ class _HomeState extends State<Home> {
                         label: 'Daily\nChallenges',
                         color: Colors.orange,
                         onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => const DailyChallengeSpin(),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const DailyChallengeSpin()),
                           );
                         },
                         screenSize: screenSize,

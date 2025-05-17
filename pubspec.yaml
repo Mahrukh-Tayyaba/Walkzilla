@@ -80,6 +80,8 @@ flutter:
     - assets/videos/
     - assets/images/logo2.png
     - assets/images/dino.png
+    - assets/images/dragon.png
+    - assets/images/pipe.png
     - assets/images/google-logo-icon.png
     - assets/images/apple-Icon.png
     - assets/gifs/ground.gif
