@@ -11,6 +11,7 @@ import 'profile_page.dart';
 import 'settings_page.dart';
 import 'friends_page.dart';
 import 'chat_list_page.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -245,51 +246,35 @@ class _HomeState extends State<Home> {
 
                 const Spacer(),
 
-                // Character in the center
+                // 3D Character in the center
                 Stack(
                   alignment: Alignment.center,
                   children: [
                     // Background circle
                     Container(
-                      width: screenSize.width * 0.5,
-                      height: screenSize.width * 0.5,
+                      width: screenSize.width * 0.8,
+                      height: screenSize.width * 0.8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.blue[50],
                       ),
                     ),
-                    // Character container
+                    // 3D ModelViewer widget
                     SizedBox(
-                      height: screenSize.width * 0.4,
-                      width: screenSize.width * 0.4,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            height: screenSize.width * 0.3,
-                            width: screenSize.width * 0.3,
-                            decoration: BoxDecoration(
-                              color: Colors.blue[400],
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.sentiment_satisfied_alt,
-                                size: 60,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: screenSize.height * 0.01),
-                          Container(
-                            width: screenSize.width * 0.1,
-                            height: screenSize.height * 0.02,
-                            decoration: BoxDecoration(
-                              color: Colors.blue[400],
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ],
+                      height: screenSize.width * 0.9,
+                      width: screenSize.width * 0.9,
+                      child: ModelViewer(
+                        src: 'assets/web/MyCharacter.glb',
+                        alt: "A 3D model of MyCharacter",
+                        autoRotate: false,
+                        cameraControls: true,
+                        backgroundColor: Colors.transparent,
+                        cameraOrbit: "0deg 75deg 100%",
+                        minCameraOrbit: "-180deg 75deg 100%",
+                        maxCameraOrbit: "180deg 75deg 100%",
+                        interactionPrompt: InteractionPrompt.none,
+                        disableTap: true,
+                        autoPlay: true,
                       ),
                     ),
                   ],

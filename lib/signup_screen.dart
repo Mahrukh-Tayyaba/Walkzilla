@@ -241,317 +241,408 @@ class SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F4F4),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              // Logo
-              Image.asset(
-                'assets/images/logo2.png',
-                height: 180,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 20),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFFF7F4F4),
+              const Color(0xFFFEB14C).withOpacity(0.1),
+            ],
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                // Logo
+                Image.asset(
+                  'assets/images/logo2.png',
+                  height: 180,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 20),
 
-              // Username TextField
-              TextFormField(
-                controller: _usernameController,
-                keyboardType: TextInputType.name,
-                textInputAction: TextInputAction.next,
-                enableInteractiveSelection: true,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                      vertical: 15.0, horizontal: 12.0),
-                  hintText: 'Enter your Username',
-                  hintStyle: GoogleFonts.poppins(
-                    color: const Color.fromARGB(255, 76, 73, 73),
-                    fontSize: 14,
-                  ),
-                  prefixIcon:
-                      const Icon(Icons.person, color: Color(0xFF5C5A5A)),
-                  border: OutlineInputBorder(
+                // Username TextField
+                Container(
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
+                  child: TextFormField(
+                    controller: _usernameController,
+                    keyboardType: TextInputType.name,
+                    textInputAction: TextInputAction.next,
+                    enableInteractiveSelection: true,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 15.0, horizontal: 12.0),
+                      hintText: 'Enter your Username',
+                      hintStyle: GoogleFonts.poppins(
+                        color: const Color.fromARGB(255, 76, 73, 73),
+                        fontSize: 14,
+                      ),
+                      prefixIcon:
+                          const Icon(Icons.person, color: Color(0xFFFEB14C)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFFEB14C),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-              // Email TextField
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                enableInteractiveSelection: true,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                      vertical: 15.0, horizontal: 12.0),
-                  hintText: 'Enter your Email',
-                  hintStyle: GoogleFonts.poppins(
-                    color: const Color.fromARGB(255, 76, 73, 73),
-                    fontSize: 14,
-                  ),
-                  prefixIcon: const Icon(Icons.email, color: Color(0xFF5C5A5A)),
-                  border: OutlineInputBorder(
+                // Email TextField
+                Container(
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
+                  child: TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    enableInteractiveSelection: true,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 15.0, horizontal: 12.0),
+                      hintText: 'Enter your Email',
+                      hintStyle: GoogleFonts.poppins(
+                        color: const Color.fromARGB(255, 76, 73, 73),
+                        fontSize: 14,
+                      ),
+                      prefixIcon:
+                          const Icon(Icons.email, color: Color(0xFFFEB14C)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFFEB14C),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-              // Password TextField
-              TextFormField(
-                controller: _passwordController,
-                obscureText: !_isPasswordVisible,
-                keyboardType: TextInputType.visiblePassword,
-                textInputAction: TextInputAction.next,
-                enableInteractiveSelection: true,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                      vertical: 15.0, horizontal: 12.0),
-                  hintText: 'Enter your Password',
-                  hintStyle: GoogleFonts.poppins(
-                    color: const Color.fromARGB(255, 76, 73, 73),
-                    fontSize: 14,
+                // Password TextField
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  prefixIcon: const Icon(Icons.lock, color: Color(0xFF5C5A5A)),
-                  suffixIcon: IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 40,
-                      minHeight: 40,
+                  child: TextFormField(
+                    controller: _passwordController,
+                    obscureText: !_isPasswordVisible,
+                    keyboardType: TextInputType.visiblePassword,
+                    textInputAction: TextInputAction.next,
+                    enableInteractiveSelection: true,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 15.0, horizontal: 12.0),
+                      hintText: 'Enter your Password',
+                      hintStyle: GoogleFonts.poppins(
+                        color: const Color.fromARGB(255, 76, 73, 73),
+                        fontSize: 14,
+                      ),
+                      prefixIcon:
+                          const Icon(Icons.lock, color: Color(0xFFFEB14C)),
+                      suffixIcon: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: const Color(0xFFFEB14C),
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFFEB14C),
+                          width: 1.5,
+                        ),
+                      ),
                     ),
-                    icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: const Color(0xFF5C5A5A),
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-              // Confirm Password TextField
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: !_isConfirmPasswordVisible,
-                keyboardType: TextInputType.visiblePassword,
-                textInputAction: TextInputAction.done,
-                enableInteractiveSelection: true,
-                onFieldSubmitted: (_) => _signup(context),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                      vertical: 15.0, horizontal: 12.0),
-                  hintText: 'Confirm Password',
-                  hintStyle: GoogleFonts.poppins(
-                    color: const Color.fromARGB(255, 76, 73, 73),
-                    fontSize: 14,
+                // Confirm Password TextField
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  prefixIcon: const Icon(Icons.lock, color: Color(0xFF5C5A5A)),
-                  suffixIcon: IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 40,
-                      minHeight: 40,
+                  child: TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: !_isConfirmPasswordVisible,
+                    keyboardType: TextInputType.visiblePassword,
+                    textInputAction: TextInputAction.done,
+                    enableInteractiveSelection: true,
+                    onFieldSubmitted: (_) => _signup(context),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 15.0, horizontal: 12.0),
+                      hintText: 'Confirm Password',
+                      hintStyle: GoogleFonts.poppins(
+                        color: const Color.fromARGB(255, 76, 73, 73),
+                        fontSize: 14,
+                      ),
+                      prefixIcon:
+                          const Icon(Icons.lock, color: Color(0xFFFEB14C)),
+                      suffixIcon: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
+                        icon: Icon(
+                          _isConfirmPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: const Color(0xFFFEB14C),
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isConfirmPasswordVisible =
+                                !_isConfirmPasswordVisible;
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFFEB14C),
+                          width: 1.5,
+                        ),
+                      ),
                     ),
-                    icon: Icon(
-                      _isConfirmPasswordVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: const Color(0xFF5C5A5A),
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFDADADA)),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Signup Button
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
-                      offset: const Offset(0, 2),
-                      blurRadius: 3,
+                // Signup Button
+                Container(
+                  width: double.infinity,
+                  height: 55,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFEB14C), Color(0xFFFF9A0E)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFEB14C).withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () => _signup(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'SIGNUP',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Or Login with text
+                Row(
+                  children: [
+                    Expanded(
+                        child: Divider(color: Colors.grey.withOpacity(0.3))),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Or Login with',
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey[700],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                        child: Divider(color: Colors.grey.withOpacity(0.3))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Social Login Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildSocialButton(
+                      'assets/images/google-logo-icon.png',
+                      onTap: signInWithGoogle,
+                    ),
+                    const SizedBox(width: 16),
+                    _buildSocialButton(
+                      'assets/images/apple-Icon.png',
+                      onTap: null,
                     ),
                   ],
                 ),
-                child: ElevatedButton(
-                  onPressed: () => _signup(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFEB14C),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'SIGNUP',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-              // Or Login with text
-              Text(
-                'Or Login with',
-                style: GoogleFonts.poppins(
-                  color: const Color.fromARGB(255, 76, 73, 73),
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Social Login Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Google Button
-                  GestureDetector(
-                    onTap: signInWithGoogle,
-                    child: Container(
-                      width: 120,
-                      height: 55,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF7F4F4),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFDADADA)),
-                      ),
-                      child: Center(
-                        child: Image.asset(
-                          'assets/images/google-logo-icon.png',
-                          height: 24,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Apple Button
-                  Container(
-                    width: 120,
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7F4F4),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFDADADA)),
-                    ),
-                    child: Center(
-                      child: Image.asset(
-                        'assets/images/apple-Icon.png',
-                        height: 24,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Already have an account
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Already have an account? ",
-                    style: GoogleFonts.poppins(
-                      color: const Color.fromARGB(255, 76, 73, 73),
-                      fontSize: 16,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      "login!",
+                // Already have an account
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Already have an account? ",
                       style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        color: const Color(0xFFFEB14C),
-                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                        fontSize: 14,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        "login!",
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: const Color(0xFFFEB14C),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialButton(String imagePath, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 120,
+        height: 55,
+        decoration: BoxDecoration(
+          color: onTap == null ? Colors.grey[200] : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Image.asset(
+            imagePath,
+            height: 24,
+            color: onTap == null ? Colors.grey[400] : null,
           ),
         ),
       ),

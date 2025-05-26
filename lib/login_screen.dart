@@ -299,20 +299,11 @@ class LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 60),
-                  // Logo with subtle animation
-                  TweenAnimationBuilder(
-                    duration: const Duration(seconds: 1),
-                    tween: Tween<double>(begin: 0, end: 1),
-                    builder: (context, double value, child) {
-                      return Transform.scale(
-                        scale: value,
-                        child: Image.asset(
-                          'assets/images/logo2.png',
-                          height: 180,
-                          fit: BoxFit.contain,
-                        ),
-                      );
-                    },
+                  // Logo
+                  Image.asset(
+                    'assets/images/logo2.png',
+                    height: 180,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 40),
 
@@ -460,7 +451,7 @@ class LoginScreenState extends State<LoginScreen> {
                         );
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
                       ),
                       child: Text(
                         'Forgot password?',
@@ -473,7 +464,7 @@ class LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   // Login Button with enhanced styling
                   Container(
@@ -515,7 +506,7 @@ class LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Or Login with text with enhanced styling
                   Row(
@@ -527,7 +518,7 @@ class LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Or Login with',
                           style: GoogleFonts.poppins(
-                            color: Colors.grey,
+                            color: Colors.grey[700],
                             fontSize: 14,
                           ),
                         ),
@@ -537,7 +528,7 @@ class LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Social Login Buttons with enhanced styling
                   Row(
@@ -555,7 +546,7 @@ class LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Sign up text with enhanced styling
                   Row(
@@ -564,7 +555,7 @@ class LoginScreenState extends State<LoginScreen> {
                       Text(
                         "Don't have an account? ",
                         style: GoogleFonts.poppins(
-                          color: Colors.grey,
+                          color: Colors.grey[700],
                           fontSize: 14,
                         ),
                       ),
@@ -588,7 +579,7 @@ class LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),

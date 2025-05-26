@@ -51,6 +51,9 @@ dependencies:
   url_launcher: ^6.2.5
   percent_indicator: ^4.2.3
   provider: ^6.0.0
+  model_viewer_plus: ^1.7.0
+  webview_flutter: ^4.0.7
+  path_provider: ^2.0.15
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +81,9 @@ flutter:
     - assets/images/
     - assets/gifs/
     - assets/videos/
+    - assets/web/
+    - assets/web/MyCharacter.glb
+    - assets/web/viewer.html
     - assets/images/logo2.png
     - assets/images/dino.png
     - assets/images/dragon.png
