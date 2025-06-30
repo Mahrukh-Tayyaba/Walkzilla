@@ -6,7 +6,7 @@ import 'home.dart'; // Import the HomeScreen
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/health_service.dart'; // Add this import
-import 'package:flutter/services.dart';
+import 'services/username_service.dart'; // Add username service
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -22,13 +22,143 @@ class SignupScreenState extends State<SignupScreen> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
   final HealthService _healthService = HealthService(); // Add this
+  final UsernameService _usernameService =
+      UsernameService(); // Add username service
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  bool _isCheckingUsername = false;
+  bool _isUsernameAvailable = false;
+  List<String> _usernameSuggestions = [];
+  String? _usernameError;
+
+  @override
+  void initState() {
+    super.initState();
+    // Add listener to check username availability
+    _usernameController.addListener(_checkUsernameAvailability);
+  }
+
+  @override
+  void dispose() {
+    _usernameController.removeListener(_checkUsernameAvailability);
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  // Check username availability with debouncing
+  Future<void> _checkUsernameAvailability() async {
+    final username = _usernameController.text.trim();
+
+    if (username.isEmpty) {
+      setState(() {
+        _isCheckingUsername = false;
+        _isUsernameAvailable = false;
+        _usernameError = null;
+      });
+      return;
+    }
+
+    // Validate username format first
+    if (!_usernameService.isValidUsername(username)) {
+      setState(() {
+        _isCheckingUsername = false;
+        _isUsernameAvailable = false;
+        _usernameError =
+            'Username must be 3-20 characters, letters and numbers only';
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingUsername = true;
+      _usernameError = null;
+    });
+
+    // Add a small delay to avoid too many requests
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Check if the username has changed during the delay
+    if (_usernameController.text.trim() != username) {
+      return; // User has typed more, ignore this result
+    }
+
+    try {
+      print('Checking availability for username: "$username"');
+      final isAvailable = await _usernameService.isUsernameAvailable(username);
+      print('Username "$username" availability result: $isAvailable');
+
+      // Double-check that the username hasn't changed while we were checking
+      if (mounted && _usernameController.text.trim() == username) {
+        setState(() {
+          _isCheckingUsername = false;
+          _isUsernameAvailable = isAvailable;
+          _usernameError = isAvailable ? null : 'Username is already taken';
+        });
+      }
+    } catch (e) {
+      print('Error checking username availability: $e');
+      if (mounted && _usernameController.text.trim() == username) {
+        setState(() {
+          _isCheckingUsername = false;
+          _isUsernameAvailable = false;
+          if (e.toString().contains('permission-denied')) {
+            _usernameError =
+                'Unable to check username availability. Please try again.';
+          } else {
+            _usernameError = 'Error checking username availability';
+          }
+        });
+      }
+    }
+  }
+
+  // Generate username suggestions
+  Future<void> _generateUsernameSuggestions() async {
+    final username = _usernameController.text.trim();
+    if (username.isEmpty) return;
+
+    try {
+      final suggestions = await _usernameService.suggestUsernames(username);
+      setState(() {
+        _usernameSuggestions = suggestions;
+      });
+    } catch (e) {
+      print('Error generating username suggestions: $e');
+    }
+  }
+
+  // Auto-generate username from email
+  Future<void> _autoGenerateUsername() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return;
+
+    // Extract name from email (before @)
+    final emailName = email.split('@').first;
+
+    try {
+      final suggestions =
+          await _usernameService.getUsernameSuggestionsFromName(emailName);
+      if (suggestions.isNotEmpty) {
+        setState(() {
+          _usernameController.text = suggestions.first;
+          _usernameSuggestions = suggestions;
+        });
+        _checkUsernameAvailability();
+      }
+    } catch (e) {
+      print('Error auto-generating username: $e');
+    }
+  }
 
   Future<void> _signup(BuildContext context) async {
-    if (_emailController.text.trim().isEmpty ||
-        _passwordController.text.trim().isEmpty ||
-        _usernameController.text.trim().isEmpty) {
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text.trim();
+    final username = _usernameController.text.trim();
+
+    if (email.isEmpty || password.isEmpty || username.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("All fields are required")),
@@ -37,7 +167,29 @@ class SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (_passwordController.text != _confirmPasswordController.text) {
+    // Validate username format
+    if (!_usernameService.isValidUsername(username)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  "Username must be 3-20 characters, letters and numbers only")),
+        );
+      }
+      return;
+    }
+
+    // Check if username is available
+    if (!_isUsernameAvailable) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please choose an available username")),
+        );
+      }
+      return;
+    }
+
+    if (password != _confirmPasswordController.text) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Passwords do not match")),
@@ -46,7 +198,7 @@ class SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (_passwordController.text.length < 6) {
+    if (password.length < 6) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -58,13 +210,26 @@ class SignupScreenState extends State<SignupScreen> {
 
     try {
       // First check if email already exists
-      final methods = await FirebaseAuth.instance
-          .fetchSignInMethodsForEmail(_emailController.text.trim());
+      final methods =
+          await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+      print('Sign-in methods for $email: $methods');
       if (methods.isNotEmpty) {
+        String provider = methods.join(', ');
+        String errorMsg = "An account already exists for this email.";
+        if (methods.contains('google.com')) {
+          errorMsg =
+              "This email is registered with Google. Please use Google Sign-In.";
+        } else if (methods.contains('facebook.com')) {
+          errorMsg =
+              "This email is registered with Facebook. Please use Facebook Login.";
+        } else if (methods.contains('apple.com')) {
+          errorMsg =
+              "This email is registered with Apple. Please use Apple Sign-In.";
+        }
         if (context.mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text("An account already exists with this email")),
+            SnackBar(content: Text(errorMsg)),
           );
         }
         return;
@@ -73,21 +238,47 @@ class SignupScreenState extends State<SignupScreen> {
       // Create authentication record
       final UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        email: email,
+        password: password,
       );
+
+      // Reserve the username
+      final usernameReserved = await _usernameService.reserveUsername(
+        username,
+        userCredential.user!.uid,
+      );
+
+      if (!usernameReserved) {
+        // If username reservation fails, delete the auth account and show error
+        await userCredential.user!.delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    "Username is no longer available. Please try another one.")),
+          );
+        }
+        return;
+      }
 
       // Create user profile in Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
           .set({
-        'username': _usernameController.text.trim(),
-        'email': _emailController.text.trim(),
+        'username': username.toLowerCase(),
+        'email': email,
         'createdAt': FieldValue.serverTimestamp(),
         'lastLogin': FieldValue.serverTimestamp(),
         'profileImage': null,
         'hasHealthPermissions': false,
+        'displayName': username, // Use username as display name initially
+        'level': 1,
+        'todaySteps': 0,
+        'currentStreak': 0,
+        'isOnline': false,
+        'lastActive': FieldValue.serverTimestamp(),
       });
 
       // Request health permissions before navigation
@@ -105,6 +296,7 @@ class SignupScreenState extends State<SignupScreen> {
           });
         } else {
           if (context.mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -115,6 +307,8 @@ class SignupScreenState extends State<SignupScreen> {
           }
         }
 
+        // Clear any lingering snackbars before navigating
+        ScaffoldMessenger.of(context).clearSnackBars();
         // Navigate to home screen after permissions are handled
         Navigator.pushAndRemoveUntil(
           context,
@@ -141,7 +335,7 @@ class SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString()}")),
+          SnackBar(content: Text("Error: $e")),
         );
       }
     }
@@ -173,24 +367,74 @@ class SignupScreenState extends State<SignupScreen> {
 
       bool isNewUser = !userDoc.exists;
 
-      // Create/Update user profile in Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-        'username': googleUser.displayName,
-        'email': googleUser.email,
-        'photoURL': googleUser.photoUrl,
-        'lastLogin': FieldValue.serverTimestamp(),
-        'profileImage': googleUser.photoUrl,
-        'bio': '',
-        'steps': 0,
-        'distance': 0.0,
-        'calories': 0,
-        'weeklyGoal': 0,
-        'monthlyGoal': 0,
-        'hasHealthPermissions': false,
-      }, SetOptions(merge: true));
+      if (isNewUser) {
+        // Generate username suggestions for new user
+        List<String> suggestions = [];
+        try {
+          suggestions = await _usernameService
+              .getUsernameSuggestionsFromName(googleUser.displayName ?? 'user');
+        } catch (e) {
+          // Fallback suggestion
+          suggestions = [];
+        }
+        // Always add a fallback unique username
+        suggestions.add('user_${DateTime.now().millisecondsSinceEpoch}');
+
+        String? uniqueUsername;
+        for (final suggestion in suggestions) {
+          final available =
+              await _usernameService.isUsernameAvailable(suggestion);
+          if (available) {
+            // Reserve the username in the usernames collection
+            final reserved = await _usernameService.reserveUsername(
+                suggestion, userCredential.user!.uid);
+            if (reserved) {
+              uniqueUsername = suggestion;
+              break;
+            }
+          }
+        }
+        // If for some reason none are available, fallback to a timestamp username
+        uniqueUsername ??= 'user_${DateTime.now().millisecondsSinceEpoch}';
+        // Ensure fallback is reserved
+        await _usernameService.reserveUsername(
+            uniqueUsername, userCredential.user!.uid);
+
+        // Create user profile in Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+          'username': uniqueUsername.toLowerCase(),
+          'displayName': googleUser.displayName ?? uniqueUsername,
+          'email': googleUser.email,
+          'photoURL': googleUser.photoUrl,
+          'lastLogin': FieldValue.serverTimestamp(),
+          'profileImage': googleUser.photoUrl,
+          'bio': '',
+          'steps': 0,
+          'distance': 0.0,
+          'calories': 0,
+          'weeklyGoal': 0,
+          'monthlyGoal': 0,
+          'hasHealthPermissions': false,
+          'level': 1,
+          'todaySteps': 0,
+          'currentStreak': 0,
+          'isOnline': false,
+          'lastActive': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Update existing user's last login
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .update({
+          'lastLogin': FieldValue.serverTimestamp(),
+          'isOnline': true,
+          'lastActive': FieldValue.serverTimestamp(),
+        });
+      }
 
       if (!mounted) return;
 
@@ -232,7 +476,7 @@ class SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
+        SnackBar(content: Text("Error: $e")),
       );
     }
   }
@@ -295,6 +539,51 @@ class SignupScreenState extends State<SignupScreen> {
                       ),
                       prefixIcon:
                           const Icon(Icons.person, color: Color(0xFFFEB14C)),
+                      suffixIcon: _usernameController.text.isNotEmpty
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_isCheckingUsername)
+                                  const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Color(0xFFFEB14C)),
+                                      ),
+                                    ),
+                                  )
+                                else if (_isUsernameAvailable)
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 20,
+                                  )
+                                else if (_usernameError != null)
+                                  const Icon(
+                                    Icons.error,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.auto_awesome,
+                                      color: Color(0xFFFEB14C)),
+                                  onPressed: _generateUsernameSuggestions,
+                                  tooltip: 'Generate suggestions',
+                                ),
+                              ],
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.auto_awesome,
+                                  color: Color(0xFFFEB14C)),
+                              onPressed: _autoGenerateUsername,
+                              tooltip: 'Auto-generate from email',
+                            ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -313,6 +602,90 @@ class SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                 ),
+
+                // Username validation message
+                if (_usernameError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.red, size: 16),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            _usernameError!,
+                            style: GoogleFonts.poppins(
+                              color: Colors.red,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Username suggestions
+                if (_usernameSuggestions.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFFFEB14C).withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Suggested usernames:',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFFEB14C),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: _usernameSuggestions.map((suggestion) {
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _usernameController.text = suggestion;
+                                  _usernameSuggestions.clear();
+                                });
+                                _checkUsernameAvailability();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color:
+                                      const Color(0xFFFEB14C).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: const Color(0xFFFEB14C)
+                                          .withOpacity(0.3)),
+                                ),
+                                child: Text(
+                                  suggestion,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: const Color(0xFFFEB14C),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 const SizedBox(height: 8),
 
                 // Email TextField

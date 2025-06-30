@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:health/health.dart';
 import 'health_dashboard.dart'; // Import the health dashboard screen
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'notification_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
-import 'friends_page.dart';
 import 'chat_list_page.dart';
 import 'chat_detail_page.dart';
 import 'friend_profile_page.dart';
+import 'services/friend_service.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -287,7 +288,13 @@ class _HomeState extends State<Home> {
                         icon: Icons.people,
                         label: 'Friends',
                         color: Colors.blue,
-                        onTap: () => print("Friends tapped!"),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const FriendsPage()),
+                          );
+                        },
                       ),
                       _buildCornerButton(
                         icon: Icons.shopping_bag,
@@ -420,7 +427,14 @@ class _HomeState extends State<Home> {
                 icon: Icons.people_outlined,
                 title: "Friends",
                 color: Colors.green,
-                onTap: () {},
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const FriendsPage()),
+                  );
+                },
               ),
               _buildDrawerItem(
                 icon: Icons.chat_bubble_outline,
@@ -654,44 +668,7 @@ class FriendsPage extends StatefulWidget {
 class _FriendsPageState extends State<FriendsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  final List<Map<String, dynamic>> friends = [
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/1.jpg',
-      'name': 'FitQueen01',
-      'streak': 7,
-      'online': true,
-      'steps': 6102,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/2.jpg',
-      'name': 'RunnerJames',
-      'streak': 14,
-      'online': false,
-      'steps': 8543,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/women/1.jpg',
-      'name': 'WalkMaster',
-      'streak': 21,
-      'online': true,
-      'steps': 7212,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/3.jpg',
-      'name': 'HealthyHero',
-      'streak': 5,
-      'online': false,
-      'steps': 5320,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/women/2.jpg',
-      'name': 'StepQueen',
-      'streak': 30,
-      'online': true,
-      'steps': 9104,
-    },
-  ];
+  final FriendService _friendService = FriendService();
 
   @override
   void initState() {
@@ -802,222 +779,316 @@ class _FriendsPageState extends State<FriendsPage>
               controller: _tabController,
               children: [
                 // All Friends Tab
-                ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  itemCount: friends.length,
-                  itemBuilder: (context, index) {
-                    final friend = friends[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.25),
-                              spreadRadius: 2,
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _friendService.getFriends(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return _buildEmptyState(
+                        icon: Icons.error_outline,
+                        title: 'Error Loading Friends',
+                        subtitle: 'Please try again later.',
+                      );
+                    }
+
+                    final friends = snapshot.data ?? [];
+
+                    if (friends.isEmpty) {
+                      return _buildEmptyState(
+                        icon: Icons.people_outline,
+                        title: 'No Friends Yet',
+                        subtitle:
+                            'Add friends to see their activity and compete together!',
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      itemCount: friends.length,
+                      itemBuilder: (context, index) {
+                        final friend = friends[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.25),
+                                  spreadRadius: 2,
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: ListTile(
-                          leading: Stack(
-                            children: [
-                              CircleAvatar(
-                                backgroundImage: NetworkImage(friend['avatar']),
-                                radius: 28,
-                              ),
-                              if (friend['online'])
-                                Positioned(
-                                  bottom: 2,
-                                  right: 2,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: Colors.white, width: 2),
-                                    ),
+                            child: ListTile(
+                              leading: Stack(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundImage: friend['profileImage'] !=
+                                            null
+                                        ? NetworkImage(friend['profileImage'])
+                                        : null,
+                                    radius: 28,
+                                    child: friend['profileImage'] == null
+                                        ? const Icon(Icons.person, size: 28)
+                                        : null,
                                   ),
-                                ),
-                            ],
-                          ),
-                          title: Row(
-                            children: [
-                              Text(
-                                friend['name'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(Icons.local_fire_department,
-                                  color: Colors.orange, size: 18),
-                              Text(
-                                ' ${friend['streak']} days',
-                                style: const TextStyle(
-                                    color: Colors.orange,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500),
-                              ),
-                            ],
-                          ),
-                          subtitle: Text(
-                            friend['online'] ? 'Online' : 'Offline',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color:
-                                  friend['online'] ? Colors.green : Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          onTap: () {
-                            print(
-                                'Navigating to profile of \\${friend['name']}');
-                            showModalBottomSheet(
-                              context: context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(22)),
-                              ),
-                              builder: (context) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 24, horizontal: 16),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 40,
-                                        height: 5,
-                                        margin:
-                                            const EdgeInsets.only(bottom: 20),
+                                  if (friend['isOnline'])
+                                    Positioned(
+                                      bottom: 2,
+                                      right: 2,
+                                      child: Container(
+                                        width: 12,
+                                        height: 12,
                                         decoration: BoxDecoration(
-                                          color: Colors.grey[200],
-                                          borderRadius:
-                                              BorderRadius.circular(10),
+                                          color: Colors.green,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color: Colors.white, width: 2),
                                         ),
                                       ),
-                                      ListTile(
-                                        leading: const Icon(
-                                            Icons.account_circle,
-                                            color: Colors.lightBlue,
-                                            size: 28),
-                                        title: const Text('View Profile',
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w500)),
-                                        onTap: () {
-                                          print(
-                                              'Navigating to profile of \\${friend['name']}');
-                                          Navigator.pop(context);
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  FriendProfilePage(
-                                                name: friend['name'],
-                                                avatar: friend['avatar'],
-                                                steps:
-                                                    friend['steps'].toString(),
-                                                color: Colors.orange,
-                                                isOnline: friend['online'],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(
-                                            Icons.chat_bubble_outline,
-                                            color: Colors.lightBlue,
-                                            size: 26),
-                                        title: const Text('Chat',
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w500)),
-                                        onTap: () {
-                                          Navigator.pop(context);
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  ChatDetailPage(
-                                                name: friend['name'],
-                                                avatar: friend['avatar'],
-                                                online: friend['online'],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(Icons.emoji_events,
-                                            color: Colors.lightBlue, size: 26),
-                                        title: const Text('Challenge',
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w500)),
-                                        onTap: () {
-                                          Navigator.pop(context);
-                                          // TODO: Navigate to challenge
-                                        },
-                                      ),
-                                      const SizedBox(height: 10),
-                                    ],
+                                    ),
+                                ],
+                              ),
+                              title: Row(
+                                children: [
+                                  Text(
+                                    friend['displayName'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.local_fire_department,
+                                      color: Colors.orange, size: 18),
+                                  Text(
+                                    ' ${friend['currentStreak']} days',
+                                    style: const TextStyle(
+                                        color: Colors.orange,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                friend['isOnline'] ? 'Online' : 'Offline',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: friend['isOnline']
+                                      ? Colors.green
+                                      : Colors.grey,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              onTap: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(22)),
+                                  ),
+                                  builder: (context) {
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 24, horizontal: 16),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 40,
+                                            height: 5,
+                                            margin: const EdgeInsets.only(
+                                                bottom: 20),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[200],
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          ListTile(
+                                            leading: const Icon(
+                                                Icons.account_circle,
+                                                color: Colors.lightBlue,
+                                                size: 28),
+                                            title: const Text('View Profile',
+                                                style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight:
+                                                        FontWeight.w500)),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      FriendProfilePage(
+                                                    name: friend['displayName'],
+                                                    avatar: friend[
+                                                            'profileImage'] ??
+                                                        '',
+                                                    steps: friend['steps']
+                                                        .toString(),
+                                                    color: Colors.orange,
+                                                    isOnline:
+                                                        friend['isOnline'],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          ListTile(
+                                            leading: const Icon(
+                                                Icons.chat_bubble_outline,
+                                                color: Colors.lightBlue,
+                                                size: 26),
+                                            title: const Text('Chat',
+                                                style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight:
+                                                        FontWeight.w500)),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      ChatDetailPage(
+                                                    name: friend['displayName'],
+                                                    avatar: friend[
+                                                            'profileImage'] ??
+                                                        '',
+                                                    online: friend['isOnline'],
+                                                    otherUserId:
+                                                        friend['userId'],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          ListTile(
+                                            leading: const Icon(
+                                                Icons.emoji_events,
+                                                color: Colors.lightBlue,
+                                                size: 26),
+                                            title: const Text('Challenge',
+                                                style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight:
+                                                        FontWeight.w500)),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              // TODO: Navigate to challenge
+                                            },
+                                          ),
+                                          const SizedBox(height: 10),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
-                        ),
-                      ),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
                 // Requests Tab
-                ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  children: [
-                    _buildRequestTile(
-                      avatarUrl:
-                          'https://randomuser.me/api/portraits/men/10.jpg',
-                      name: 'ActiveAlex',
-                      level: 15,
-                      steps: 5000,
-                    ),
-                    _buildRequestTile(
-                      avatarUrl:
-                          'https://randomuser.me/api/portraits/men/11.jpg',
-                      name: 'WalkingWonder',
-                      level: 8,
-                      steps: 3500,
-                    ),
-                  ],
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _friendService.getFriendRequests(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return _buildEmptyState(
+                        icon: Icons.error_outline,
+                        title: 'Error Loading Requests',
+                        subtitle: 'Please try again later.',
+                      );
+                    }
+
+                    final requests = snapshot.data ?? [];
+
+                    if (requests.isEmpty) {
+                      return _buildEmptyState(
+                        icon: Icons.people_outline,
+                        title: 'No Friend Requests',
+                        subtitle:
+                            'When someone sends you a friend request, it will appear here.',
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      itemCount: requests.length,
+                      itemBuilder: (context, index) {
+                        final request = requests[index];
+                        return _buildRequestTile(
+                          requestId: request['requestId'],
+                          avatarUrl: request['profileImage'],
+                          name: request['displayName'],
+                          level: request['level'],
+                          steps: request['currentStreak'],
+                        );
+                      },
+                    );
+                  },
                 ),
                 // Invites Sent Tab
-                ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  children: [
-                    _buildInviteSentTile(
-                      avatarUrl:
-                          'https://randomuser.me/api/portraits/women/3.jpg',
-                      name: 'MoveMore',
-                      pendingSince: 'May 2',
-                    ),
-                    _buildInviteSentTile(
-                      avatarUrl:
-                          'https://randomuser.me/api/portraits/men/12.jpg',
-                      name: 'StepByStep',
-                      pendingSince: 'May 3',
-                    ),
-                  ],
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _friendService.getSentFriendRequests(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return _buildEmptyState(
+                        icon: Icons.error_outline,
+                        title: 'Error Loading Sent Invites',
+                        subtitle: 'Please try again later.',
+                      );
+                    }
+
+                    final invites = snapshot.data ?? [];
+
+                    if (invites.isEmpty) {
+                      return _buildEmptyState(
+                        icon: Icons.send_outlined,
+                        title: 'No Sent Invites',
+                        subtitle: 'Your sent friend invites will appear here.',
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      itemCount: invites.length,
+                      itemBuilder: (context, index) {
+                        final invite = invites[index];
+                        final createdAt = invite['createdAt'] as Timestamp?;
+                        final pendingSince = createdAt != null
+                            ? _formatTimeAgo(createdAt.toDate())
+                            : 'Recently';
+
+                        return _buildInviteSentTile(
+                          requestId: invite['requestId'],
+                          avatarUrl: invite['profileImage'],
+                          name: invite['displayName'],
+                          pendingSince: pendingSince,
+                        );
+                      },
+                    );
+                  },
                 ),
               ],
             ),
@@ -1027,8 +1098,24 @@ class _FriendsPageState extends State<FriendsPage>
     );
   }
 
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
   Widget _buildRequestTile({
-    required String avatarUrl,
+    required String requestId,
+    required String? avatarUrl,
     required String name,
     required int level,
     required int steps,
@@ -1056,8 +1143,12 @@ class _FriendsPageState extends State<FriendsPage>
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundImage: NetworkImage(avatarUrl),
+                    backgroundImage:
+                        avatarUrl != null ? NetworkImage(avatarUrl) : null,
                     radius: 28,
+                    child: avatarUrl == null
+                        ? const Icon(Icons.person, size: 28)
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -1074,7 +1165,18 @@ class _FriendsPageState extends State<FriendsPage>
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () async {
+                        final success =
+                            await _friendService.acceptFriendRequest(requestId);
+                        if (success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Friend request accepted!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF03A9F4),
                         shape: RoundedRectangleBorder(
@@ -1089,7 +1191,18 @@ class _FriendsPageState extends State<FriendsPage>
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: () async {
+                        final success = await _friendService
+                            .declineFriendRequest(requestId);
+                        if (success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Friend request declined'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                      },
                       style: OutlinedButton.styleFrom(
                         backgroundColor: const Color(0xFFF5F5F5),
                         side: BorderSide.none,
@@ -1112,7 +1225,8 @@ class _FriendsPageState extends State<FriendsPage>
   }
 
   Widget _buildInviteSentTile({
-    required String avatarUrl,
+    required String requestId,
+    required String? avatarUrl,
     required String name,
     required String pendingSince,
   }) {
@@ -1140,8 +1254,12 @@ class _FriendsPageState extends State<FriendsPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    backgroundImage: NetworkImage(avatarUrl),
+                    backgroundImage:
+                        avatarUrl != null ? NetworkImage(avatarUrl) : null,
                     radius: 26,
+                    child: avatarUrl == null
+                        ? const Icon(Icons.person, size: 26)
+                        : null,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -1175,7 +1293,18 @@ class _FriendsPageState extends State<FriendsPage>
                 width: double.infinity,
                 height: 44,
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    final success =
+                        await _friendService.cancelFriendRequest(requestId);
+                    if (success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Friend request cancelled'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  },
                   style: OutlinedButton.styleFrom(
                     backgroundColor: const Color(0xFFF5F5F5),
                     side: BorderSide.none,
@@ -1200,46 +1329,190 @@ class _FriendsPageState extends State<FriendsPage>
       ),
     );
   }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 60, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _AddFriendDialog extends StatelessWidget {
+class _AddFriendDialog extends StatefulWidget {
+  @override
+  State<_AddFriendDialog> createState() => _AddFriendDialogState();
+}
+
+class _AddFriendDialogState extends State<_AddFriendDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  final FriendService _friendService = FriendService();
+  List<Map<String, dynamic>> _searchResults = [];
+  List<Map<String, dynamic>> _suggestedUsers = [];
+  bool _isSearching = false;
+  bool _isLoading = false;
+  bool _isLoadingSuggested = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSuggestedUsers();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSuggestedUsers() async {
+    setState(() {
+      _isLoadingSuggested = true;
+    });
+
+    try {
+      // Get suggested users (users who are not friends and not already requested)
+      final suggested = await _friendService.getSuggestedUsers();
+      setState(() {
+        _suggestedUsers = suggested.take(5).toList(); // Limit to 5 users
+        _isLoadingSuggested = false;
+      });
+    } catch (e) {
+      print('Error loading suggested users: $e');
+      setState(() {
+        _isLoadingSuggested = false;
+      });
+    }
+  }
+
+  Future<void> _searchUsers(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    try {
+      final results = await _friendService.searchUsersByUsername(query);
+      setState(() {
+        _searchResults = results;
+        _isSearching = false;
+      });
+    } catch (e) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+    }
+  }
+
+  Future<void> _sendFriendRequest(String userId) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await _friendService.sendFriendRequest(userId);
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Friend request sent!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Unable to send friend request. User might already be your friend or request already sent.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending friend request: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+    return Scaffold(
       backgroundColor: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, size: 26, color: Color(0xFF23272F)),
+          onPressed: () => Navigator.of(context).pop(),
+          splashRadius: 22,
+        ),
+        title: const Text(
+          'Add Friends',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 26,
+            color: Color(0xFF23272F),
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Add Friends',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 26,
-                    color: Color(0xFF23272F),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close,
-                      size: 26, color: Color(0xFF23272F)),
-                  onPressed: () => Navigator.of(context).pop(),
-                  splashRadius: 22,
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
+            // Search Section
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Color(0xFFE5E7EB)),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
               child: Row(
                 children: [
@@ -1248,9 +1521,10 @@ class _AddFriendDialog extends StatelessWidget {
                     child:
                         Icon(Icons.search, color: Color(0xFFB1B1B1), size: 24),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: TextField(
-                      decoration: InputDecoration(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Search by username',
                         hintStyle:
@@ -1258,35 +1532,87 @@ class _AddFriendDialog extends StatelessWidget {
                         isCollapsed: true,
                         contentPadding: EdgeInsets.symmetric(vertical: 16),
                       ),
-                      style: TextStyle(fontSize: 17),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: SizedBox(
-                      height: 38,
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF03A9F4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: EdgeInsets.symmetric(horizontal: 22),
-                          elevation: 0,
-                        ),
-                        child: const Text('Add',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.white)),
-                      ),
+                      style: const TextStyle(fontSize: 17),
+                      onChanged: (value) {
+                        // Debounce search
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          if (mounted && _searchController.text == value) {
+                            _searchUsers(value);
+                          }
+                        });
+                      },
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+
+            if (_isSearching)
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+
+            if (_searchResults.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text(
+                'Search Results',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFF23272F),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ..._searchResults.map((user) => _buildUserTile(user)).toList(),
+            ],
+
+            // Connect with others section
+            const SizedBox(height: 32),
+            const Text(
+              'Connect with others',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: Color(0xFF23272F),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'People you might know',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF8A8F98),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (_isLoadingSuggested)
+              const Center(
+                child: CircularProgressIndicator(),
+              )
+            else if (_suggestedUsers.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text(
+                    'No suggestions available',
+                    style: TextStyle(
+                      color: Color(0xFF8A8F98),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ..._suggestedUsers.map((user) => _buildUserTile(user)).toList(),
+
+            const SizedBox(height: 32),
+
+            // Share invite link section
             const Text(
               'OR INVITE FROM',
               style: TextStyle(
@@ -1298,30 +1624,100 @@ class _AddFriendDialog extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             _InviteOption(
-              icon: Icons.phone_iphone,
-              title: 'Invite from contacts',
-              subtitle: 'Find friends from your phone contacts',
-              iconColor: Color(0xFF03A9F4),
-              onTap: () {},
-            ),
-            const SizedBox(height: 12),
-            _InviteOption(
-              icon: Icons.qr_code,
-              title: 'Scan QR code',
-              subtitle: "Scan your friend's QR code to connect",
-              iconColor: Color(0xFFFF9800),
-              onTap: () {},
-            ),
-            const SizedBox(height: 12),
-            _InviteOption(
               icon: Icons.share,
               title: 'Share invite link',
               subtitle: 'Share via WhatsApp, SMS, Email',
-              iconColor: Color(0xFF4CAF50),
+              iconColor: const Color(0xFF4CAF50),
               onTap: () {},
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserTile(Map<String, dynamic> user) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          radius: 24,
+          backgroundImage: user['profileImage'] != null
+              ? NetworkImage(user['profileImage'])
+              : null,
+          child: user['profileImage'] == null
+              ? const Icon(Icons.person, size: 24)
+              : null,
+        ),
+        title: Text(
+          user['displayName'],
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '@${user['username']}',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Icon(Icons.local_fire_department,
+                    size: 14, color: Colors.orange[400]),
+                const SizedBox(width: 4),
+                Text(
+                  'Level ${user['level']} • ${user['currentStreak']} day streak',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+        trailing: _isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : ElevatedButton(
+                onPressed: () => _sendFriendRequest(user['userId']),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF03A9F4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Add',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
       ),
     );
   }
@@ -1348,7 +1744,7 @@ class _InviteOption extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Material(
         color: Colors.transparent,

@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'friend_profile_page.dart';
+import 'services/chat_service.dart';
+import 'services/health_service.dart';
 
 class ChatDetailPage extends StatefulWidget {
+  final String? chatId;
   final String name;
   final String avatar;
   final bool online;
+  final String? otherUserId; // For new chats
 
   const ChatDetailPage({
     super.key,
+    this.chatId,
     required this.name,
     required this.avatar,
     required this.online,
+    this.otherUserId,
   });
 
   @override
@@ -18,55 +25,63 @@ class ChatDetailPage extends StatefulWidget {
 }
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
-  final List<Map<String, dynamic>> messages = [
-    {
-      'text': "Hey there! How's your walking challenge going today?",
-      'time': '10:30 AM',
-      'isMe': false,
-    },
-    {
-      'text': "Pretty good! I've already reached 5k steps this morning.",
-      'time': '10:32 AM',
-      'isMe': true,
-    },
-    {
-      'text': "That's impressive! I'm only at 3k so far.",
-      'time': '10:33 AM',
-      'isMe': false,
-    },
-    {
-      'text': "Want to join me for a lunchtime walk challenge?",
-      'time': '10:34 AM',
-      'isMe': false,
-    },
-    {
-      'text': "Sounds great! What time are you thinking?",
-      'time': '10:36 AM',
-      'isMe': true,
-    },
-  ];
-
+  final ChatService _chatService = ChatService();
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  String? _currentChatId;
 
-  void _sendMessage() {
+  @override
+  void initState() {
+    super.initState();
+    _initializeChat();
+  }
+
+  Future<void> _initializeChat() async {
+    if (widget.chatId != null) {
+      _currentChatId = widget.chatId;
+      // Mark messages as read when opening existing chat
+      await _chatService.markMessagesAsRead(widget.chatId!);
+    } else if (widget.otherUserId != null) {
+      // Create new chat
+      try {
+        _currentChatId =
+            await _chatService.getOrCreateChat(widget.otherUserId!);
+      } catch (e) {
+        print('Error creating chat: $e');
+      }
+    }
+  }
+
+  void _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      messages.add({
-        'text': text,
-        'time': _formatTime(DateTime.now()),
-        'isMe': true,
-      });
+    if (text.isEmpty || _currentChatId == null) return;
+
+    try {
+      await _chatService.sendMessage(_currentChatId!, text);
       _controller.clear();
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    });
+
+      // Scroll to bottom after sending
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      print('Error sending message: $e');
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   String _formatTime(DateTime time) {
@@ -114,24 +129,45 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _ShareOption(
-                    icon: Icons.image,
-                    label: 'Photos',
-                    onTap: () {},
-                  ),
-                  _ShareOption(
-                    icon: Icons.insert_drive_file,
-                    label: 'Document',
-                    onTap: () {},
+                    icon: Icons.camera_alt,
+                    label: 'Camera',
+                    onTap: () async {
+                      // TODO: Implement camera capture and send image
+                    },
                   ),
                   _ShareOption(
                     icon: Icons.show_chart,
                     label: 'Progress',
-                    onTap: () {},
+                    onTap: () async {
+                      Navigator.of(context).pop();
+                      try {
+                        final healthService = HealthService();
+                        final stepsData = await healthService.fetchStepsData();
+                        final int steps = stepsData['count'] ?? 0;
+                        final fancyMsg = "🚶‍♂️ I've walked " +
+                            _formatSteps(steps) +
+                            " steps today! 🏆";
+                        setState(() {
+                          _controller.text = fancyMsg;
+                        });
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Could not fetch steps: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
                   ),
                   _ShareOption(
                     icon: Icons.emoji_events,
                     label: 'Challenge',
-                    onTap: () {},
+                    onTap: () {
+                      // TODO: Implement challenge a friend to a game
+                    },
                   ),
                 ],
               ),
@@ -141,6 +177,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         );
       },
     );
+  }
+
+  String _formatSteps(int steps) {
+    return steps.toString().replaceAllMapped(
+          RegExp(r'\B(?=(\d{3})+(?!\d))'),
+          (match) => ',',
+        );
   }
 
   @override
@@ -240,53 +283,164 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  final msg = messages[index];
-                  final isMe = msg['isMe'] as bool;
-                  return Align(
-                    alignment:
-                        isMe ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(
-                          vertical: 6, horizontal: 4),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14, horizontal: 18),
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.75,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isMe ? const Color(0xFF03A9F4) : Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
+              child: _currentChatId == null
+                  ? const Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            msg['text'],
-                            style: TextStyle(
-                              color: isMe ? Colors.white : Colors.black,
-                              fontSize: 17,
-                            ),
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 64,
+                            color: Colors.grey,
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: 16),
                           Text(
-                            msg['time'],
+                            'Initializing chat...',
                             style: TextStyle(
-                              color: isMe ? Colors.white70 : Colors.black54,
-                              fontSize: 13,
+                              fontSize: 18,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
+                    )
+                  : StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _chatService.getMessages(_currentChatId!),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Error loading messages',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Please try again later',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final messages = snapshot.data ?? [];
+
+                        if (messages.isEmpty) {
+                          return const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No messages yet',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Start the conversation!',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 18, horizontal: 8),
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = messages[index];
+                            final isMe = msg['isMe'] as bool;
+                            final timestamp = msg['timestamp'] as Timestamp?;
+                            final timeString = timestamp != null
+                                ? _formatTime(timestamp.toDate())
+                                : '';
+
+                            return Align(
+                              alignment: isMe
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 6, horizontal: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 14, horizontal: 18),
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.75,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isMe
+                                      ? const Color(0xFF03A9F4)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      msg['text'],
+                                      style: TextStyle(
+                                        color:
+                                            isMe ? Colors.white : Colors.black,
+                                        fontSize: 17,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      timeString,
+                                      style: TextStyle(
+                                        color: isMe
+                                            ? Colors.white70
+                                            : Colors.black54,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -364,11 +518,11 @@ class _ShareOption extends StatelessWidget {
           Container(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5FAFF),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5FAFF),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Color(0xFF03A9F4), size: 32),
+            child: Icon(icon, color: const Color(0xFF03A9F4), size: 32),
           ),
           const SizedBox(height: 8),
           Text(

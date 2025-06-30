@@ -8,7 +8,7 @@ class PermissionsNeededDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orange = Color(0xFFFEB14C);
+    const orange = Color(0xFFFEB14C);
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: Colors.white,
@@ -22,10 +22,10 @@ class PermissionsNeededDialog extends StatelessWidget {
                 color: orange.withOpacity(0.15),
                 shape: BoxShape.circle,
               ),
-              padding: EdgeInsets.all(16),
-              child: Icon(Icons.shield_outlined, color: orange, size: 40),
+              padding: const EdgeInsets.all(16),
+              child: const Icon(Icons.shield_outlined, color: orange, size: 40),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Text(
               'Permissions Needed',
               style: GoogleFonts.poppins(
@@ -35,18 +35,18 @@ class PermissionsNeededDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 18),
+            const SizedBox(height: 18),
             Text(
               "Walkzilla needs access to your fitness data to track your steps and power your adventure. Without these permissions, Walkzilla won't work properly.",
               style: GoogleFonts.poppins(
                 fontSize: 15,
-                color: Color(0xFF6C6C6C),
+                color: const Color(0xFF6C6C6C),
                 fontWeight: FontWeight.w400,
                 height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             Row(
               children: [
                 Expanded(
@@ -55,8 +55,9 @@ class PermissionsNeededDialog extends StatelessWidget {
                       SystemNavigator.pop();
                     },
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Color(0xFFDADADA), width: 1.5),
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(
+                          color: Color(0xFFDADADA), width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),
@@ -70,14 +71,14 @@ class PermissionsNeededDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: onGrantPermissions,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: orange,
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                       textStyle: GoogleFonts.poppins(
@@ -86,7 +87,7 @@ class PermissionsNeededDialog extends StatelessWidget {
                       ),
                       elevation: 0,
                     ),
-                    child: Text('Grant Permissions'),
+                    child: const Text('Grant Permissions'),
                   ),
                 ),
               ],

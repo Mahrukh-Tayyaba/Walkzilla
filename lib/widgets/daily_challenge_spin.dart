@@ -157,15 +157,15 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
           children: [
             // Headline and subtitle at the top, only before spinning
             if (!_showResult) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 24.0, left: 0, right: 0),
+              const Padding(
+                padding: EdgeInsets.only(top: 24.0, left: 0, right: 0),
                 child: SizedBox(
                   width: double.infinity,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'Spin the wheel!',
                         style: TextStyle(
                           fontSize: 28,
@@ -174,8 +174,8 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
+                      SizedBox(height: 8),
+                      Text(
                         'to play a fun mini-game and earn extra points!',
                         style: TextStyle(
                           fontSize: 16,

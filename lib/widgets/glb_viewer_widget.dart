@@ -34,9 +34,8 @@ class _GLBViewerWidgetState extends State<GLBViewerWidget> {
     await glbFile.writeAsBytes(glbBytes.buffer.asUint8List());
 
     // Pass the GLB file path as a query parameter
-    final String fileUrl = Uri.file(htmlFile.path).toString() +
-        '?model=' +
-        Uri.encodeComponent(glbFile.path);
+    final String fileUrl =
+        '${Uri.file(htmlFile.path)}?model=${Uri.encodeComponent(glbFile.path)}';
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..loadRequest(Uri.parse(fileUrl));

@@ -50,7 +50,7 @@ class CaloriesScreen extends StatelessWidget {
                   center: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.local_fire_department_rounded,
                         color: Colors.orange,
                         size: 28,
@@ -122,7 +122,7 @@ class CaloriesScreen extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.local_fire_department_outlined,
                               color: Colors.orange,
                               size: 18,
@@ -161,7 +161,7 @@ class CaloriesScreen extends StatelessWidget {
                           color: const Color(0xFFF2F7FF), // very light blue
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Column(
+                        child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
@@ -169,16 +169,16 @@ class CaloriesScreen extends StatelessWidget {
                               color: Colors.blue,
                               size: 18,
                             ),
-                            const SizedBox(height: 2),
-                            const Text(
+                            SizedBox(height: 2),
+                            Text(
                               'Yesterday',
                               style: TextStyle(
                                 color: Colors.black54,
                                 fontSize: 13,
                               ),
                             ),
-                            const SizedBox(height: 0),
-                            const Text(
+                            SizedBox(height: 0),
+                            Text(
                               '420 kcal',
                               style: TextStyle(
                                 fontSize: 16,
@@ -243,7 +243,7 @@ class CaloriesScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.lightbulb,
                 color: Colors.orange,
                 size: 24,
@@ -309,7 +309,7 @@ class CaloriesScreen extends StatelessWidget {
                         color: const Color(0xFFFFF3E0), // light orange
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.flag,
                         color: Colors.orange,
                         size: 20,
@@ -335,12 +335,12 @@ class CaloriesScreen extends StatelessWidget {
                 color: const Color(0xFFF4F6F8),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Burn 200 kcal today!',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
@@ -369,9 +369,9 @@ class CaloriesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
+              children: [
                 Text(
                   'Today: 120 kcal',
                   style: TextStyle(

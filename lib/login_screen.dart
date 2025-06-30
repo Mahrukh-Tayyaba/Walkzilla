@@ -5,8 +5,9 @@ import 'home.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'ForgotPasswordScreen.dart'; // Import the ForgotPasswordScreen
+import 'forgot_password_screen.dart';
 import 'services/health_service.dart';
+import 'services/username_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +22,7 @@ class LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final HealthService _healthService = HealthService();
+  final UsernameService _usernameService = UsernameService();
 
   bool _isPasswordVisible = false; // Toggle password visibility
   bool _isLoading = false; // Show loading indicator
@@ -65,29 +67,63 @@ class LoginScreenState extends State<LoginScreen> {
           .doc(userCredential.user!.uid)
           .get();
 
-      // Create user document if it doesn't exist (needed for Google Sign In)
-      if (!userDoc.exists) {
+      // Check if this is a new user
+      bool isNewUser = !userDoc.exists;
+
+      if (isNewUser) {
+        // Generate username for new user
+        String username;
+        try {
+          final displayName = userCredential.user!.displayName ?? 'user';
+          final suggestions = await _usernameService
+              .getUsernameSuggestionsFromName(displayName);
+          username = suggestions.isNotEmpty
+              ? suggestions.first
+              : 'user_${DateTime.now().millisecondsSinceEpoch}';
+        } catch (e) {
+          // Fallback username
+          username = 'user_${DateTime.now().millisecondsSinceEpoch}';
+        }
+
+        // Reserve the username
+        await _usernameService.reserveUsername(
+            username, userCredential.user!.uid);
+
+        // Create user document with generated username
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
             .set({
+          'username': username.toLowerCase(),
+          'displayName': userCredential.user!.displayName ?? username,
           'email': userCredential.user!.email,
-          'username': userCredential.user!.displayName ??
-              userCredential.user!.email?.split('@')[0],
           'createdAt': FieldValue.serverTimestamp(),
           'lastLogin': FieldValue.serverTimestamp(),
           'hasHealthPermissions': false,
           'profileImage': userCredential.user!.photoURL,
+          'level': 1,
+          'todaySteps': 0,
+          'currentStreak': 0,
+          'isOnline': false,
+          'lastActive': FieldValue.serverTimestamp(),
+          'bio': '',
+          'steps': 0,
+          'distance': 0.0,
+          'calories': 0,
+          'weeklyGoal': 0,
+          'monthlyGoal': 0,
+        });
+      } else {
+        // Update existing user's last login and online status
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .update({
+          'lastLogin': FieldValue.serverTimestamp(),
+          'isOnline': true,
+          'lastActive': FieldValue.serverTimestamp(),
         });
       }
-
-      // Update last login time
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .update({
-        'lastLogin': FieldValue.serverTimestamp(),
-      });
 
       if (!mounted) return;
 

@@ -134,7 +134,7 @@ class StepsGoalCard extends StatelessWidget {
                   ),
                 ),
                 currentSteps >= goalSteps
-                    ? Text(
+                    ? const Text(
                         'Goal completed',
                         style: TextStyle(
                           color: Colors.green,

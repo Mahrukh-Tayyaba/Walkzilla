@@ -242,7 +242,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
             children: const ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
                 .map((d) => Text(
                       d,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         color: Colors.black54,
                       ),
@@ -370,8 +370,8 @@ class _StreaksScreenState extends State<StreaksScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
-                        border:
-                            Border.all(color: Color(0xFFF1F1F1), width: 0.8),
+                        border: Border.all(
+                            color: const Color(0xFFF1F1F1), width: 0.8),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -380,8 +380,8 @@ class _StreaksScreenState extends State<StreaksScreen> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE0EDFF),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFE0EDFF),
                                   shape: BoxShape.circle,
                                 ),
                                 padding: const EdgeInsets.all(4),
@@ -417,7 +417,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                                 child: Container(
                                   width: 30,
                                   height: 30,
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: Color(0xFFF3F4F6),
                                   ),
@@ -448,7 +448,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                                 child: Container(
                                   width: 30,
                                   height: 30,
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: Color(0xFFF3F4F6),
                                   ),
@@ -465,7 +465,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Icon(Icons.notifications_none_rounded,
+                        const Icon(Icons.notifications_none_rounded,
                             color: Color(0xFF2563EB), size: 18),
                         const SizedBox(width: 8),
                         const Expanded(
@@ -485,7 +485,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                               remindersEnabled = value;
                             });
                           },
-                          activeColor: Color(0xFF2563EB),
+                          activeColor: const Color(0xFF2563EB),
                         ),
                       ],
                     ),
@@ -538,7 +538,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                               Navigator.of(context).pop();
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF111827),
+                              backgroundColor: const Color(0xFF111827),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(

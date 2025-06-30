@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/health_service.dart';
+import 'services/character_animation_service.dart';
 import 'widgets/daily_challenge_spin.dart';
 import 'notification_page.dart';
 import 'profile_page.dart';
@@ -12,6 +13,7 @@ import 'settings_page.dart';
 import 'friends_page.dart';
 import 'chat_list_page.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'solo_mode.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -28,12 +30,64 @@ class _HomeState extends State<Home> {
   double _heartRate = 0.0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = true;
+  String _userName = 'User'; // Default name
+  String _userEmail = '';
+  bool _isUserDataLoading = true; // Add loading state for user data
 
   @override
   void initState() {
     super.initState();
     _fetchHealthData();
     _startHealthDataRefresh();
+    _loadUserData();
+    _startCharacterPreloading();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      setState(() {
+        _isUserDataLoading = true;
+      });
+
+      final user = _auth.currentUser;
+      if (user != null) {
+        print("Loading user data for: ${user.uid}");
+        print("User email: ${user.email}");
+
+        // Get user data from Firestore (username is stored here)
+        final userDoc =
+            await _firestore.collection('users').doc(user.uid).get();
+
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          final username = userData['username'] ?? '';
+          print("Username from Firestore: $username");
+
+          setState(() {
+            _userName = username.isNotEmpty ? username : 'User';
+            _userEmail = user.email ?? '';
+            _isUserDataLoading = false;
+          });
+        } else {
+          print("No user document found in Firestore");
+          setState(() {
+            _userName = 'User';
+            _userEmail = user.email ?? '';
+            _isUserDataLoading = false;
+          });
+        }
+      } else {
+        print("No user logged in");
+        setState(() {
+          _isUserDataLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      setState(() {
+        _isUserDataLoading = false;
+      });
+    }
   }
 
   Future<void> _fetchHealthData() async {
@@ -122,6 +176,14 @@ class _HomeState extends State<Home> {
     }
   }
 
+  /// Start preloading character animations in the background
+  void _startCharacterPreloading() {
+    // Start preloading animations in the background
+    CharacterAnimationService().preloadAnimations().catchError((error) {
+      print('Failed to preload character animations: $error');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.of(context).size;
@@ -187,58 +249,68 @@ class _HomeState extends State<Home> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Daily Challenges Button
-                      _buildTopButton(
-                        icon: Icons.emoji_events,
-                        label: 'Daily\nChallenges',
-                        color: Colors.orange,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const DailyChallengeSpin()),
-                          );
-                        },
-                        screenSize: screenSize,
+                      Expanded(
+                        child: _buildTopButton(
+                          icon: Icons.emoji_events,
+                          label: 'Daily\nChallenges',
+                          color: Colors.orange,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) =>
+                                      const DailyChallengeSpin()),
+                            );
+                          },
+                          screenSize: screenSize,
+                        ),
                       ),
-
+                      const SizedBox(width: 8),
                       // Steps counter
-                      Container(
-                        width: screenSize.width * 0.4,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(15.0),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              spreadRadius: 2,
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: _isLoading
-                              ? const CircularProgressIndicator()
-                              : Text(
-                                  'Steps: $_steps',
-                                  style: const TextStyle(
-                                    color: Color(0xFF2D2D2D),
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
+                      Expanded(
+                        flex: 2,
+                        child: Container(
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 2,
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: _isLoading
+                                ? const CircularProgressIndicator()
+                                : FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'Steps: $_steps',
+                                      style: TextStyle(
+                                        color: const Color(0xFF2D2D2D),
+                                        fontSize: screenSize.width *
+                                            0.045, // smaller font
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                          ),
                         ),
                       ),
-
-                      // Events Button
-                      _buildTopButton(
-                        icon: Icons.calendar_today,
-                        label: 'Events',
-                        color: const Color(0xFF9C27B0), // Material Purple
-                        onTap: () => print("Events tapped!"),
-                        screenSize: screenSize,
+                      const SizedBox(width: 8),
+                      // Shop Button
+                      Expanded(
+                        child: _buildTopButton(
+                          icon: Icons.shopping_bag,
+                          label: 'Shop',
+                          color: Colors.purple,
+                          onTap: () => print("Shop tapped!"),
+                          screenSize: screenSize,
+                        ),
                       ),
                     ],
                   ),
@@ -259,22 +331,34 @@ class _HomeState extends State<Home> {
                         color: Colors.blue[50],
                       ),
                     ),
-                    // 3D ModelViewer widget
+                    // 3D ModelViewer widget with lazy loading
                     SizedBox(
                       height: screenSize.width * 0.9,
                       width: screenSize.width * 0.9,
-                      child: ModelViewer(
-                        src: 'assets/web/MyCharacter.glb',
-                        alt: "A 3D model of MyCharacter",
-                        autoRotate: false,
-                        cameraControls: true,
-                        backgroundColor: Colors.transparent,
-                        cameraOrbit: "0deg 75deg 100%",
-                        minCameraOrbit: "-180deg 75deg 100%",
-                        maxCameraOrbit: "180deg 75deg 100%",
-                        interactionPrompt: InteractionPrompt.none,
-                        disableTap: true,
-                        autoPlay: true,
+                      child: FutureBuilder(
+                        future: Future.delayed(
+                            const Duration(seconds: 2)), // Delay loading
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          return const ModelViewer(
+                            src: 'assets/web/MyCharacter.glb',
+                            alt: "A 3D model of MyCharacter",
+                            autoRotate: false,
+                            cameraControls: true,
+                            backgroundColor: Colors.transparent,
+                            cameraOrbit: "0deg 75deg 100%",
+                            minCameraOrbit: "-180deg 75deg 100%",
+                            maxCameraOrbit: "180deg 75deg 100%",
+                            interactionPrompt: InteractionPrompt.none,
+                            disableTap: true,
+                            autoPlay: true,
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -292,6 +376,34 @@ class _HomeState extends State<Home> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
+                      // Events Button (Moved from original position)
+                      _buildCornerButton(
+                        icon: Icons.directions_walk,
+                        label: 'Solo Mode',
+                        color: const Color(0xFF9C27B0), // Material Purple
+                        onTap: () {
+                          // Ensure animations are preloaded before navigating
+                          CharacterAnimationService().preloadAnimations();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const SoloMode()),
+                          );
+                        },
+                      ),
+                      _buildCornerButton(
+                        icon: Icons.people,
+                        label: 'Challenges',
+                        color: Colors.blue,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const FriendsPage()),
+                          );
+                        },
+                      ),
+                      // Health Button (Moved from original position)
                       _buildCornerButton(
                         icon: Icons.favorite,
                         label: 'Health',
@@ -303,24 +415,6 @@ class _HomeState extends State<Home> {
                                 builder: (context) => const HealthDashboard()),
                           );
                         },
-                      ),
-                      _buildCornerButton(
-                        icon: Icons.people,
-                        label: 'Friends',
-                        color: Colors.blue,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const FriendsPage()),
-                          );
-                        },
-                      ),
-                      _buildCornerButton(
-                        icon: Icons.shopping_bag,
-                        label: 'Shop',
-                        color: Colors.purple,
-                        onTap: () => print("Shop tapped!"),
                       ),
                     ],
                   ),
@@ -360,6 +454,22 @@ class _HomeState extends State<Home> {
                       context,
                       MaterialPageRoute(
                           builder: (context) => const ProfilePage()),
+                    ).then((_) {
+                      // Add a small delay to ensure Firebase Auth update is complete
+                      Future.delayed(const Duration(milliseconds: 500), () {
+                        // Refresh user data when returning from profile page
+                        _loadUserData();
+                      });
+                    });
+                  },
+                  onLongPress: () {
+                    // Manual refresh on long press
+                    _loadUserData();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Refreshing user data...'),
+                        duration: Duration(seconds: 1),
+                      ),
                     );
                   },
                   child: Row(
@@ -388,14 +498,24 @@ class _HomeState extends State<Home> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "Tayyaba Amanat",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
+                            _isUserDataLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
+                                  )
+                                : Text(
+                                    _userName,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                             const SizedBox(height: 4),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -407,7 +527,7 @@ class _HomeState extends State<Home> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: const Text(
-                                "Premium Member",
+                                "Beginner",
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
@@ -545,7 +665,7 @@ class _HomeState extends State<Home> {
               label,
               style: TextStyle(
                 color: color.withOpacity(0.8),
-                fontSize: 12,
+                fontSize: 10, // smaller font
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -562,46 +682,55 @@ class _HomeState extends State<Home> {
     required VoidCallback onTap,
     required Size screenSize,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: screenSize.width * 0.22,
-        height: 80,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              spreadRadius: 2,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.05),
-                shape: BoxShape.circle,
+    return AspectRatio(
+      aspectRatio: 1.1,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.1),
+                spreadRadius: 2,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: color.withOpacity(0.8),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.05),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon,
+                    color: color,
+                    size: screenSize.width * 0.05), // smaller icon
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: color.withOpacity(0.8),
+                      fontSize: screenSize.width * 0.025, // smaller font
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -665,7 +794,7 @@ class _HomeState extends State<Home> {
         title,
         style: TextStyle(
           color: itemColor,
-          fontSize: 16,
+          fontSize: 14, // smaller font
           fontWeight: FontWeight.w500,
         ),
       ),

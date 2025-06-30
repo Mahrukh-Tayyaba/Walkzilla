@@ -4,7 +4,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.2' // Ensure this matches your Flutter version's requirements
+        classpath 'com.android.tools.build:gradle:8.3.0' // Updated to be compatible with Java 21
         classpath 'com.google.gms:google-services:4.4.2' // Google Services plugin
     }
 }
@@ -13,6 +13,19 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+    
+    // Configure all projects to use Java 17 and suppress warnings
+    plugins.withType(JavaPlugin) {
+        java {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+    
+    // Suppress warnings for all Java compilation tasks
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:-options" << "-Xlint:-unchecked"
     }
 }
 

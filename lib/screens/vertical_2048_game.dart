@@ -122,7 +122,7 @@ class _Vertical2048GameState extends State<Vertical2048Game>
 
     // 2. Find the correct available row for the new block
     int? finalRow = _firstEmptyRow(col);
-    if (finalRow == null) finalRow = 0;
+    finalRow ??= 0;
 
     // 3. Animate the block from below the grid to that row
     setState(() {
@@ -151,7 +151,7 @@ class _Vertical2048GameState extends State<Vertical2048Game>
     });
 
     // 5. Run merges/collapse for the new block
-    await _handleMerges(col, finalRow!);
+    await _handleMerges(col, finalRow);
 
     setState(() {
       currentBlock = nextBlock;
@@ -200,8 +200,9 @@ class _Vertical2048GameState extends State<Vertical2048Game>
         final mergeTarget =
             groupToMerge.reduce((a, b) => (a.row > b.row) ? a : b);
         for (final pos in groupToMerge) {
-          if (pos.col == mergeTarget.col && pos.row == mergeTarget.row)
+          if (pos.col == mergeTarget.col && pos.row == mergeTarget.row) {
             continue;
+          }
           final anim = _MergeAnimation(
             fromCol: pos.col,
             fromRow: pos.row,
@@ -225,7 +226,7 @@ class _Vertical2048GameState extends State<Vertical2048Game>
           }
           // Place merged block at the lowest row in the group
           grid[mergeTarget.col][mergeTarget.row] = valueToMerge! * 2;
-          score += valueToMerge! * 2;
+          score += valueToMerge * 2;
           _collapseColumns();
         });
         await Future.delayed(const Duration(milliseconds: 100));
@@ -296,9 +297,9 @@ class _Vertical2048GameState extends State<Vertical2048Game>
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
-    final double tileMargin = 4;
-    final double columnsToFit = 5;
-    final double horizontalPadding = 12.0;
+    const double tileMargin = 4;
+    const double columnsToFit = 5;
+    const double horizontalPadding = 12.0;
     final double availableWidth = screenWidth - 2 * horizontalPadding;
     final double tileWidth =
         (availableWidth - (tileMargin * 2 * columnsToFit)) / columnsToFit;
@@ -334,7 +335,8 @@ class _Vertical2048GameState extends State<Vertical2048Game>
             const SizedBox(height: 16),
             Expanded(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: horizontalPadding),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final double availableHeight = constraints.maxHeight;
@@ -349,7 +351,7 @@ class _Vertical2048GameState extends State<Vertical2048Game>
                             return GestureDetector(
                               onTap: () => _dropBlock(col),
                               child: Container(
-                                margin: EdgeInsets.symmetric(
+                                margin: const EdgeInsets.symmetric(
                                     horizontal: tileMargin),
                                 width: tileWidth,
                                 decoration: BoxDecoration(
@@ -565,8 +567,9 @@ class _Vertical2048GameState extends State<Vertical2048Game>
     final stack = <_BlockPos>[_BlockPos(col, row)];
     while (stack.isNotEmpty) {
       final pos = stack.removeLast();
-      if (pos.col < 0 || pos.col >= columns || pos.row < 0 || pos.row >= rows)
+      if (pos.col < 0 || pos.col >= columns || pos.row < 0 || pos.row >= rows) {
         continue;
+      }
       if (visited[pos.col][pos.row]) continue;
       if (grid[pos.col][pos.row] != value) continue;
       visited[pos.col][pos.row] = true;

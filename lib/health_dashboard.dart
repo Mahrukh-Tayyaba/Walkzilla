@@ -953,15 +953,15 @@ class _HealthDashboardState extends State<HealthDashboard> {
                           reservedSize: 16,
                         ),
                       ),
-                      leftTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
                     ),
                     borderData: FlBorderData(show: false),
-                    gridData: FlGridData(show: false),
+                    gridData: const FlGridData(show: false),
                     barGroups: List.generate(
                       7,
                       (index) => _generateBarGroup(
@@ -1142,7 +1142,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                     color: Colors.black87,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 Text(
                   '$streak',
                   style: const TextStyle(

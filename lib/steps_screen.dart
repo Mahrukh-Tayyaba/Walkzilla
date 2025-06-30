@@ -951,9 +951,9 @@ class _StepsScreenState extends State<StepsScreen> {
                                   36.0 +
                                   (barWidth / 2.0);
 
-                          final tooltipWidth = 120.0;
+                          const tooltipWidth = 120.0;
 
-                          final minLeft = 8.0;
+                          const minLeft = 8.0;
                           final maxLeft =
                               chartWidth + 36.0 - tooltipWidth - 8.0;
 
@@ -1148,17 +1148,17 @@ class _StepsScreenState extends State<StepsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Column(
+                    const Column(
                       children: [
                         Icon(
                           Icons.directions_walk_rounded,
                           color: Color(0xFF2E7D32),
                           size: 24,
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           '21.4km',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                             color: Colors.black87,
@@ -1174,9 +1174,9 @@ class _StepsScreenState extends State<StepsScreen> {
                     Column(
                       children: [
                         const SizedBox(height: 2),
-                        Text(
+                        const Text(
                           '1,200',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
@@ -1196,17 +1196,17 @@ class _StepsScreenState extends State<StepsScreen> {
                       height: 30,
                       color: Colors.grey[200],
                     ),
-                    Column(
+                    const Column(
                       children: [
                         Icon(
                           Icons.timer_outlined,
                           color: Color(0xFF2E7D32),
                           size: 24,
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           '2h, 14m',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                             color: Colors.black87,
@@ -1478,7 +1478,7 @@ class _StepsScreenState extends State<StepsScreen> {
               const SizedBox(height: 16),
               // Fun Fact Card
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -1496,7 +1496,7 @@ class _StepsScreenState extends State<StepsScreen> {
                           color: Colors.blueAccent.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(Icons.star_border_rounded,
+                        child: const Icon(Icons.star_border_rounded,
                             color: Colors.blue, size: 18),
                       ),
                       const SizedBox(width: 12),

@@ -370,7 +370,7 @@ class _FlappyDragonGameState extends State<FlappyDragonGame>
                     top: MediaQuery.of(context).size.height * 0.22,
                     left: 0,
                     right: 0,
-                    child: Center(
+                    child: const Center(
                       child: Text(
                         'Tap to Start',
                         style: TextStyle(
@@ -389,7 +389,7 @@ class _FlappyDragonGameState extends State<FlappyDragonGame>
                         decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(15),
-                            boxShadow: [
+                            boxShadow: const [
                               BoxShadow(
                                 color: Colors.black12,
                                 blurRadius: 10,
@@ -423,7 +423,7 @@ class _FlappyDragonGameState extends State<FlappyDragonGame>
                         decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(15),
-                            boxShadow: [
+                            boxShadow: const [
                               BoxShadow(
                                 color: Colors.black12,
                                 blurRadius: 10,

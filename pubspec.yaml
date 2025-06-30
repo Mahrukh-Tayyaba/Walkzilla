@@ -44,6 +44,7 @@ dependencies:
   google_sign_in: ^6.2.0
   sign_in_with_apple: ^6.1.4
   health: ^12.1.0
+  pedometer: ^4.1.1
   permission_handler: ^11.3.1
   intl: ^0.19.0
   video_player: ^2.9.5
@@ -54,6 +55,7 @@ dependencies:
   model_viewer_plus: ^1.7.0
   webview_flutter: ^4.0.7
   path_provider: ^2.0.15
+  flame: ^1.29.0
 
 dev_dependencies:
   flutter_test:
@@ -90,6 +92,11 @@ flutter:
     - assets/images/pipe.png
     - assets/images/google-logo-icon.png
     - assets/images/apple-Icon.png
+    - assets/images/background.png   
+    - assets/images/character_idle.json
+    - assets/images/character_idle.png
+    - assets/images/character_walking.json
+    - assets/images/character_walking.png
     - assets/gifs/ground.gif
     - assets/gifs/logo.gif
     - assets/gifs/tagline.gif

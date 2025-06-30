@@ -3,7 +3,6 @@ import 'package:health/health.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:walkzilla/widgets/permissions_needed_dialog.dart';
 
 class HealthService {
   static final HealthService _instance = HealthService._internal();

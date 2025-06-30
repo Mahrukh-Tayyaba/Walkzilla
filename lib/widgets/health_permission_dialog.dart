@@ -75,30 +75,30 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
             Align(
               alignment: Alignment.topRight,
               child: IconButton(
-                icon: Icon(Icons.close, color: Colors.black54),
+                icon: const Icon(Icons.close, color: Colors.black54),
                 onPressed: () => Navigator.of(context).pop(),
                 padding: EdgeInsets.zero,
-                constraints: BoxConstraints(),
+                constraints: const BoxConstraints(),
               ),
             ),
 
             // Heart Icon
             Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
                 color: Color(0xFFFFF4EC),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.favorite_border,
                 color: Color(0xFFFF7940),
                 size: 32,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
             // Title
-            Text(
+            const Text(
               'Allow Walkzilla to access your fitness data?',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -106,10 +106,10 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
 
             // Subtitle
-            Text(
+            const Text(
               'To track your steps, distance, heart rate, and calories burnt — and power your adventure!',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -117,34 +117,34 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                 fontSize: 14,
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
 
             // Allow all switch
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Color(0xFFFFF4EC),
+                color: const Color(0xFFFFF4EC),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Allow all',
                     style: TextStyle(fontSize: 16),
                   ),
                   Switch(
                     value: allowAll,
                     onChanged: updateAll,
-                    activeColor: Color(0xFFFF7940),
+                    activeColor: const Color(0xFFFF7940),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
             // Permission section title
-            Align(
+            const Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'Allow "Walkzilla" to read:',
@@ -154,7 +154,7 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                 ),
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
 
             // Permission items
             _buildPermissionItem(
@@ -201,10 +201,10 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                 });
               },
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
             // Privacy text
-            Text(
+            const Text(
               'Walkzilla only uses your fitness data to enhance your adventure. Your data stays private.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -212,7 +212,7 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                 fontSize: 12,
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
 
             // Action buttons
             Row(
@@ -220,19 +220,19 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: Text(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
                       "Don't Allow",
                       style: TextStyle(
                         color: Colors.black87,
                         fontSize: 16,
                       ),
                     ),
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: (steps || distance || heartRate || calories)
@@ -240,12 +240,15 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                             try {
                               final types = <HealthDataType>[];
                               if (steps) types.add(HealthDataType.STEPS);
-                              if (distance)
+                              if (distance) {
                                 types.add(HealthDataType.DISTANCE_DELTA);
-                              if (heartRate)
+                              }
+                              if (heartRate) {
                                 types.add(HealthDataType.HEART_RATE);
-                              if (calories)
+                              }
+                              if (calories) {
                                 types.add(HealthDataType.ACTIVE_ENERGY_BURNED);
+                              }
 
                               await requestGoogleFitAuthorization(types);
 
@@ -255,7 +258,7 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                               Navigator.of(context).pop(true);
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
+                                const SnackBar(
                                   content: Text(
                                       'Failed to get health permissions. Please try again.'),
                                 ),
@@ -263,18 +266,18 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                             }
                           }
                         : null,
-                    child: Text(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF7940),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
                       'Allow',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFFF7940),
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),
@@ -298,17 +301,17 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
       child: Row(
         children: [
           Icon(icon, size: 24, color: Colors.black54),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               title,
-              style: TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16),
             ),
           ),
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Color(0xFFFF7940),
+            activeColor: const Color(0xFFFF7940),
           ),
         ],
       ),
@@ -322,7 +325,7 @@ class PermissionsNeededDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orange = Color(0xFFFEB14C);
+    const orange = Color(0xFFFEB14C);
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: Colors.white,
@@ -336,10 +339,10 @@ class PermissionsNeededDialog extends StatelessWidget {
                 color: orange.withOpacity(0.15),
                 shape: BoxShape.circle,
               ),
-              padding: EdgeInsets.all(16),
-              child: Icon(Icons.shield_outlined, color: orange, size: 40),
+              padding: const EdgeInsets.all(16),
+              child: const Icon(Icons.shield_outlined, color: orange, size: 40),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Text(
               'Permissions Needed',
               style: GoogleFonts.poppins(
@@ -349,18 +352,18 @@ class PermissionsNeededDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 18),
+            const SizedBox(height: 18),
             Text(
               "Walkzilla needs access to your fitness data to track your steps and power your adventure. Without these permissions, Walkzilla won't work properly.",
               style: GoogleFonts.poppins(
                 fontSize: 15,
-                color: Color(0xFF6C6C6C),
+                color: const Color(0xFF6C6C6C),
                 fontWeight: FontWeight.w400,
                 height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             Row(
               children: [
                 Expanded(
@@ -369,8 +372,9 @@ class PermissionsNeededDialog extends StatelessWidget {
                       SystemNavigator.pop();
                     },
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Color(0xFFDADADA), width: 1.5),
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(
+                          color: Color(0xFFDADADA), width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),
@@ -384,14 +388,14 @@ class PermissionsNeededDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: onGrantPermissions,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: orange,
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                       textStyle: GoogleFonts.poppins(
@@ -400,7 +404,7 @@ class PermissionsNeededDialog extends StatelessWidget {
                       ),
                       elevation: 0,
                     ),
-                    child: Text('Grant Permissions'),
+                    child: const Text('Grant Permissions'),
                   ),
                 ),
               ],

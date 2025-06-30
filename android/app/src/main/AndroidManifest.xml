@@ -25,7 +25,8 @@
         android:label="Walkzilla"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true">
         
         <!-- Health Connect permissions reference -->
         <meta-data

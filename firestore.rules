@@ -1,1 +1,48 @@
- 
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow reading usernames collection for availability checking (no auth required)
+    match /usernames/{username} {
+      allow read: if true; // Allow reading for username availability checks
+      allow write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Allow reading users collection for username availability checking (no auth required)
+    match /users/{userId} {
+      allow read: if true; // Allow reading for username availability checks
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Friend requests collection
+    match /friend_requests/{requestId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.fromUserId || request.auth.uid == resource.data.toUserId);
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.fromUserId;
+      allow update: if request.auth != null && 
+        (request.auth.uid == resource.data.fromUserId || request.auth.uid == resource.data.toUserId);
+      allow delete: if request.auth != null && request.auth.uid == resource.data.fromUserId;
+    }
+    
+    // Friendships collection
+    match /friendships/{friendshipId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.users;
+    }
+    
+    // Chats collection
+    match /chats/{chatId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.participants;
+    }
+    // Chat messages subcollection
+    match /chats/{chatId}/messages/{messageId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+    }
+    
+    // Allow reading and writing to other collections as needed
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+} 

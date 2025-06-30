@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
+import 'services/username_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -21,16 +23,68 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
+  // User data variables
+  String _userName = 'User';
+  String _userEmail = '';
+  String _userPhone = '';
+  String _userLocation = '';
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with current user data
-    _nameController.text = 'Tayyaba Amanat';
-    _phoneController.text = '+1 (555) 123-4567';
-    _locationController.text = 'San Francisco, CA';
-    _currentPasswordController.text = 'currentpass123';
-    _newPasswordController.text = 'newpass123';
-    _confirmPasswordController.text = 'newpass123';
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Get user data from Firestore
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          setState(() {
+            _userName = userData['username'] ??
+                user.displayName ??
+                user.email?.split('@')[0] ??
+                'User';
+            _userEmail = user.email ?? '';
+            _userPhone = userData['phone'] ?? '+1 (555) 123-4567';
+            _userLocation = userData['location'] ?? 'San Francisco, CA';
+            _isLoading = false;
+          });
+
+          // Initialize controllers with actual user data
+          _nameController.text = _userName;
+          _phoneController.text = _userPhone;
+          _locationController.text = _userLocation;
+        } else {
+          // Fallback to Firebase Auth data
+          setState(() {
+            _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
+            _userEmail = user.email ?? '';
+            _userPhone = '+1 (555) 123-4567';
+            _userLocation = 'San Francisco, CA';
+            _isLoading = false;
+          });
+
+          // Initialize controllers
+          _nameController.text = _userName;
+          _phoneController.text = _userPhone;
+          _locationController.text = _userLocation;
+        }
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -44,11 +98,92 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  Future<void> _saveProfileChanges() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final oldUsername =
+            userDoc.data()?['username']?.toString().toLowerCase() ?? '';
+        final newUsername = _nameController.text.trim().toLowerCase();
+        // Only update username if it changed
+        if (oldUsername != newUsername) {
+          // Check if new username is available
+          final usernameService = UsernameService();
+          final isAvailable =
+              await usernameService.isUsernameAvailable(newUsername);
+          if (!isAvailable) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Username is already taken.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+          // Remove old username from usernames collection
+          if (oldUsername.isNotEmpty) {
+            await FirebaseFirestore.instance
+                .collection('usernames')
+                .doc(oldUsername)
+                .delete();
+          }
+          // Reserve new username
+          await usernameService.reserveUsername(newUsername, user.uid);
+        }
+        // Update Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'username': _nameController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'location': _locationController.text.trim(),
+        });
+
+        // Update Firebase Auth displayName
+        await user.updateDisplayName(_nameController.text.trim());
+
+        // Update local state
+        setState(() {
+          _userName = _nameController.text.trim();
+          _userPhone = _phoneController.text.trim();
+          _userLocation = _locationController.text.trim();
+        });
+
+        if (mounted) {
+          Navigator.pop(context); // Close the dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error saving profile changes: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showEditProfileDialog() {
     // Reset form data to current values
-    _nameController.text = 'Tayyaba Amanat';
-    _phoneController.text = '+1 (555) 123-4567';
-    _locationController.text = 'San Francisco, CA';
+    _nameController.text = _userName;
+    _phoneController.text = _userPhone;
+    _locationController.text = _userLocation;
 
     showDialog(
       context: context,
@@ -170,7 +305,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 4),
                       TextFormField(
                         enabled: false,
-                        initialValue: 'tayyaba.amanat@example.com',
+                        initialValue: _userEmail,
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.grey[100],
@@ -261,10 +396,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: TextButton(
-                          onPressed: () {
-                            // TODO: Implement save changes logic
-                            Navigator.pop(context);
-                          },
+                          onPressed: _saveProfileChanges,
                           style: TextButton.styleFrom(
                             backgroundColor: Colors.blue,
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -482,6 +614,31 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FF),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text(
+            'Profile',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
       appBar: AppBar(
@@ -557,9 +714,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Tayyaba Amanat',
-                    style: TextStyle(
+                  Text(
+                    _userName,
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -755,21 +912,21 @@ class _ProfilePageState extends State<ProfilePage> {
                   _buildInfoRow(
                     icon: Icons.email,
                     label: 'Email',
-                    value: 'tayyaba.amanat@example.com',
+                    value: _userEmail,
                     color: Colors.blue,
                   ),
                   const SizedBox(height: 16),
                   _buildInfoRow(
                     icon: Icons.phone,
                     label: 'Phone',
-                    value: '+1 (555) 123-4567',
+                    value: _userPhone,
                     color: Colors.green,
                   ),
                   const SizedBox(height: 16),
                   _buildInfoRow(
                     icon: Icons.location_on,
                     label: 'Location',
-                    value: 'San Francisco, CA',
+                    value: _userLocation,
                     color: Colors.purple,
                   ),
                   const SizedBox(height: 16),
