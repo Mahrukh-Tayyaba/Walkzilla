@@ -129,13 +129,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _ShareOption(
-                    icon: Icons.camera_alt,
-                    label: 'Camera',
-                    onTap: () async {
-                      // TODO: Implement camera capture and send image
-                    },
-                  ),
-                  _ShareOption(
                     icon: Icons.show_chart,
                     label: 'Progress',
                     onTap: () async {
