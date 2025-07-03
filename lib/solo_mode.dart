@@ -20,6 +20,7 @@ class _SoloModeState extends State<SoloMode> {
   final FocusNode _focusNode = FocusNode();
   bool _isLoading = true;
   int _currentSteps = 2400; // Default value
+  final double walkSpeed = 200; // pixels per second, adjust as needed
 
   @override
   void initState() {
@@ -217,10 +218,10 @@ class _SoloModeState extends State<SoloMode> {
                   right: 20,
                   child: GestureDetector(
                     onPanStart: (_) {
-                      SoloModeGame.instance?.character.startWalking();
+                      SoloModeGame.instance?.character?.startWalking();
                     },
                     onPanEnd: (_) {
-                      SoloModeGame.instance?.character.stopWalking();
+                      SoloModeGame.instance?.character?.stopWalking();
                     },
                     child: Container(
                       width: 100,
@@ -335,9 +336,18 @@ class Character extends SpriteAnimationComponent
 
 class SoloModeGame extends FlameGame with KeyboardEvents {
   static SoloModeGame? instance;
-  late Character character;
-  late ParallaxComponent parallax;
-  final double walkSpeed = 100.0; // Reduced speed for smoother scrolling
+  Character? character;
+  SpriteComponent? skyA;
+  SpriteComponent? skyB;
+  SpriteComponent? bushesA;
+  SpriteComponent? bushesB;
+  SpriteComponent? pathA;
+  SpriteComponent? pathB;
+  final double baseWidth = 1200;
+  final double baseHeight = 2400;
+  final double bushesHeight = 1841;
+  final double pathHeight = 559;
+  final double walkSpeed = 150; // pixels per second, adjust as needed
 
   SoloModeGame() {
     instance = this;
@@ -347,28 +357,74 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
   Future<void> onLoad() async {
     print('SoloModeGame onLoad start');
     await super.onLoad();
+    final screenWidth = size.x;
+    final screenHeight = size.y;
+    final scaleX = screenWidth / baseWidth;
+    final scaleY = screenHeight / baseHeight;
     try {
-      // Use only the original background layer
-      parallax = await ParallaxComponent.load(
-        [
-          ParallaxImageData('background.png'),
-        ],
-        baseVelocity: Vector2.zero(),
-        fill: LayerFill.height,
+      // Layer 1: Sky (endless scroll)
+      final skySprite = await loadSprite('sky.png');
+      skyA = SpriteComponent(
+        sprite: skySprite,
+        size: Vector2(screenWidth, screenHeight),
+        position: Vector2(0, 0),
       );
-      add(parallax);
+      skyB = SpriteComponent(
+        sprite: skySprite,
+        size: Vector2(screenWidth, screenHeight),
+        position: Vector2(screenWidth, 0),
+      );
+      add(skyA!);
+      add(skyB!);
+
+      // Layer 2: Bushes (endless scroll)
+      final bushesSprite = await loadSprite('bushes.png');
+      final double bushesH = bushesHeight * scaleY;
+      bushesA = SpriteComponent(
+        sprite: bushesSprite,
+        size: Vector2(screenWidth, bushesH),
+        position: Vector2(0, 0),
+      );
+      bushesB = SpriteComponent(
+        sprite: bushesSprite,
+        size: Vector2(screenWidth, bushesH),
+        position: Vector2(screenWidth, 0),
+      );
+      add(bushesA!);
+      add(bushesB!);
+
+      // Layer 2.1: Path (endless scroll)
+      final pathSprite = await loadSprite('path.png');
+      final double pathH = pathHeight * scaleY;
+      final double pathY = screenHeight - pathH;
+      pathA = SpriteComponent(
+        sprite: pathSprite,
+        size: Vector2(screenWidth, pathH),
+        position: Vector2(0, pathY),
+      );
+      pathB = SpriteComponent(
+        sprite: pathSprite,
+        size: Vector2(screenWidth, pathH),
+        position: Vector2(screenWidth, pathY),
+      );
+      add(pathA!);
+      add(pathB!);
+
+      // Layer 3: Character (on top of path)
+      // Compensate for transparent pixels at the bottom of the character sprite
+      final double transparentBottomPx = 140; // Adjust this value as needed
+      final double transparentOffset = transparentBottomPx * scaleY;
       character = Character();
-      // --- Ratio-based positioning ---
-      double originalBgWidth = 1200;
-      double originalBgHeight = 2400;
-      double scale = size.x / originalBgWidth;
-      double originalCharacterX = 100;
-      double originalCharacterY = 920;
-      double scaledCharacterX = originalCharacterX * scale;
-      double scaledCharacterY = originalCharacterY * scale;
-      character.position = Vector2(scaledCharacterX, scaledCharacterY);
-      // --- End ratio-based positioning ---
-      add(character);
+      character!.size =
+          Vector2(800 * scaleX, 800 * scaleY); // 800x800 base size
+      character!.anchor = Anchor.bottomLeft;
+      character!.position = Vector2(
+        100 * scaleX, // X position (adjust as needed)
+        screenHeight -
+            (pathHeight * scaleY) +
+            transparentOffset, // Y = top of path + offset
+      );
+      add(character!);
       print('SoloModeGame onLoad success');
     } catch (e, st) {
       print('SoloModeGame onLoad error: $e');
@@ -379,10 +435,42 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
   @override
   void update(double dt) {
     super.update(dt);
-    if (character.isWalking) {
-      parallax.parallax?.baseVelocity = Vector2(walkSpeed, 0);
-    } else {
-      parallax.parallax?.baseVelocity = Vector2.zero();
+    if (character?.isWalking == true) {
+      final double dx = walkSpeed * dt;
+      // Sky
+      skyA?.x -= dx;
+      skyB?.x -= dx;
+      // Loop sky
+      if (skyA != null && skyB != null) {
+        if (skyA!.x <= -size.x) {
+          skyA!.x = skyB!.x + size.x;
+        }
+        if (skyB!.x <= -size.x) {
+          skyB!.x = skyA!.x + size.x;
+        }
+      }
+      // Bushes
+      bushesA?.x -= dx;
+      bushesB?.x -= dx;
+      if (bushesA != null && bushesB != null) {
+        if (bushesA!.x <= -size.x) {
+          bushesA!.x = bushesB!.x + size.x;
+        }
+        if (bushesB!.x <= -size.x) {
+          bushesB!.x = bushesA!.x + size.x;
+        }
+      }
+      // Path
+      pathA?.x -= dx;
+      pathB?.x -= dx;
+      if (pathA != null && pathB != null) {
+        if (pathA!.x <= -size.x) {
+          pathA!.x = pathB!.x + size.x;
+        }
+        if (pathB!.x <= -size.x) {
+          pathB!.x = pathA!.x + size.x;
+        }
+      }
     }
   }
 }

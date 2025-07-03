@@ -8,6 +8,13 @@ import 'providers/step_goal_provider.dart';
 import 'providers/streak_provider.dart';
 import 'health_dashboard.dart';
 import 'streaks_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  // Handle background message (can be expanded later)
+  print('Handling a background message: \\${message.messageId}');
+}
 
 void main() async {
   try {
@@ -28,6 +35,15 @@ void main() async {
       print('Error initializing Firebase: $e');
       // Continue without Firebase for now
     }
+
+    // FCM setup
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    final fcm = FirebaseMessaging.instance;
+    await fcm.requestPermission();
+    await fcm.setAutoInitEnabled(true);
+    // Optionally: print the FCM token for testing
+    final token = await fcm.getToken();
+    print('FCM Token: $token');
 
     runApp(
       MultiProvider(

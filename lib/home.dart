@@ -7,6 +7,7 @@ import 'login_screen.dart';
 import 'services/health_service.dart';
 import 'services/character_animation_service.dart';
 import 'widgets/daily_challenge_spin.dart';
+import 'challenges_screen.dart';
 import 'notification_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
@@ -33,6 +34,7 @@ class _HomeState extends State<Home> {
   String _userName = 'User'; // Default name
   String _userEmail = '';
   bool _isUserDataLoading = true; // Add loading state for user data
+  int _coins = 280; // Example coin count, replace with your logic
 
   @override
   void initState() {
@@ -205,6 +207,13 @@ class _HomeState extends State<Home> {
             ),
           ),
           elevation: 0,
+          actions: [
+            Padding(
+              padding:
+                  const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
+              child: _buildCoinDisplay(),
+            ),
+          ],
         ),
       ),
       body: SafeArea(
@@ -392,14 +401,14 @@ class _HomeState extends State<Home> {
                         },
                       ),
                       _buildCornerButton(
-                        icon: Icons.people,
+                        icon: Icons.emoji_events,
                         label: 'Challenges',
                         color: Colors.blue,
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => const FriendsPage()),
+                                builder: (context) => const ChallengesScreen()),
                           );
                         },
                       ),
@@ -803,6 +812,54 @@ class _HomeState extends State<Home> {
         borderRadius: BorderRadius.circular(10),
       ),
       hoverColor: itemColor.withOpacity(0.05),
+    );
+  }
+
+  Widget _buildCoinDisplay() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFFF5E9B9), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Coin image
+          Container(
+            width: 22,
+            height: 22,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/coin.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$_coins',
+            style: const TextStyle(
+              color: Color(0xFF222222),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

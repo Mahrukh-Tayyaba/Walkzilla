@@ -93,7 +93,11 @@ flutter:
     - assets/images/pipe.png
     - assets/images/google-logo-icon.png
     - assets/images/apple-Icon.png
-    - assets/images/background.png   
+    - assets/images/background.png  
+    - assets/images/sky.png
+    - assets/images/path.png
+    - assets/images/bushes.png 
+    - assets/images/coin.png
     - assets/images/character_idle.json
     - assets/images/character_idle.png
     - assets/images/character_walking.json

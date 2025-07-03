@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:health/health.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
+import '../services/health_service.dart';
 
 class HealthPermissionDialog extends StatefulWidget {
   final Function(List<HealthDataType>, int?)? onAllow;
@@ -24,6 +25,7 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
   bool heartRate = false;
   bool calories = false;
   final health = Health();
+  final HealthService _healthService = HealthService();
 
   void updateAll(bool value) {
     setState(() {
@@ -41,20 +43,14 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
     });
   }
 
-  Future<void> requestGoogleFitAuthorization(List<HealthDataType> types) async {
+  Future<void> requestHealthConnectAuthorization(
+      List<HealthDataType> types) async {
     try {
-      // First check if permissions are already granted
-      bool? hasPermissions = await health.hasPermissions(types);
-
-      if (hasPermissions == true) {
-        return; // Already has permissions
-      }
-
-      // Request authorization
-      bool granted = await health.requestAuthorization(types);
+      // Use the HealthService for consistent permission handling
+      bool granted = await _healthService.requestHealthConnectPermissions();
 
       if (!granted) {
-        throw Exception('Health permissions not granted');
+        throw Exception('Health Connect permissions not granted');
       }
     } catch (e) {
       print('Error requesting health permissions: $e');
@@ -250,7 +246,7 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                                 types.add(HealthDataType.ACTIVE_ENERGY_BURNED);
                               }
 
-                              await requestGoogleFitAuthorization(types);
+                              await requestHealthConnectAuthorization(types);
 
                               if (widget.onAllow != null) {
                                 await widget.onAllow!(types, null);

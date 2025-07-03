@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
+import 'services/user_deletion_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -13,6 +14,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool notificationsEnabled = true;
   bool locationServicesEnabled = true;
   bool healthDataSharingEnabled = true;
+  final UserDeletionService _userDeletionService = UserDeletionService();
 
   @override
   Widget build(BuildContext context) {
@@ -204,24 +206,56 @@ class _SettingsPageState extends State<SettingsPage> {
 
             const SizedBox(height: 16),
 
-            // Sign Out Button
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: _buildActionButton(
-                label: 'Sign Out',
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  }
-                },
-                backgroundColor: Colors.red,
-                textColor: Colors.white,
+            // Account Actions
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Account Actions',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildActionButton(
+                    label: 'Sign Out',
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LoginScreen()),
+                          (route) => false,
+                        );
+                      }
+                    },
+                    backgroundColor: Colors.orange,
+                    textColor: Colors.white,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActionButton(
+                    label: 'Delete Account',
+                    onPressed: _showDeleteAccountConfirmation,
+                    backgroundColor: Colors.red,
+                    textColor: Colors.white,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -318,5 +352,124 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+  }
+
+  void _showDeleteAccountConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Delete Account',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data including:\n\n'
+            '• Your profile and settings\n'
+            '• All your friends and friend requests\n'
+            '• All your chat messages\n'
+            '• Your health and fitness data\n\n'
+            'This action is irreversible.',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteAccount();
+              },
+              child: const Text(
+                'Delete',
+                style:
+                    TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text('Deleting your account...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Delete the account
+      final success = await _userDeletionService.deleteUserAccount();
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (success) {
+        // Show success message and navigate to login
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Navigate to login screen
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      } else {
+        // Show error message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete account. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

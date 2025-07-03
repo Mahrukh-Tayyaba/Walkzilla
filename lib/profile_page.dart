@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/username_service.dart';
+import 'services/user_deletion_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -29,6 +30,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _userPhone = '';
   String _userLocation = '';
   bool _isLoading = true;
+  final UserDeletionService _userDeletionService = UserDeletionService();
 
   @override
   void initState() {
@@ -1046,6 +1048,13 @@ class _ProfilePageState extends State<ProfilePage> {
                         );
                       }
                     },
+                    backgroundColor: Colors.orange,
+                    textColor: Colors.white,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActionButton(
+                    label: 'Delete Account',
+                    onPressed: _showDeleteAccountConfirmation,
                     backgroundColor: Colors.red,
                     textColor: Colors.white,
                   ),
@@ -1167,5 +1176,124 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
+  }
+
+  void _showDeleteAccountConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Delete Account',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data including:\n\n'
+            '• Your profile and settings\n'
+            '• All your friends and friend requests\n'
+            '• All your chat messages\n'
+            '• Your health and fitness data\n\n'
+            'This action is irreversible.',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteAccount();
+              },
+              child: const Text(
+                'Delete',
+                style:
+                    TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text('Deleting your account...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Delete the account
+      final success = await _userDeletionService.deleteUserAccount();
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (success) {
+        // Show success message and navigate to login
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Navigate to login screen
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      } else {
+        // Show error message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete account. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
