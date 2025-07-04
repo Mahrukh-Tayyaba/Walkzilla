@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/friend_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class DuoChallengeInviteScreen extends StatefulWidget {
   const DuoChallengeInviteScreen({super.key});
@@ -254,6 +256,14 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
         'expiresAt':
             Timestamp.fromDate(DateTime.now().add(const Duration(hours: 24))),
       });
+      final friendDoc =
+          await _firestore.collection('users').doc(_selectedFriendId).get();
+      final friendData = friendDoc.data();
+      final friendFcmToken = friendData != null ? friendData['fcmToken'] : null;
+      if (friendFcmToken != null && friendFcmToken != '') {
+        await _sendFcmDuoInvite(friendFcmToken,
+            currentUser.displayName ?? currentUser.email ?? 'Someone');
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -275,5 +285,30 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
         });
       }
     }
+  }
+
+  Future<void> _sendFcmDuoInvite(
+      String fcmToken, String inviterUsername) async {
+    const String serverKey =
+        'YOUR_SERVER_KEY_HERE'; // Replace with your FCM server key for testing
+    final message = {
+      'to': fcmToken,
+      'notification': {
+        'title': 'Duo Challenge Invite',
+        'body': 'A0$inviterUsername is inviting you to a Duo Challenge!',
+      },
+      'data': {
+        'type': 'duo_challenge_invite',
+        'inviterUsername': inviterUsername,
+      }
+    };
+    await http.post(
+      Uri.parse('https://fcm.googleapis.com/fcm/send'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'key=$serverKey',
+      },
+      body: jsonEncode(message),
+    );
   }
 }

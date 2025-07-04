@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'forgot_password_screen.dart';
 import 'services/health_service.dart';
 import 'services/username_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -123,6 +124,18 @@ class LoginScreenState extends State<LoginScreen> {
           'isOnline': true,
           'lastActive': FieldValue.serverTimestamp(),
         });
+      }
+
+      // Save FCM token if not already present or if changed
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        final userData = userDoc.data();
+        if (userData == null || userData['fcmToken'] != fcmToken) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .update({'fcmToken': fcmToken});
+        }
       }
 
       if (!mounted) return;

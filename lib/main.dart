@@ -9,12 +9,16 @@ import 'providers/streak_provider.dart';
 import 'health_dashboard.dart';
 import 'streaks_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'widgets/duo_challenge_invite_dialog.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   // Handle background message (can be expanded later)
-  print('Handling a background message: \\${message.messageId}');
+  print('Handling a background message: ${message.messageId}');
 }
+
+// Global navigator key to show dialogs from anywhere
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   try {
@@ -45,6 +49,20 @@ void main() async {
     final token = await fcm.getToken();
     print('FCM Token: $token');
 
+    // Listen for foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('Got a message whilst in the foreground!');
+      print('Message data: ${message.data}');
+
+      if (message.data['type'] == 'duo_challenge_invite') {
+        // Show popup for duo challenge invite
+        _showDuoChallengeInviteDialog(
+          message.data['inviterUsername'] ?? 'Someone',
+          message.data['inviteId'] ?? '',
+        );
+      }
+    });
+
     runApp(
       MultiProvider(
         providers: [
@@ -69,12 +87,27 @@ void main() async {
   }
 }
 
+void _showDuoChallengeInviteDialog(String inviterUsername, String inviteId) {
+  // Show the dialog using the global navigator key
+  if (navigatorKey.currentContext != null) {
+    showDialog(
+      context: navigatorKey.currentContext!,
+      barrierDismissible: false,
+      builder: (context) => DuoChallengeInviteDialog(
+        inviterUsername: inviterUsername,
+        inviteId: inviteId,
+      ),
+    );
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey, // Add the global navigator key
       debugShowCheckedModeBanner: false,
       title: 'Walkzilla',
       theme: ThemeData(
