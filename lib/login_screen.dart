@@ -8,7 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'forgot_password_screen.dart';
 import 'services/health_service.dart';
 import 'services/username_service.dart';
+import 'services/duo_challenge_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'main.dart' show navigatorKey;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -169,6 +171,11 @@ class LoginScreenState extends State<LoginScreen> {
           }
         }
       }
+
+      // Check for existing duo challenge invites before navigation
+      final duoChallengeService =
+          DuoChallengeService(navigatorKey: navigatorKey);
+      await duoChallengeService.checkForExistingInvites();
 
       // Navigate to home screen after permissions are handled
       if (mounted) {

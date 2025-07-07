@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/health_service.dart';
 import 'services/character_animation_service.dart';
+import 'services/duo_challenge_service.dart';
 import 'widgets/daily_challenge_spin.dart';
 import 'challenges_screen.dart';
 import 'notification_page.dart';
@@ -15,6 +16,9 @@ import 'friends_page.dart';
 import 'chat_list_page.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'solo_mode.dart';
+import 'main.dart';
+import 'screens/duo_challenge_lobby.dart';
+import 'dart:async';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -35,6 +39,8 @@ class _HomeState extends State<Home> {
   String _userEmail = '';
   bool _isUserDataLoading = true; // Add loading state for user data
   int _coins = 280; // Example coin count, replace with your logic
+  DuoChallengeService? _duoChallengeService;
+  StreamSubscription<QuerySnapshot>? _acceptedInviteListener;
 
   @override
   void initState() {
@@ -43,6 +49,38 @@ class _HomeState extends State<Home> {
     _startHealthDataRefresh();
     _loadUserData();
     _startCharacterPreloading();
+    _initializeDuoChallengeService();
+    _listenForAcceptedInvitesAsSender();
+  }
+
+  void _initializeDuoChallengeService() {
+    try {
+      // Check if navigatorKey is available
+      if (navigatorKey.currentContext == null) {
+        print('Navigator key not ready, delaying initialization');
+        // Retry after a short delay
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _initializeDuoChallengeService();
+          }
+        });
+        return;
+      }
+
+      // Initialize the duo challenge service with the global navigator key
+      _duoChallengeService = DuoChallengeService(
+        navigatorKey: navigatorKey,
+      );
+
+      // Start listening for invites
+      _duoChallengeService?.startListeningForInvites();
+
+      // Check for existing pending invites
+      _duoChallengeService?.checkForExistingInvites();
+    } catch (e) {
+      print('Error initializing duo challenge service: $e');
+      _duoChallengeService = null;
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -184,6 +222,79 @@ class _HomeState extends State<Home> {
     CharacterAnimationService().preloadAnimations().catchError((error) {
       print('Failed to preload character animations: $error');
     });
+  }
+
+  void _listenForAcceptedInvitesAsSender() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+    _acceptedInviteListener?.cancel();
+    _acceptedInviteListener = FirebaseFirestore.instance
+        .collection('duo_challenge_invites')
+        .where('fromUserId', isEqualTo: currentUser.uid)
+        .where('status', isEqualTo: 'accepted')
+        .where('senderNotified', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) async {
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final toUserId = data['toUserId'];
+        // Fetch the username of the invitee
+        String inviteeName = 'Your friend';
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(toUserId)
+              .get();
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            inviteeName = userData?['displayName'] ??
+                userData?['username'] ??
+                inviteeName;
+          }
+        } catch (_) {}
+        if (navigatorKey.currentContext != null) {
+          showDialog(
+            context: navigatorKey.currentContext!,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text('Duo Challenge Accepted'),
+              content: Text('$inviteeName accepted the duo challenge request!'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    doc.reference.update({'senderNotified': true});
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    doc.reference.update({'senderNotified': true});
+                    Navigator.of(navigatorKey.currentContext!).push(
+                      MaterialPageRoute(
+                        builder: (context) => DuoChallengeLobby(
+                          inviteId: doc.id,
+                          otherUsername: inviteeName,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Start the Game'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _acceptedInviteListener?.cancel();
+    _duoChallengeService?.stopListeningForInvites();
+    super.dispose();
   }
 
   @override

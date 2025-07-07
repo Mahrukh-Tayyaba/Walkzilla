@@ -7,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/health_service.dart'; // Add this import
 import 'services/username_service.dart'; // Add username service
+import 'services/duo_challenge_service.dart';
+import 'main.dart' show navigatorKey;
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -307,6 +309,11 @@ class SignupScreenState extends State<SignupScreen> {
           }
         }
 
+        // Check for existing duo challenge invites before navigation
+        final duoChallengeService =
+            DuoChallengeService(navigatorKey: navigatorKey);
+        await duoChallengeService.checkForExistingInvites();
+
         // Clear any lingering snackbars before navigating
         ScaffoldMessenger.of(context).clearSnackBars();
         // Navigate to home screen after permissions are handled
@@ -437,6 +444,11 @@ class SignupScreenState extends State<SignupScreen> {
       }
 
       if (!mounted) return;
+
+      // Check for existing duo challenge invites before navigation
+      final duoChallengeService =
+          DuoChallengeService(navigatorKey: navigatorKey);
+      await duoChallengeService.checkForExistingInvites();
 
       // Navigate to home screen
       Navigator.pushAndRemoveUntil(

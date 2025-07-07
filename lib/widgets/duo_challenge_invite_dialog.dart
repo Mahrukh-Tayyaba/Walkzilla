@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../screens/duo_challenge_lobby.dart';
 
 class DuoChallengeInviteDialog extends StatelessWidget {
   final String inviterUsername;
@@ -118,6 +119,15 @@ class DuoChallengeInviteDialog extends StatelessWidget {
           const SnackBar(
             content: Text('Challenge accepted!'),
             backgroundColor: Color(0xFF7C4DFF),
+          ),
+        );
+        // Navigate to the lobby screen
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => DuoChallengeLobby(
+              inviteId: inviteId,
+              otherUsername: inviterUsername,
+            ),
           ),
         );
       }

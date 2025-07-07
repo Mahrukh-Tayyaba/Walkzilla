@@ -49,13 +49,13 @@ void main() async {
     final token = await fcm.getToken();
     print('FCM Token: $token');
 
-    // Listen for foreground messages
+    // Listen for foreground messages (keeping for backup, but real-time listener in home screen is primary)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Got a message whilst in the foreground!');
       print('Message data: ${message.data}');
 
       if (message.data['type'] == 'duo_challenge_invite') {
-        // Show popup for duo challenge invite
+        // Show popup for duo challenge invite (backup method)
         _showDuoChallengeInviteDialog(
           message.data['inviterUsername'] ?? 'Someone',
           message.data['inviteId'] ?? '',

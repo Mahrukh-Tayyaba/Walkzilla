@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Exclude specific files or directories from cloud backup -->
+        <exclude domain="file" path="firebase_options.json"/>
+        <exclude domain="file" path="google-services.json"/>
+        <exclude domain="file" path="GoogleService-Info.plist"/>
+    </cloud-backup>
+    <device-transfer>
+        <!-- Exclude specific files or directories from device transfer -->
+        <exclude domain="file" path="firebase_options.json"/>
+        <exclude domain="file" path="google-services.json"/>
+        <exclude domain="file" path="GoogleService-Info.plist"/>
+    </device-transfer>
+</data-extraction-rules> 

@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'services/friend_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'services/duo_challenge_service.dart';
+import 'main.dart';
 
 class DuoChallengeInviteScreen extends StatefulWidget {
   const DuoChallengeInviteScreen({super.key});
@@ -247,7 +249,9 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
       if (currentUser == null) {
         throw Exception('User not authenticated');
       }
-      await _firestore.collection('duo_challenge_invites').add({
+      // Create the invite and get the document reference
+      final inviteDocRef =
+          await _firestore.collection('duo_challenge_invites').add({
         'fromUserId': currentUser.uid,
         'toUserId': _selectedFriendId,
         'status': 'pending',
@@ -255,15 +259,29 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
         'challengeType': 'duo',
         'expiresAt':
             Timestamp.fromDate(DateTime.now().add(const Duration(hours: 24))),
+        'senderNotified': false,
       });
+
       final friendDoc =
           await _firestore.collection('users').doc(_selectedFriendId).get();
       final friendData = friendDoc.data();
       final friendFcmToken = friendData != null ? friendData['fcmToken'] : null;
+      final friendDisplayName = friendData != null
+          ? (friendData['displayName'] ?? friendData['username'] ?? 'Friend')
+          : 'Friend';
       if (friendFcmToken != null && friendFcmToken != '') {
-        await _sendFcmDuoInvite(friendFcmToken,
-            currentUser.displayName ?? currentUser.email ?? 'Someone');
+        await _sendFcmDuoInvite(
+          friendFcmToken,
+          currentUser.displayName ?? currentUser.email ?? 'Someone',
+          inviteDocRef.id,
+        );
       }
+      // Start listening for acceptance on the sender side
+      final duoChallengeService =
+          DuoChallengeService(navigatorKey: navigatorKey);
+      duoChallengeService.listenForInviteAcceptedBySender(
+          inviteDocRef.id, friendDisplayName);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -288,18 +306,19 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
   }
 
   Future<void> _sendFcmDuoInvite(
-      String fcmToken, String inviterUsername) async {
+      String fcmToken, String inviterUsername, String inviteId) async {
     const String serverKey =
         'YOUR_SERVER_KEY_HERE'; // Replace with your FCM server key for testing
     final message = {
       'to': fcmToken,
       'notification': {
         'title': 'Duo Challenge Invite',
-        'body': 'A0$inviterUsername is inviting you to a Duo Challenge!',
+        'body': '$inviterUsername is inviting you to a Duo Challenge!',
       },
       'data': {
         'type': 'duo_challenge_invite',
         'inviterUsername': inviterUsername,
+        'inviteId': inviteId,
       }
     };
     await http.post(
