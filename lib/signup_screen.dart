@@ -279,6 +279,7 @@ class SignupScreenState extends State<SignupScreen> {
         'level': 1,
         'todaySteps': 0,
         'currentStreak': 0,
+        'coins': 100, // Initial coins for new users
         'isOnline': false,
         'lastActive': FieldValue.serverTimestamp(),
       });
@@ -428,6 +429,7 @@ class SignupScreenState extends State<SignupScreen> {
           'level': 1,
           'todaySteps': 0,
           'currentStreak': 0,
+          'coins': 100, // Initial coins for new users
           'isOnline': false,
           'lastActive': FieldValue.serverTimestamp(),
         });

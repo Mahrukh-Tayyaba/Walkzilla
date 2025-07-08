@@ -19,6 +19,8 @@ class DuoChallengeInviteDialog extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
+      titlePadding:
+          const EdgeInsets.only(left: 24, top: 24, right: 8, bottom: 0),
       title: Row(
         children: [
           Container(
@@ -43,6 +45,13 @@ class DuoChallengeInviteDialog extends StatelessWidget {
                 color: Colors.black87,
               ),
             ),
+          ),
+          // Cross button
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.grey, size: 22),
+            splashRadius: 20,
+            onPressed: () => Navigator.of(context).pop(),
+            tooltip: 'Close',
           ),
         ],
       ),

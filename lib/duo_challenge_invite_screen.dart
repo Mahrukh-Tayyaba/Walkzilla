@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'services/duo_challenge_service.dart';
 import 'main.dart';
+import 'screens/duo_challenge_lobby.dart';
 
 class DuoChallengeInviteScreen extends StatefulWidget {
   const DuoChallengeInviteScreen({super.key});
@@ -15,7 +16,8 @@ class DuoChallengeInviteScreen extends StatefulWidget {
       _DuoChallengeInviteScreenState();
 }
 
-class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
+class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
+    with SingleTickerProviderStateMixin {
   final FriendService _friendService = FriendService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -25,217 +27,466 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      appBar: AppBar(
-        title: const Text('Invite Friend to Duo Challenge',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: Colors.black,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Choose a friend to challenge:',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'You can only invite one friend at a time',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _friendService.getFriends(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                          child: CircularProgressIndicator(
-                              color: Color(0xFF7C4DFF)));
-                    }
-                    if (snapshot.hasError) {
-                      return Center(
-                          child: Text('Error loading friends',
-                              style: TextStyle(color: Colors.red)));
-                    }
-                    final friends = snapshot.data ?? [];
-                    if (friends.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.people_outline,
-                                size: 60, color: Color(0xFF7C4DFF)),
-                            SizedBox(height: 24),
-                            Text('No friends yet',
-                                style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87)),
-                            SizedBox(height: 8),
-                            Text(
-                                'Add some friends first to start duo challenges!',
-                                style:
-                                    TextStyle(fontSize: 14, color: Colors.grey),
-                                textAlign: TextAlign.center),
-                          ],
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      itemCount: friends.length,
-                      itemBuilder: (context, index) {
-                        final friend = friends[index];
-                        final isSelected =
-                            _selectedFriendId == friend['userId'];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 12),
-                            leading: CircleAvatar(
-                              radius: 28,
-                              backgroundColor:
-                                  const Color(0xFF7C4DFF).withOpacity(0.1),
-                              backgroundImage:
-                                  (friend['profileImage'] != null &&
-                                          friend['profileImage'] != '')
-                                      ? NetworkImage(friend['profileImage'])
-                                      : null,
-                              child: (friend['profileImage'] == null ||
-                                      friend['profileImage'] == '')
-                                  ? Text(
-                                      (friend['displayName'] ??
-                                                  friend['username'] ??
-                                                  '?')
-                                              .toString()
-                                              .isNotEmpty
-                                          ? (friend['displayName'] ??
-                                                  friend['username'] ??
-                                                  '?')
-                                              .toString()[0]
-                                              .toUpperCase()
-                                          : '?',
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF7C4DFF)),
-                                    )
-                                  : null,
-                            ),
-                            title: Text(
-                                friend['displayName'] ??
-                                    friend['username'] ??
-                                    'Unknown',
-                                style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87)),
-                            subtitle: Text(
-                                '@${friend['username'] ?? 'unknown'}',
-                                style: const TextStyle(
-                                    fontSize: 14, color: Colors.grey)),
-                            trailing: Container(
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF7C4DFF)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF7C4DFF)
-                                      : const Color(0xFF7C4DFF)
-                                          .withOpacity(0.3),
-                                  width: 2,
-                                ),
-                              ),
-                              child: IconButton(
-                                icon: Icon(isSelected ? Icons.check : Icons.add,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : const Color(0xFF7C4DFF)),
-                                onPressed: () {
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedFriendId = null;
-                                    } else {
-                                      _selectedFriendId = friend['userId'];
-                                    }
-                                  });
-                                },
-                              ),
-                            ),
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedFriendId = null;
-                                } else {
-                                  _selectedFriendId = friend['userId'];
-                                }
-                              });
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              if (_selectedFriendId != null) ...[
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isInviting ? null : _sendDuoChallengeInvite,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C4DFF),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: _isInviting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Text('Send Duo Challenge Invite',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Invite Friend to Duo Challenge',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: Colors.black,
+          centerTitle: true,
+          bottom: const TabBar(
+            labelColor: Color(0xFF7C4DFF),
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Color(0xFF7C4DFF),
+            tabs: [
+              Tab(icon: Icon(Icons.group_add), text: 'Invite Friends'),
+              Tab(icon: Icon(Icons.inbox), text: 'Requests'),
+              Tab(icon: Icon(Icons.send), text: 'Invites Sent'),
             ],
           ),
         ),
+        body: TabBarView(
+          children: [
+            _buildInviteFriendsTab(),
+            _buildRequestsTab(),
+            _buildInvitesSentTab(),
+          ],
+        ),
       ),
+    );
+  }
+
+  // Tab 1: Invite Friends
+  Widget _buildInviteFriendsTab() {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return const Center(child: Text('Not authenticated.'));
+    }
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('friendships')
+          .where('users', arrayContains: currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+              child: Text('Error loading friends',
+                  style: TextStyle(color: Colors.red)));
+        }
+        final friends = <Map<String, dynamic>>[];
+        for (final doc in snapshot.data?.docs ?? []) {
+          final users = List<String>.from(doc['users'] ?? []);
+          final otherUserId =
+              users.firstWhere((id) => id != currentUser.uid, orElse: () => '');
+          if (otherUserId.isNotEmpty) {
+            friends.add({'userId': otherUserId});
+          }
+        }
+        if (friends.isEmpty) {
+          return const Center(child: Text('No friends yet.'));
+        }
+        return ListView.builder(
+          itemCount: friends.length,
+          itemBuilder: (context, index) {
+            final friend = friends[index];
+            return FutureBuilder<DocumentSnapshot>(
+              future:
+                  _firestore.collection('users').doc(friend['userId']).get(),
+              builder: (context, userSnapshot) {
+                if (!userSnapshot.hasData) {
+                  return const ListTile(title: Text('Loading...'));
+                }
+                final userData =
+                    userSnapshot.data!.data() as Map<String, dynamic>?;
+                if (userData == null) return const SizedBox.shrink();
+                return Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFF7C4DFF).withOpacity(0.1),
+                      child: Text(
+                        (userData['displayName'] ?? userData['username'] ?? '?')
+                                .toString()
+                                .isNotEmpty
+                            ? (userData['displayName'] ??
+                                    userData['username'] ??
+                                    '?')
+                                .toString()[0]
+                                .toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF7C4DFF)),
+                      ),
+                    ),
+                    title: Text(
+                        userData['displayName'] ??
+                            userData['username'] ??
+                            'Unknown',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87)),
+                    subtitle: Text('@${userData['username'] ?? 'unknown'}',
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.add, color: Color(0xFF7C4DFF)),
+                      onPressed: _isInviting
+                          ? null
+                          : () {
+                              setState(() {
+                                _selectedFriendId = friend['userId'];
+                              });
+                              _sendDuoChallengeInvite();
+                            },
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Tab 2: Requests (Invites to you)
+  Widget _buildRequestsTab() {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return const Center(child: Text('Not authenticated.'));
+    }
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('duo_challenge_invites')
+          .where('toUserId', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: 'pending')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+              child: Text('Error loading requests',
+                  style: TextStyle(color: Colors.red)));
+        }
+        final requests = snapshot.data?.docs ?? [];
+        if (requests.isEmpty) {
+          return const Center(child: Text('No requests at the moment.'));
+        }
+        return ListView.builder(
+          itemCount: requests.length,
+          itemBuilder: (context, index) {
+            final doc = requests[index];
+            final data = doc.data() as Map<String, dynamic>;
+            return FutureBuilder<DocumentSnapshot>(
+              future:
+                  _firestore.collection('users').doc(data['fromUserId']).get(),
+              builder: (context, userSnapshot) {
+                if (!userSnapshot.hasData) {
+                  return const ListTile(title: Text('Loading...'));
+                }
+                final userData =
+                    userSnapshot.data!.data() as Map<String, dynamic>?;
+                if (userData == null) return const SizedBox.shrink();
+                return Card(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFF7C4DFF).withOpacity(0.1),
+                      child: Text(
+                        (userData['displayName'] ?? userData['username'] ?? '?')
+                                .toString()
+                                .isNotEmpty
+                            ? (userData['displayName'] ??
+                                    userData['username'] ??
+                                    '?')
+                                .toString()[0]
+                                .toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF7C4DFF)),
+                      ),
+                    ),
+                    title: Text(
+                        '${userData['displayName'] ?? userData['username'] ?? 'Unknown'} invited you!',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87)),
+                    subtitle: Text('@${userData['username'] ?? 'unknown'}',
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.grey)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton(
+                          onPressed: () async {
+                            await _firestore
+                                .collection('duo_challenge_invites')
+                                .doc(doc.id)
+                                .update({
+                              'status': 'declined',
+                              'declinedAt': FieldValue.serverTimestamp(),
+                            });
+                          },
+                          child: const Text('Decline',
+                              style: TextStyle(color: Colors.grey)),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            await _firestore
+                                .collection('duo_challenge_invites')
+                                .doc(doc.id)
+                                .update({
+                              'status': 'accepted',
+                              'acceptedAt': FieldValue.serverTimestamp(),
+                            });
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => DuoChallengeLobby(
+                                  inviteId: doc.id,
+                                  otherUsername: userData['displayName'] ??
+                                      userData['username'] ??
+                                      'Friend',
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C4DFF),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Accept',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Tab 3: Invites Sent (Invites from you)
+  Widget _buildInvitesSentTab() {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return const Center(child: Text('Not authenticated.'));
+    }
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('duo_challenge_invites')
+          .where('fromUserId', isEqualTo: currentUser.uid)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+              child: Text('Error loading invites',
+                  style: TextStyle(color: Colors.red)));
+        }
+        final invites = snapshot.data?.docs ?? [];
+        if (invites.isEmpty) {
+          return const Center(child: Text('No invites sent yet.'));
+        }
+        return ListView.builder(
+          itemCount: invites.length,
+          itemBuilder: (context, index) {
+            final doc = invites[index];
+            final data = doc.data() as Map<String, dynamic>;
+            return FutureBuilder<DocumentSnapshot>(
+              future:
+                  _firestore.collection('users').doc(data['toUserId']).get(),
+              builder: (context, userSnapshot) {
+                if (!userSnapshot.hasData) {
+                  return const ListTile(title: Text('Loading...'));
+                }
+                final userData =
+                    userSnapshot.data!.data() as Map<String, dynamic>?;
+                if (userData == null) return const SizedBox.shrink();
+                String statusText = '';
+                if (data['status'] == 'pending') {
+                  statusText = 'Pending';
+                } else if (data['status'] == 'accepted') {
+                  statusText = 'Accepted';
+                } else if (data['status'] == 'declined') {
+                  statusText = 'Declined';
+                }
+                return Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            Colors.black.withOpacity(0.18), // increased opacity
+                        blurRadius: 18, // increased blur
+                        spreadRadius: 2, // slight spread
+                        offset: const Offset(0, 6), // more vertical offset
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 16, horizontal: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            CircleAvatar(
+                              backgroundColor:
+                                  const Color(0xFF7C4DFF).withOpacity(0.1),
+                              child: Text(
+                                (userData['displayName'] ??
+                                            userData['username'] ??
+                                            '?')
+                                        .toString()
+                                        .isNotEmpty
+                                    ? (userData['displayName'] ??
+                                            userData['username'] ??
+                                            '?')
+                                        .toString()[0]
+                                        .toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF7C4DFF)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'To: ${userData['displayName'] ?? userData['username'] ?? 'Unknown'}',
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87),
+                                  ),
+                                  Text(
+                                    '@${userData['username'] ?? 'unknown'}',
+                                    style: const TextStyle(
+                                        fontSize: 14, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              statusText,
+                              style: TextStyle(
+                                color: data['status'] == 'pending'
+                                    ? Colors.orange
+                                    : (data['status'] == 'accepted'
+                                        ? Colors.green
+                                        : Colors.red),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (data['status'] == 'accepted') ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              DuoChallengeLobby(
+                                            inviteId: doc.id,
+                                            otherUsername:
+                                                userData['displayName'] ??
+                                                    userData['username'] ??
+                                                    'Friend',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF7C4DFF),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text('Start'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextButton(
+                                    onPressed: () async {
+                                      await doc.reference
+                                          .update({'status': 'declined'});
+                                    },
+                                    style: TextButton.styleFrom(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text('Cancel',
+                                        style: TextStyle(color: Colors.red)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -293,7 +544,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Error sending invite: [31m${e.toString()}[0m'),
+            content: Text('Error sending invite:  [31m${e.toString()} [0m'),
             backgroundColor: Colors.red),
       );
     } finally {
@@ -329,5 +580,14 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen> {
       },
       body: jsonEncode(message),
     );
+  }
+
+  Future<void> _acceptInviteRequest(
+      String inviteId, String friendDisplayName) async {
+    // Implementation of accepting the invite request
+  }
+
+  Future<void> _declineInviteRequest(String inviteId) async {
+    // Implementation of declining the invite request
   }
 }

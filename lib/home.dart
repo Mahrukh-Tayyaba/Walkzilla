@@ -7,6 +7,7 @@ import 'login_screen.dart';
 import 'services/health_service.dart';
 import 'services/character_animation_service.dart';
 import 'services/duo_challenge_service.dart';
+import 'services/coin_service.dart';
 import 'widgets/daily_challenge_spin.dart';
 import 'challenges_screen.dart';
 import 'notification_page.dart';
@@ -30,6 +31,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   final HealthService _healthService = HealthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final CoinService _coinService = CoinService();
   int _steps = 0;
   double _calories = 0.0;
   double _heartRate = 0.0;
@@ -38,9 +40,10 @@ class _HomeState extends State<Home> {
   String _userName = 'User'; // Default name
   String _userEmail = '';
   bool _isUserDataLoading = true; // Add loading state for user data
-  int _coins = 280; // Example coin count, replace with your logic
+  int _coins = 0; // Will be loaded from coin service
   DuoChallengeService? _duoChallengeService;
   StreamSubscription<QuerySnapshot>? _acceptedInviteListener;
+  StreamSubscription<QuerySnapshot>? _declinedInviteListener;
 
   @override
   void initState() {
@@ -51,6 +54,8 @@ class _HomeState extends State<Home> {
     _startCharacterPreloading();
     _initializeDuoChallengeService();
     _listenForAcceptedInvitesAsSender();
+    _listenForDeclinedInvitesAsSender();
+    _startCoinListener();
   }
 
   void _initializeDuoChallengeService() {
@@ -107,6 +112,12 @@ class _HomeState extends State<Home> {
             _userName = username.isNotEmpty ? username : 'User';
             _userEmail = user.email ?? '';
             _isUserDataLoading = false;
+          });
+
+          // Load user coins
+          final userCoins = await _coinService.getCurrentUserCoins();
+          setState(() {
+            _coins = userCoins;
           });
         } else {
           print("No user document found in Firestore");
@@ -193,6 +204,17 @@ class _HomeState extends State<Home> {
       if (mounted) {
         _fetchHealthData();
         _startHealthDataRefresh(); // Schedule next refresh
+      }
+    });
+  }
+
+  void _startCoinListener() {
+    // Listen to coin balance changes in real-time
+    _coinService.getCurrentUserCoinsStream().listen((coins) {
+      if (mounted) {
+        setState(() {
+          _coins = coins;
+        });
       }
     });
   }
@@ -290,9 +312,61 @@ class _HomeState extends State<Home> {
     });
   }
 
+  void _listenForDeclinedInvitesAsSender() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+    _declinedInviteListener?.cancel();
+    _declinedInviteListener = FirebaseFirestore.instance
+        .collection('duo_challenge_invites')
+        .where('fromUserId', isEqualTo: currentUser.uid)
+        .where('status', isEqualTo: 'declined')
+        .where('senderNotified', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) async {
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final toUserId = data['toUserId'];
+        // Fetch the username of the invitee
+        String inviteeName = 'Your friend';
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(toUserId)
+              .get();
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            inviteeName = userData?['displayName'] ??
+                userData?['username'] ??
+                inviteeName;
+          }
+        } catch (_) {}
+        if (navigatorKey.currentContext != null) {
+          showDialog(
+            context: navigatorKey.currentContext!,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text('Duo Challenge Declined'),
+              content: Text('$inviteeName declined your invitation.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    doc.reference.update({'senderNotified': true});
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
     _acceptedInviteListener?.cancel();
+    _declinedInviteListener?.cancel();
     _duoChallengeService?.stopListeningForInvites();
     super.dispose();
   }

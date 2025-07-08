@@ -9,6 +9,7 @@ import 'forgot_password_screen.dart';
 import 'services/health_service.dart';
 import 'services/username_service.dart';
 import 'services/duo_challenge_service.dart';
+import 'services/coin_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'main.dart' show navigatorKey;
 
@@ -26,6 +27,7 @@ class LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final HealthService _healthService = HealthService();
   final UsernameService _usernameService = UsernameService();
+  final CoinService _coinService = CoinService();
 
   bool _isPasswordVisible = false; // Toggle password visibility
   bool _isLoading = false; // Show loading indicator
@@ -107,6 +109,7 @@ class LoginScreenState extends State<LoginScreen> {
           'level': 1,
           'todaySteps': 0,
           'currentStreak': 0,
+          'coins': 100, // Initial coins for new users
           'isOnline': false,
           'lastActive': FieldValue.serverTimestamp(),
           'bio': '',
@@ -126,6 +129,9 @@ class LoginScreenState extends State<LoginScreen> {
           'isOnline': true,
           'lastActive': FieldValue.serverTimestamp(),
         });
+
+        // Initialize coins for existing users who don't have coins field
+        await _coinService.initializeCoinsForExistingUsers();
       }
 
       // Save FCM token if not already present or if changed
