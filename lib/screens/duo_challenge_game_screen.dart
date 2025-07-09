@@ -74,16 +74,18 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           final gameEnded = data['gameEnded'] ?? false;
           final winner = data['winner'] as String?;
 
-          // Update local state
-          if (gameStarted && !_gameStarted) {
-            setState(() => _gameStarted = true);
-          }
-          if (gameEnded && !_gameEnded) {
-            setState(() {
-              _gameEnded = true;
-              _winner = winner;
-            });
-          }
+          // Update local state using post frame callback to avoid setState during build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (gameStarted && !_gameStarted) {
+              setState(() => _gameStarted = true);
+            }
+            if (gameEnded && !_gameEnded) {
+              setState(() {
+                _gameEnded = true;
+                _winner = winner;
+              });
+            }
+          });
 
           // Get scores for both players
           final player1Score = scores[_userId] ?? 0;

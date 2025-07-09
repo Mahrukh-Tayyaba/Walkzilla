@@ -24,37 +24,49 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
 
   String? _selectedFriendId;
   bool _isInviting = false;
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Invite Friend to Duo Challenge',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          foregroundColor: Colors.black,
-          centerTitle: true,
-          bottom: const TabBar(
-            labelColor: Color(0xFF7C4DFF),
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Color(0xFF7C4DFF),
-            tabs: [
-              Tab(icon: Icon(Icons.group_add), text: 'Invite Friends'),
-              Tab(icon: Icon(Icons.inbox), text: 'Requests'),
-              Tab(icon: Icon(Icons.send), text: 'Invites Sent'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildInviteFriendsTab(),
-            _buildRequestsTab(),
-            _buildInvitesSentTab(),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Invite Friend to Duo Challenge',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black,
+        centerTitle: true,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: const Color(0xFF7C4DFF),
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: const Color(0xFF7C4DFF),
+          tabs: const [
+            Tab(icon: Icon(Icons.group_add), text: 'Invite Friends'),
+            Tab(icon: Icon(Icons.inbox), text: 'Requests'),
+            Tab(icon: Icon(Icons.send), text: 'Invites Sent'),
           ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildInviteFriendsTab(),
+          _buildRequestsTab(),
+          _buildInvitesSentTab(),
+        ],
       ),
     );
   }
@@ -105,62 +117,107 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                 final userData =
                     userSnapshot.data!.data() as Map<String, dynamic>?;
                 if (userData == null) return const SizedBox.shrink();
-                return Container(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+                // Check for existing pending invite in either direction
+                return FutureBuilder<QuerySnapshot>(
+                  future: _firestore
+                      .collection('duo_challenge_invites')
+                      .where('status', isEqualTo: 'pending')
+                      .where('challengeType', isEqualTo: 'duo')
+                      .where('fromUserId',
+                          whereIn: [currentUser.uid, friend['userId']]).get(),
+                  builder: (context, inviteSnapshot) {
+                    bool hasPendingInvite = false;
+                    if (inviteSnapshot.hasData) {
+                      for (final doc in inviteSnapshot.data!.docs) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        // Block if invite is between these two users in either direction
+                        if ((data['fromUserId'] == currentUser.uid &&
+                                data['toUserId'] == friend['userId']) ||
+                            (data['fromUserId'] == friend['userId'] &&
+                                data['toUserId'] == currentUser.uid)) {
+                          hasPendingInvite = true;
+                          break;
+                        }
+                      }
+                    }
+                    return Container(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF7C4DFF).withOpacity(0.1),
-                      child: Text(
-                        (userData['displayName'] ?? userData['username'] ?? '?')
-                                .toString()
-                                .isNotEmpty
-                            ? (userData['displayName'] ??
-                                    userData['username'] ??
-                                    '?')
-                                .toString()[0]
-                                .toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF7C4DFF)),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              const Color(0xFF7C4DFF).withOpacity(0.1),
+                          child: Text(
+                            (userData['displayName'] ??
+                                        userData['username'] ??
+                                        '?')
+                                    .toString()
+                                    .isNotEmpty
+                                ? (userData['displayName'] ??
+                                        userData['username'] ??
+                                        '?')
+                                    .toString()[0]
+                                    .toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF7C4DFF)),
+                          ),
+                        ),
+                        title: Text(
+                            userData['displayName'] ??
+                                userData['username'] ??
+                                'Unknown',
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87)),
+                        subtitle: Text('@${userData['username'] ?? 'unknown'}',
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.grey)),
+                        trailing: hasPendingInvite
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Invited',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(Icons.add,
+                                    color: Color(0xFF7C4DFF)),
+                                onPressed: _isInviting
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _selectedFriendId = friend['userId'];
+                                        });
+                                        _sendDuoChallengeInvite();
+                                      },
+                              ),
                       ),
-                    ),
-                    title: Text(
-                        userData['displayName'] ??
-                            userData['username'] ??
-                            'Unknown',
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87)),
-                    subtitle: Text('@${userData['username'] ?? 'unknown'}',
-                        style:
-                            const TextStyle(fontSize: 14, color: Colors.grey)),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.add, color: Color(0xFF7C4DFF)),
-                      onPressed: _isInviting
-                          ? null
-                          : () {
-                              setState(() {
-                                _selectedFriendId = friend['userId'];
-                              });
-                              _sendDuoChallengeInvite();
-                            },
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             );
@@ -539,7 +596,10 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
             content: Text('Duo challenge invite sent successfully!'),
             backgroundColor: Color(0xFF7C4DFF)),
       );
-      Navigator.pop(context);
+      // Navigate to the "Invites Sent" tab instead of going back
+      if (mounted && _tabController.index != 2) {
+        _tabController.animateTo(2);
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
