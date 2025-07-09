@@ -2,6 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flame/game.dart';
+import 'package:flame/components.dart';
+import 'package:flame/parallax.dart';
+import 'package:flame/input.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'package:flame/flame.dart';
+import '../services/character_service.dart';
 
 class DuoChallengeGameScreen extends StatefulWidget {
   final String inviteId;
@@ -26,12 +34,15 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   int _player2Score = 0;
   String? _winner;
   bool _gameEnded = false;
+  bool _isLoadingCharacters = true;
+  String? _otherPlayerId;
 
   @override
   void initState() {
     super.initState();
     _userId = _auth.currentUser!.uid;
     _initializeGame();
+    _preloadCharacters();
   }
 
   void _initializeGame() async {
@@ -47,6 +58,19 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // The other player's score will be updated when they join
       }
     });
+  }
+
+  Future<void> _preloadCharacters() async {
+    final characterService = CharacterService();
+
+    // Preload current user's character animations
+    await characterService.preloadCurrentUserAnimations();
+
+    if (mounted) {
+      setState(() {
+        _isLoadingCharacters = false;
+      });
+    }
   }
 
   @override
@@ -74,6 +98,15 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           final gameEnded = data['gameEnded'] ?? false;
           final winner = data['winner'] as String?;
 
+          // Get scores for both players
+          final player1Score = scores[_userId] ?? 0;
+          final otherPlayerId = scores.entries
+              .where((entry) => entry.key != _userId)
+              .map((entry) => entry.key)
+              .firstOrNull;
+          final player2Score =
+              otherPlayerId != null ? (scores[otherPlayerId] ?? 0) : 0;
+
           // Update local state using post frame callback to avoid setState during build
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (gameStarted && !_gameStarted) {
@@ -85,15 +118,16 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
                 _winner = winner;
               });
             }
+            if (_player1Score != player1Score ||
+                _player2Score != player2Score ||
+                _otherPlayerId != otherPlayerId) {
+              setState(() {
+                _player1Score = player1Score;
+                _player2Score = player2Score;
+                _otherPlayerId = otherPlayerId;
+              });
+            }
           });
-
-          // Get scores for both players
-          final player1Score = scores[_userId] ?? 0;
-          final player2Score = scores.entries
-                  .where((entry) => entry.key != _userId)
-                  .map((entry) => entry.value)
-                  .firstOrNull ??
-              0;
 
           return Column(
             children: [
@@ -202,43 +236,152 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       );
     }
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.games,
-            size: 100,
-            color: Color(0xFF7C4DFF),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Duo Challenge Game',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF7C4DFF),
+    if (_isLoadingCharacters) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading characters...', style: TextStyle(fontSize: 18)),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Character display area
+        Expanded(
+          flex: 2,
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Row(
+              children: [
+                // Player 1 Character (Left side)
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'You',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: GameWidget(
+                              game: CharacterDisplayGame(
+                                isPlayer1: true,
+                                isWalking: _player1Score > _player2Score,
+                                userId: _userId,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // VS divider
+                Container(
+                  width: 2,
+                  margin: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+
+                // Player 2 Character (Right side)
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
+                          widget.otherUsername ?? 'Opponent',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.red[50],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: GameWidget(
+                              game: CharacterDisplayGame(
+                                isPlayer1: false,
+                                isWalking: _player2Score > _player1Score,
+                                userId: _otherPlayerId ?? 'unknown',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Game is in progress...',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+        ),
+
+        // Game controls
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              const Text(
+                'Duo Challenge Game',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF7C4DFF),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Game is in progress...',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _simulateScoreIncrease,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C4DFF),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                child: const Text(
+                  'Score Point',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: _simulateScoreIncrease,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C4DFF),
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            ),
-            child: const Text(
-              'Score Point',
-              style: TextStyle(fontSize: 18, color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -302,6 +445,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       'scores.$_userId': currentScore + 1,
     });
 
+    // Update local state for immediate UI feedback
+    setState(() {
+      _player1Score = currentScore + 1;
+    });
+
     // Check if game should end (first to 5 points wins)
     if (currentScore + 1 >= 5) {
       await docRef.update({
@@ -309,6 +457,95 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         'winner': _userId,
         'endTime': FieldValue.serverTimestamp(),
       });
+    }
+  }
+}
+
+// Character display game for showing animated characters
+class CharacterDisplayGame extends FlameGame {
+  final bool isPlayer1;
+  final bool isWalking;
+  final String userId;
+  Character? character;
+
+  CharacterDisplayGame({
+    required this.isPlayer1,
+    required this.isWalking,
+    required this.userId,
+  });
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+
+    // Create character component
+    character = Character(userId: userId);
+    if (character != null) {
+      // Position character in the center
+      character!.position = Vector2(size.x / 2, size.y / 2);
+
+      // Flip character horizontally for player 2 to face the other direction
+      if (!isPlayer1) {
+        character!.flipHorizontally();
+      }
+
+      // Set walking animation if needed
+      if (isWalking) {
+        character!.startWalking();
+      }
+
+      add(character!);
+    }
+  }
+}
+
+// Character component for display
+class Character extends SpriteAnimationComponent with HasGameRef {
+  final String userId;
+  SpriteAnimation? idleAnimation;
+  SpriteAnimation? walkingAnimation;
+  bool isWalking = false;
+  bool _animationsLoaded = false;
+
+  Character({required this.userId})
+      : super(size: Vector2(200, 200)); // Smaller size for display
+
+  @override
+  Future<void> onLoad() async {
+    try {
+      // Use character service to get user's character animations
+      final characterService = CharacterService();
+      final animations = await characterService.loadUserAnimations(userId);
+
+      idleAnimation = animations['idle'];
+      walkingAnimation = animations['walking'];
+      _animationsLoaded = true;
+      animation = idleAnimation;
+    } catch (e) {
+      print('Character onLoad error: $e');
+    }
+  }
+
+  void startWalking() {
+    isWalking = true;
+    updateAnimation(true);
+  }
+
+  void stopWalking() {
+    isWalking = false;
+    updateAnimation(false);
+  }
+
+  void updateAnimation(bool walking) {
+    if (!_animationsLoaded ||
+        idleAnimation == null ||
+        walkingAnimation == null) {
+      return;
+    }
+    if (walking && animation != walkingAnimation) {
+      animation = walkingAnimation;
+    } else if (!walking && animation != idleAnimation) {
+      animation = idleAnimation;
     }
   }
 }

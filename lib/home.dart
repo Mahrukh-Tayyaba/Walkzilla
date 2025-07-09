@@ -5,7 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/health_service.dart';
-import 'services/character_animation_service.dart';
+import 'services/character_service.dart';
+import 'services/character_migration_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
 import 'widgets/daily_challenge_spin.dart';
@@ -52,6 +53,7 @@ class _HomeState extends State<Home> {
     _startHealthDataRefresh();
     _loadUserData();
     _startCharacterPreloading();
+    _migrateCurrentUserCharacter();
     _initializeDuoChallengeService();
     _listenForAcceptedInvitesAsSender();
     _listenForDeclinedInvitesAsSender();
@@ -241,8 +243,15 @@ class _HomeState extends State<Home> {
   /// Start preloading character animations in the background
   void _startCharacterPreloading() {
     // Start preloading animations in the background
-    CharacterAnimationService().preloadAnimations().catchError((error) {
+    CharacterService().preloadCurrentUserAnimations().catchError((error) {
       print('Failed to preload character animations: $error');
+    });
+  }
+
+  /// Migrate current user's character data if needed
+  void _migrateCurrentUserCharacter() {
+    CharacterMigrationService().migrateCurrentUser().catchError((error) {
+      print('Failed to migrate character data: $error');
     });
   }
 
@@ -577,7 +586,7 @@ class _HomeState extends State<Home> {
                         color: const Color(0xFF9C27B0), // Material Purple
                         onTap: () {
                           // Ensure animations are preloaded before navigating
-                          CharacterAnimationService().preloadAnimations();
+                          CharacterService().preloadCurrentUserAnimations();
                           Navigator.push(
                             context,
                             MaterialPageRoute(

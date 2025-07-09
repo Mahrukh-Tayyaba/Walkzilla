@@ -118,6 +118,10 @@ class LoginScreenState extends State<LoginScreen> {
           'calories': 0,
           'weeklyGoal': 0,
           'monthlyGoal': 0,
+          'characterSpriteSheets': {
+            'idle': 'images/character_idle.json',
+            'walking': 'images/character_walking.json'
+          },
         });
       } else {
         // Update existing user's last login and online status

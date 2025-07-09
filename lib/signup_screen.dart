@@ -282,6 +282,10 @@ class SignupScreenState extends State<SignupScreen> {
         'coins': 100, // Initial coins for new users
         'isOnline': false,
         'lastActive': FieldValue.serverTimestamp(),
+        'characterSpriteSheets': {
+          'idle': 'images/character_idle.json',
+          'walking': 'images/character_walking.json'
+        },
       });
 
       // Request health permissions before navigation
@@ -432,6 +436,10 @@ class SignupScreenState extends State<SignupScreen> {
           'coins': 100, // Initial coins for new users
           'isOnline': false,
           'lastActive': FieldValue.serverTimestamp(),
+          'characterSpriteSheets': {
+            'idle': 'images/character_idle.json',
+            'walking': 'images/character_walking.json'
+          },
         });
       } else {
         // Update existing user's last login
