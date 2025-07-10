@@ -129,93 +129,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
             }
           });
 
-          return Column(
-            children: [
-              // Game header with scores
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Player 1 (current user)
-                    Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.blue[100],
-                          child: const Icon(Icons.person,
-                              size: 30, color: Colors.blue),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text('You',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        Text('Score: $player1Score',
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    // VS indicator
-                    Column(
-                      children: [
-                        Text(
-                          'VS',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[600],
-                          ),
-                        ),
-                        if (gameStarted && !gameEnded)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'LIVE',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                      ],
-                    ),
-                    // Player 2 (other user)
-                    Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.red[100],
-                          child: const Icon(Icons.person,
-                              size: 30, color: Colors.red),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(widget.otherUsername ?? 'Opponent',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        Text('Score: $player2Score',
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Game content
-              Expanded(
-                child: _gameEnded
-                    ? _buildGameEndScreen(winner)
-                    : _buildGameContent(),
-              ),
-            ],
-          );
+          return _buildGameContent();
         },
       ),
     );
@@ -249,144 +163,101 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       );
     }
 
-    return Column(
-      children: [
-        // Character display area
-        Expanded(
-          flex: 2,
-          child: Container(
-            margin: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Row(
-              children: [
-                // Player 1 Character (Left side)
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'You',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.blue[50],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: GameWidget(
-                              game: CharacterDisplayGame(
-                                isPlayer1: true,
-                                isWalking: _player1Score > _player2Score,
-                                userId: _userId,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+    if (_gameEnded) {
+      return _buildGameEndScreen();
+    }
 
-                // VS divider
-                Container(
-                  width: 2,
-                  margin: const EdgeInsets.symmetric(vertical: 20),
+    return _buildCharacterDisplay();
+  }
+
+  Widget _buildCharacterDisplay() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double gameWidth = constraints.maxWidth;
+        final double gameHeight = constraints.maxHeight;
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Single Flame GameWidget for both characters
+            Positioned(
+              left: 0,
+              top: 0,
+              width: gameWidth,
+              height: gameHeight,
+              child: GameWidget(
+                game: DuoRaceGame(
+                  userId: _userId,
+                  userName: 'You',
+                  userScore: _player1Score,
+                  userIsWalking: _isWalking,
+                  opponentId: _otherPlayerId ?? 'unknown',
+                  opponentName: widget.otherUsername ?? 'Opponent',
+                  opponentScore: _player2Score,
+                ),
+              ),
+            ),
+            // Arrow button at the bottom center
+            Positioned(
+              bottom: 40,
+              left: (gameWidth / 2) - 40,
+              child: GestureDetector(
+                onTapDown: (_) => _onArrowPressed(),
+                onTapUp: (_) => _onArrowReleased(),
+                onTapCancel: _onArrowReleased,
+                child: Container(
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(1),
+                    color: const Color(0xFF7C4DFF),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 48,
                   ),
                 ),
-
-                // Player 2 Character (Right side)
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Text(
-                          widget.otherUsername ?? 'Opponent',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: GameWidget(
-                              game: CharacterDisplayGame(
-                                isPlayer1: false,
-                                isWalking: _player2Score > _player1Score,
-                                userId: _otherPlayerId ?? 'unknown',
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-
-        // Game controls
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              const Text(
-                'Duo Challenge Game',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF7C4DFF),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Game is in progress...',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _simulateScoreIncrease,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C4DFF),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                ),
-                child: const Text(
-                  'Score Point',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildGameEndScreen(String? winner) {
-    final isWinner = winner == _userId;
+  bool _isWalking = false;
+
+  void _onArrowPressed() async {
+    setState(() {
+      _isWalking = true;
+    });
+    // Simulate score increase
+    final docRef =
+        _firestore.collection('duo_challenge_invites').doc(widget.inviteId);
+    final doc = await docRef.get();
+    final data = doc.data() as Map<String, dynamic>;
+    final scores = (data['scores'] ?? {}) as Map<String, dynamic>;
+    final currentScore = (scores[_userId] ?? 0) as int;
+    await docRef.update({
+      'scores.$_userId': currentScore + 1,
+    });
+  }
+
+  void _onArrowReleased() {
+    setState(() {
+      _isWalking = false;
+    });
+  }
+
+  Widget _buildGameEndScreen() {
+    final isWinner = _winner == _userId;
 
     return Center(
       child: Column(
@@ -430,35 +301,78 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       ),
     );
   }
+}
 
-  void _simulateScoreIncrease() async {
-    // Get current score and increment it
-    final docRef =
-        _firestore.collection('duo_challenge_invites').doc(widget.inviteId);
-    final doc = await docRef.get();
-    final data = doc.data() as Map<String, dynamic>;
-    final scores = (data['scores'] ?? {}) as Map<String, dynamic>;
-    final currentScore = (scores[_userId] ?? 0) as int;
+// Info bubble widget styled like the provided image
+class _InfoBubble extends StatelessWidget {
+  final String name;
+  final int score;
+  const _InfoBubble({required this.name, required this.score});
 
-    // Update score
-    await docRef.update({
-      'scores.$_userId': currentScore + 1,
-    });
-
-    // Update local state for immediate UI feedback
-    setState(() {
-      _player1Score = currentScore + 1;
-    });
-
-    // Check if game should end (first to 5 points wins)
-    if (currentScore + 1 >= 5) {
-      await docRef.update({
-        'gameEnded': true,
-        'winner': _userId,
-        'endTime': FieldValue.serverTimestamp(),
-      });
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.black, width: 2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                score.toString(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Pointer triangle
+        CustomPaint(
+          size: const Size(24, 10),
+          painter: _BubblePointerPainter(),
+        ),
+      ],
+    );
   }
+}
+
+class _BubblePointerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(size.width / 2, size.height);
+    path.lineTo(size.width, 0);
+    path.close();
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // Character display game for showing animated characters
@@ -466,27 +380,111 @@ class CharacterDisplayGame extends FlameGame {
   final bool isPlayer1;
   final bool isWalking;
   final String userId;
+  final Offset? customPosition;
   Character? character;
+  SpriteComponent? skyA;
+  SpriteComponent? skyB;
+  SpriteComponent? bushesA;
+  SpriteComponent? bushesB;
+  SpriteComponent? pathA;
+  SpriteComponent? pathB;
+  final double baseWidth = 1200;
+  final double baseHeight = 2400;
+  final double bushesHeight = 1841;
+  final double pathHeight = 559;
 
   CharacterDisplayGame({
     required this.isPlayer1,
     required this.isWalking,
     required this.userId,
+    this.customPosition,
   });
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+    final screenWidth = size.x;
+    final screenHeight = size.y;
+    final scaleX = screenWidth / baseWidth;
+    final scaleY = screenHeight / baseHeight;
 
-    // Create character component
-    character = Character(userId: userId);
-    if (character != null) {
-      // Position character in the center
-      character!.position = Vector2(size.x / 2, size.y / 2);
+    try {
+      // Layer 1: Sky (endless scroll)
+      final skySprite = await loadSprite('sky.png');
+      skyA = SpriteComponent(
+        sprite: skySprite,
+        size: Vector2(screenWidth, screenHeight),
+        position: Vector2(0, 0),
+      );
+      skyB = SpriteComponent(
+        sprite: skySprite,
+        size: Vector2(screenWidth, screenHeight),
+        position: Vector2(screenWidth, 0),
+      );
+      add(skyA!);
+      add(skyB!);
 
-      // Flip character horizontally for player 2 to face the other direction
-      if (!isPlayer1) {
+      // Layer 2: Bushes (endless scroll)
+      final bushesSprite = await loadSprite('bushes.png');
+      final double bushesH = bushesHeight * scaleY;
+      bushesA = SpriteComponent(
+        sprite: bushesSprite,
+        size: Vector2(screenWidth, bushesH),
+        position: Vector2(0, 0),
+      );
+      bushesB = SpriteComponent(
+        sprite: bushesSprite,
+        size: Vector2(screenWidth, bushesH),
+        position: Vector2(screenWidth, 0),
+      );
+      add(bushesA!);
+      add(bushesB!);
+
+      // Layer 2.1: Path (endless scroll)
+      final pathSprite = await loadSprite('path.png');
+      final double pathH = pathHeight * scaleY;
+      final double pathY = screenHeight - pathH;
+      pathA = SpriteComponent(
+        sprite: pathSprite,
+        size: Vector2(screenWidth, pathH),
+        position: Vector2(0, pathY),
+      );
+      pathB = SpriteComponent(
+        sprite: pathSprite,
+        size: Vector2(screenWidth, pathH),
+        position: Vector2(screenWidth, pathY),
+      );
+      add(pathA!);
+      add(pathB!);
+
+      // Layer 3: Character (on top of path)
+      // Compensate for transparent pixels at the bottom of the character sprite
+      final double transparentBottomPx = 140; // Adjust this value as needed
+      final double transparentOffset = transparentBottomPx * scaleY;
+      character = Character(userId: userId);
+      character!.size =
+          Vector2(800 * scaleX, 800 * scaleY); // 800x800 base size
+      character!.anchor = Anchor.bottomLeft;
+
+      // Position character based on player side
+      if (customPosition != null) {
+        character!.position = Vector2(customPosition!.dx, customPosition!.dy);
+      } else if (isPlayer1) {
+        character!.position = Vector2(
+          100 * scaleX, // X position (adjust as needed)
+          screenHeight -
+              (pathHeight * scaleY) +
+              transparentOffset, // Y = top of path + offset
+        );
+      } else {
+        // Player 2 on right side, flipped horizontally
         character!.flipHorizontally();
+        character!.position = Vector2(
+          screenWidth - (100 * scaleX), // X position on right side
+          screenHeight -
+              (pathHeight * scaleY) +
+              transparentOffset, // Y = top of path + offset
+        );
       }
 
       // Set walking animation if needed
@@ -495,6 +493,8 @@ class CharacterDisplayGame extends FlameGame {
       }
 
       add(character!);
+    } catch (e) {
+      print('CharacterDisplayGame onLoad error: $e');
     }
   }
 }
@@ -508,7 +508,7 @@ class Character extends SpriteAnimationComponent with HasGameRef {
   bool _animationsLoaded = false;
 
   Character({required this.userId})
-      : super(size: Vector2(200, 200)); // Smaller size for display
+      : super(size: Vector2(300, 300)); // Same size as solo mode
 
   @override
   Future<void> onLoad() async {
@@ -547,5 +547,203 @@ class Character extends SpriteAnimationComponent with HasGameRef {
     } else if (!walking && animation != idleAnimation) {
       animation = idleAnimation;
     }
+  }
+}
+
+// Flame game for duo race, both characters in one game
+class DuoRaceGame extends FlameGame {
+  final String userId;
+  final String userName;
+  final int userScore;
+  final bool userIsWalking;
+  final String opponentId;
+  final String opponentName;
+  final int opponentScore;
+
+  DuoRaceGame({
+    required this.userId,
+    required this.userName,
+    required this.userScore,
+    required this.userIsWalking,
+    required this.opponentId,
+    required this.opponentName,
+    required this.opponentScore,
+  });
+
+  late Character userCharacter;
+  late Character opponentCharacter;
+  late InfoBubbleComponent userBubble;
+  late InfoBubbleComponent opponentBubble;
+
+  SpriteComponent? skyA;
+  SpriteComponent? skyB;
+  SpriteComponent? bushesA;
+  SpriteComponent? bushesB;
+  SpriteComponent? pathA;
+  SpriteComponent? pathB;
+  final double baseWidth = 1200;
+  final double baseHeight = 2400;
+  final double bushesHeight = 1841;
+  final double pathHeight = 559;
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    final screenWidth = size.x;
+    final screenHeight = size.y;
+    final scaleX = screenWidth / baseWidth;
+    final scaleY = screenHeight / baseHeight;
+
+    // Background layers (same as solo_mode.dart)
+    final skySprite = await loadSprite('sky.png');
+    skyA = SpriteComponent(
+      sprite: skySprite,
+      size: Vector2(screenWidth, screenHeight),
+      position: Vector2(0, 0),
+    );
+    skyB = SpriteComponent(
+      sprite: skySprite,
+      size: Vector2(screenWidth, screenHeight),
+      position: Vector2(screenWidth, 0),
+    );
+    add(skyA!);
+    add(skyB!);
+
+    final bushesSprite = await loadSprite('bushes.png');
+    final double bushesH = bushesHeight * scaleY;
+    bushesA = SpriteComponent(
+      sprite: bushesSprite,
+      size: Vector2(screenWidth, bushesH),
+      position: Vector2(0, 0),
+    );
+    bushesB = SpriteComponent(
+      sprite: bushesSprite,
+      size: Vector2(screenWidth, bushesH),
+      position: Vector2(screenWidth, 0),
+    );
+    add(bushesA!);
+    add(bushesB!);
+
+    final pathSprite = await loadSprite('path.png');
+    final double pathH = pathHeight * scaleY;
+    final double pathY = screenHeight - pathH;
+    pathA = SpriteComponent(
+      sprite: pathSprite,
+      size: Vector2(screenWidth, pathH),
+      position: Vector2(0, pathY),
+    );
+    pathB = SpriteComponent(
+      sprite: pathSprite,
+      size: Vector2(screenWidth, pathH),
+      position: Vector2(screenWidth, pathY),
+    );
+    add(pathA!);
+    add(pathB!);
+
+    // Characters (side by side, same logic as solo_mode.dart)
+    final double transparentBottomPx = 140;
+    final double transparentOffset = transparentBottomPx * scaleY;
+    final double charY =
+        screenHeight - (pathHeight * scaleY) + transparentOffset;
+    final double charSize = 800 * scaleX;
+    final double charOffset = 40 * scaleX;
+
+    userCharacter = Character(userId: userId)
+      ..size = Vector2(charSize, charSize)
+      ..anchor = Anchor.bottomLeft
+      ..position = Vector2(100 * scaleX - charOffset, charY);
+    if (userIsWalking)
+      userCharacter.startWalking();
+    else
+      userCharacter.stopWalking();
+    add(userCharacter);
+
+    opponentCharacter = Character(userId: opponentId)
+      ..size = Vector2(charSize, charSize)
+      ..anchor = Anchor.bottomLeft
+      ..position = Vector2(100 * scaleX + charOffset, charY);
+    // Opponent walks if their score is higher (optional, or you can use a flag)
+    if (opponentScore > userScore)
+      opponentCharacter.startWalking();
+    else
+      opponentCharacter.stopWalking();
+    opponentCharacter.flipHorizontally();
+    add(opponentCharacter);
+
+    // Info bubbles above each character
+    userBubble = InfoBubbleComponent(
+      name: userName,
+      score: userScore,
+      position: Vector2(
+          userCharacter.position.x + charSize / 2, charY - charSize - 40),
+    );
+    add(userBubble);
+    opponentBubble = InfoBubbleComponent(
+      name: opponentName,
+      score: opponentScore,
+      position: Vector2(
+          opponentCharacter.position.x + charSize / 2, charY - charSize - 40),
+    );
+    add(opponentBubble);
+  }
+}
+
+// Info bubble as a Flame component
+class InfoBubbleComponent extends PositionComponent {
+  final String name;
+  final int score;
+  InfoBubbleComponent({
+    required this.name,
+    required this.score,
+    required Vector2 position,
+  }) {
+    this.position = position;
+    size = Vector2(120, 60);
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final rect = Rect.fromLTWH(0, 0, size.x, size.y - 10);
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
+    final paint = Paint()..color = Colors.white;
+    final borderPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRRect(rrect, paint);
+    canvas.drawRRect(rrect, borderPaint);
+    // Draw pointer
+    final path = Path();
+    path.moveTo(size.x / 2 - 12, size.y - 10);
+    path.lineTo(size.x / 2, size.y);
+    path.lineTo(size.x / 2 + 12, size.y - 10);
+    path.close();
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, borderPaint);
+    // Draw text
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: name + '\n',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: Colors.black,
+        ),
+        children: [
+          TextSpan(
+            text: score.toString(),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Colors.black,
+            ),
+          ),
+        ],
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+      maxLines: 2,
+    )..layout(maxWidth: size.x - 8);
+    textPainter.paint(canvas, Offset((size.x - textPainter.width) / 2, 8));
   }
 }
