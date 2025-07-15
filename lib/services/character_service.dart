@@ -117,7 +117,7 @@ class CharacterService {
       // Load walking animation
       animations['walking'] = await _loadTexturePackerAnimation(
         spriteSheets['walking']!,
-        0.06,
+        0.15, // Slower animation speed to make it more noticeable
         userId,
       );
 
@@ -204,7 +204,7 @@ class CharacterService {
         'idle': await _loadTexturePackerAnimation(
             defaultSheets['idle']!, 0.08, 'default'),
         'walking': await _loadTexturePackerAnimation(
-            defaultSheets['walking']!, 0.06, 'default'),
+            defaultSheets['walking']!, 0.15, 'default'),
       };
     }
     return await loadUserAnimations(user.uid);

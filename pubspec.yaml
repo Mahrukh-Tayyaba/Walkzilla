@@ -98,14 +98,19 @@ flutter:
     - assets/images/path.png
     - assets/images/bushes.png 
     - assets/images/coin.png
+    - assets/images/road-race.png
+    - assets/images/sky-race.png
+    - assets/images/buildings-race.png
     - assets/images/character_idle.json
     - assets/images/character_idle.png
     - assets/images/character_walking.json
     - assets/images/character_walking.png
+    - assets/images/path2.png
     - assets/gifs/ground.gif
     - assets/gifs/logo.gif
     - assets/gifs/tagline.gif
     - assets/videos/splash-screen.mp4
+
     
   fonts:
     - family: LeagueGothic
