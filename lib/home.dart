@@ -54,7 +54,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _checkHealthConnectPermissions(); // This should be called first
     _fetchHealthData();
     _startHealthDataRefresh();
-    _startRealTimeStepMonitoring();
+    _startHybridStepMonitoring(); // Use hybrid monitoring instead
     _loadUserData();
     _startCharacterPreloading();
     _migrateCurrentUserCharacter();
@@ -180,8 +180,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       print("📊 Fetching real health data from Health Connect...");
 
-      // Fetch steps data (returns int)
-      final stepsCount = await _healthService.fetchStepsData();
+      // Fetch unified steps data (combines Health Connect + real-time sensor)
+      final stepsCount = await _healthService.fetchHybridStepsData();
 
       // Fetch heart rate data (returns Map)
       final heartRateData = await _healthService.fetchHeartRateData();
@@ -368,6 +368,47 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
+  // Start hybrid step monitoring (combines Health Connect and real-time sensor)
+  void _startHybridStepMonitoring() {
+    try {
+      print("🚀 Starting hybrid step monitoring...");
+
+      // Initialize hybrid tracking system
+      _healthService.initializeHybridTracking().then((initialized) {
+        if (initialized) {
+          // Start hybrid monitoring
+          _healthService.startHybridMonitoring();
+
+          // Set up step update callback for both systems
+          _healthService.setStepUpdateCallback((totalSteps, stepIncrease) {
+            if (mounted) {
+              setState(() {
+                _steps = totalSteps;
+                _isUsingSimulatedData = false;
+              });
+
+              // Show step increase animation/notification
+              if (stepIncrease > 0) {
+                _showStepIncreaseNotification(stepIncrease);
+              }
+
+              print(
+                  "🎉 Hybrid step update: +$stepIncrease steps (Total: $totalSteps)");
+            }
+          });
+        } else {
+          print(
+              "❌ Hybrid tracking initialization failed, falling back to Health Connect only");
+          _startRealTimeStepMonitoring();
+        }
+      });
+    } catch (e) {
+      print("❌ Error starting hybrid step monitoring: $e");
+      // Fallback to original method
+      _startRealTimeStepMonitoring();
+    }
+  }
+
   // Show step increase notification
   void _showStepIncreaseNotification(int stepIncrease) {
     if (mounted) {
@@ -403,9 +444,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         return;
       }
 
-      // Fetch real steps data
-      int stepsCount = await _healthService.fetchStepsData();
-      print("📊 Steps from Health Connect: $stepsCount");
+      // Fetch unified steps data
+      int stepsCount = await _healthService.fetchHybridStepsData();
+      print("📊 Unified steps (Health Connect + Real-time): $stepsCount");
 
       if (mounted) {
         setState(() {

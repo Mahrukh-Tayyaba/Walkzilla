@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async'; // Added for Timer and StreamSubscription
+import 'step_counter_service.dart';
 
 class HealthService {
   static final HealthService _instance = HealthService._internal();
@@ -810,16 +811,22 @@ class HealthService {
   // Force refresh step count
   Future<int> forceRefreshStepCount() async {
     try {
-      final newSteps = await fetchStepsData();
-      final stepIncrease = newSteps - _lastKnownSteps;
+      print("🔄 Force refreshing step count...");
 
-      if (newSteps != _lastKnownSteps) {
-        _lastKnownSteps = newSteps;
+      // Use unified step count instead of just Health Connect
+      final unifiedSteps = await fetchHybridStepsData();
+      final stepIncrease = unifiedSteps - _lastKnownSteps;
+
+      if (unifiedSteps != _lastKnownSteps) {
+        _lastKnownSteps = unifiedSteps;
         _lastStepUpdate = DateTime.now();
-        _notifyStepUpdate(newSteps, stepIncrease);
+        _notifyStepUpdate(unifiedSteps, stepIncrease);
+        print("✅ Force refresh updated steps: $unifiedSteps (+$stepIncrease)");
+      } else {
+        print("📊 Force refresh: No change in steps ($unifiedSteps)");
       }
 
-      return newSteps;
+      return unifiedSteps;
     } catch (e) {
       print("❌ Error force refreshing step count: $e");
       return _lastKnownSteps;
@@ -1192,4 +1199,208 @@ class HealthService {
     _smartPollingTimer = null;
     print("🛑 All monitoring stopped");
   }
+
+  // ===== REAL-TIME STEP TRACKING INTEGRATION =====
+
+  StreamSubscription<Map<String, dynamic>>? _realTimeStepSubscription;
+  bool _isRealTimeTrackingActive = false;
+  int _healthConnectBaseline = 0; // Store initial Health Connect steps
+  bool _baselineSet = false; // Track if baseline has been set
+
+  /// Start real-time step tracking using hardware sensor
+  Future<bool> startRealTimeStepTracking() async {
+    try {
+      print("🚀 Starting real-time step tracking...");
+
+      // Initialize step counter service
+      final initialized = await StepCounterService.initialize();
+      if (!initialized) {
+        print("❌ Failed to initialize step counter service");
+        return false;
+      }
+
+      // Start tracking
+      final started = await StepCounterService.startTracking();
+      if (!started) {
+        print("❌ Failed to start step tracking");
+        return false;
+      }
+
+      // Listen to real-time updates
+      _realTimeStepSubscription = StepCounterService.stepStream.listen(
+        (data) async {
+          if (data['type'] == 'step_update') {
+            final currentSteps = data['currentSteps'] as int;
+            final dailySteps = data['dailySteps'] as int;
+            final timestamp = data['timestamp'] as DateTime;
+
+            print(
+                "👟 Real-time step update: $currentSteps steps (Daily: $dailySteps)");
+
+            // Only update if we have a valid baseline
+            if (_baselineSet) {
+              // Calculate unified step count using baseline
+              final unifiedSteps = _healthConnectBaseline + currentSteps;
+
+              // Update last known steps
+              _lastKnownSteps = unifiedSteps;
+              _lastStepUpdate = timestamp;
+
+              // Notify listeners with unified count
+              print(
+                  "🎯 Sending unified step update: $unifiedSteps (baseline: $_healthConnectBaseline + real-time: $currentSteps)");
+              _notifyStepUpdate(unifiedSteps, currentSteps);
+            } else {
+              print("⚠️ Baseline not set yet, skipping update");
+            }
+          } else if (data['type'] == 'sensor_status') {
+            final available = data['available'] as bool;
+            print(
+                "📱 Step sensor status: ${available ? 'Available' : 'Not available'}");
+          }
+        },
+        onError: (error) {
+          print("❌ Error in real-time step stream: $error");
+        },
+      );
+
+      _isRealTimeTrackingActive = true;
+      print("✅ Real-time step tracking started successfully");
+      return true;
+    } catch (e) {
+      print("❌ Error starting real-time step tracking: $e");
+      return false;
+    }
+  }
+
+  /// Stop real-time step tracking
+  Future<void> stopRealTimeStepTracking() async {
+    try {
+      print("🛑 Stopping real-time step tracking...");
+
+      _realTimeStepSubscription?.cancel();
+      _realTimeStepSubscription = null;
+
+      await StepCounterService.stopTracking();
+
+      _isRealTimeTrackingActive = false;
+      print("✅ Real-time step tracking stopped");
+    } catch (e) {
+      print("❌ Error stopping real-time step tracking: $e");
+    }
+  }
+
+  /// Check if real-time tracking is active
+  bool get isRealTimeTrackingActive => _isRealTimeTrackingActive;
+
+  /// Get current real-time step count
+  int get currentRealTimeSteps => StepCounterService.currentSteps;
+
+  /// Hybrid step fetching - combines Health Connect and real-time sensor
+  Future<int> fetchHybridStepsData() async {
+    try {
+      // Get Health Connect steps (historical data for today)
+      final healthConnectSteps = await fetchStepsData();
+      print("🏥 Health Connect steps: $healthConnectSteps");
+
+      // Set baseline on first call
+      if (!_baselineSet) {
+        _healthConnectBaseline = healthConnectSteps;
+        _baselineSet = true;
+        print("📊 Set Health Connect baseline: $_healthConnectBaseline");
+      }
+
+      // Get real-time sensor steps (since app start)
+      final realTimeSteps = StepCounterService.currentSteps;
+      print("📱 Real-time sensor steps: $realTimeSteps");
+
+      // Calculate unified step count
+      // Use Health Connect baseline + real-time steps since app start
+      final unifiedSteps = _healthConnectBaseline + realTimeSteps;
+
+      print(
+          "🎯 Unified step count: $_healthConnectBaseline (baseline) + $realTimeSteps (real-time) = $unifiedSteps");
+
+      return unifiedSteps;
+    } catch (e) {
+      print("❌ Error in hybrid step fetching: $e");
+      return 0;
+    }
+  }
+
+  /// Initialize both Health Connect and real-time tracking
+  Future<bool> initializeHybridTracking() async {
+    try {
+      print("🔄 Initializing hybrid tracking system...");
+
+      // Initialize Health Connect
+      final healthConnectInitialized = await initializeHealthConnect();
+
+      // Initialize real-time tracking
+      final realTimeInitialized = await StepCounterService.initialize();
+
+      // Set baseline immediately if Health Connect is available
+      if (healthConnectInitialized && !_baselineSet) {
+        final initialSteps = await fetchStepsData();
+        _healthConnectBaseline = initialSteps;
+        _baselineSet = true;
+        print("📊 Set initial baseline: $_healthConnectBaseline");
+      }
+
+      print(
+          "🏥 Health Connect: ${healthConnectInitialized ? 'Ready' : 'Not available'}");
+      print(
+          "📱 Real-time sensor: ${realTimeInitialized ? 'Ready' : 'Not available'}");
+
+      return healthConnectInitialized || realTimeInitialized;
+    } catch (e) {
+      print("❌ Error initializing hybrid tracking: $e");
+      return false;
+    }
+  }
+
+  /// Enhanced monitoring that uses both systems
+  Future<void> startHybridMonitoring() async {
+    try {
+      print("🚀 Starting hybrid monitoring...");
+
+      // Start real-time tracking if available
+      if (await StepCounterService.isSensorAvailable()) {
+        await startRealTimeStepTracking();
+        print("✅ Real-time tracking started");
+      } else {
+        print("⚠️ Real-time sensor not available, using Health Connect only");
+        // Only use Health Connect monitoring if real-time sensor is not available
+        await startRealTimeStepMonitoring();
+      }
+
+      print("✅ Hybrid monitoring started");
+    } catch (e) {
+      print("❌ Error starting hybrid monitoring: $e");
+    }
+  }
+
+  /// Stop hybrid monitoring
+  Future<void> stopHybridMonitoring() async {
+    try {
+      print("🛑 Stopping hybrid monitoring...");
+
+      await stopRealTimeStepTracking();
+      stopRealTimeStepMonitoring();
+
+      print("✅ Hybrid monitoring stopped");
+    } catch (e) {
+      print("❌ Error stopping hybrid monitoring: $e");
+    }
+  }
+
+  /// Reset baseline (useful for new day or app restart)
+  void resetBaseline() {
+    _baselineSet = false;
+    _healthConnectBaseline = 0;
+    print("🔄 Baseline reset");
+  }
+
+  /// Get current baseline value
+  int get healthConnectBaseline => _healthConnectBaseline;
 }
