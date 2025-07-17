@@ -135,8 +135,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       Navigator.of(context).pop();
                       try {
                         final healthService = HealthService();
-                        final stepsData = await healthService.fetchStepsData();
-                        final int steps = stepsData['count'] ?? 0;
+                        final int steps = await healthService.fetchStepsData();
                         final fancyMsg = "🚶‍♂️ I've walked " +
                             _formatSteps(steps) +
                             " steps today! 🏆";
