@@ -268,6 +268,29 @@ class UsernameService {
     return suggestions;
   }
 
+  // Check if username is reserved for a specific user
+  Future<bool> isUsernameReservedForUser(String username, String userId) async {
+    try {
+      final normalizedUsername = username.toLowerCase().trim();
+
+      final usernameDoc = await _firestore
+          .collection('usernames')
+          .doc(normalizedUsername)
+          .get();
+
+      if (usernameDoc.exists) {
+        final data = usernameDoc.data();
+        final reservedUserId = data?['userId'] as String?;
+        return reservedUserId == userId;
+      }
+
+      return false;
+    } catch (e) {
+      print('Error checking username reservation for user: $e');
+      return false;
+    }
+  }
+
   // Release username reservation (if user cancels signup)
   Future<void> releaseUsername(String username) async {
     try {

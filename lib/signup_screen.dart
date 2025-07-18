@@ -9,6 +9,7 @@ import 'services/health_service.dart'; // Add this import
 import 'services/username_service.dart'; // Add username service
 import 'services/duo_challenge_service.dart';
 import 'main.dart' show navigatorKey;
+import 'email_verification_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -211,27 +212,20 @@ class SignupScreenState extends State<SignupScreen> {
     }
 
     try {
-      // First check if email already exists
+      // Only check for Google accounts - let Firebase handle other duplicates
       final methods =
           await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
       print('Sign-in methods for $email: $methods');
-      if (methods.isNotEmpty) {
-        String provider = methods.join(', ');
-        String errorMsg = "An account already exists for this email.";
-        if (methods.contains('google.com')) {
-          errorMsg =
-              "This email is registered with Google. Please use Google Sign-In.";
-        } else if (methods.contains('facebook.com')) {
-          errorMsg =
-              "This email is registered with Facebook. Please use Facebook Login.";
-        } else if (methods.contains('apple.com')) {
-          errorMsg =
-              "This email is registered with Apple. Please use Apple Sign-In.";
-        }
+
+      // Only show error if it's specifically a Google account
+      if (methods.isNotEmpty && methods.contains('google.com')) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMsg)),
+            const SnackBar(
+              content: Text(
+                  "This email is registered with Google. Please use Google Sign-In."),
+            ),
           );
         }
         return;
@@ -264,72 +258,25 @@ class SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      // Create user profile in Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-        'username': username.toLowerCase(),
-        'email': email,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastLogin': FieldValue.serverTimestamp(),
-        'profileImage': null,
-        'hasHealthPermissions': false,
-        'displayName': username, // Use username as display name initially
-        'level': 1,
-        'todaySteps': 0,
-        'currentStreak': 0,
-        'coins': 100, // Initial coins for new users
-        'isOnline': false,
-        'lastActive': FieldValue.serverTimestamp(),
-        'characterSpriteSheets': {
-          'idle': 'images/character_idle.json',
-          'walking': 'images/character_walking.json'
-        },
-      });
-
-      // Request health permissions before navigation
+      // Navigate to email verification screen
       if (mounted) {
-        bool permissionsGranted =
-            await _healthService.requestHealthPermissions(context);
-
-        if (permissionsGranted) {
-          // Update the permissions status in Firestore
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userCredential.user!.uid)
-              .update({
-            'hasHealthPermissions': true,
-          });
-        } else {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).clearSnackBars();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    "Some features may be limited without health data access."),
-                duration: Duration(seconds: 5),
-              ),
-            );
-          }
-        }
-
-        // Check for existing duo challenge invites before navigation
-        final duoChallengeService =
-            DuoChallengeService(navigatorKey: navigatorKey);
-        await duoChallengeService.checkForExistingInvites();
-
-        // Clear any lingering snackbars before navigating
+        // Clear any lingering error messages before navigation
         ScaffoldMessenger.of(context).clearSnackBars();
-        // Navigate to home screen after permissions are handled
-        Navigator.pushAndRemoveUntil(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const Home()),
-          (route) => false,
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(
+              email: email,
+              password: password,
+              username: username,
+              userCredential: userCredential,
+            ),
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {
-      String errorMessage = "An error occurred";
+      print('Firebase Auth Exception: ${e.code} - ${e.message}');
+      String errorMessage = "An error occurred during signup";
       if (e.code == 'weak-password') {
         errorMessage = 'The password provided is too weak.';
       } else if (e.code == 'email-already-in-use') {
@@ -338,10 +285,16 @@ class SignupScreenState extends State<SignupScreen> {
         errorMessage = 'Please enter a valid email address.';
       } else if (e.code == 'operation-not-allowed') {
         errorMessage = 'Email/password accounts are not enabled.';
+      } else if (e.code == 'network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection.';
       }
       if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $errorMessage")),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {

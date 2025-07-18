@@ -5,9 +5,12 @@ import 'package:flame/parallax.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:flame/flame.dart';
 import 'services/character_animation_service.dart';
 import 'package:intl/intl.dart';
+import 'services/health_service.dart';
+import 'services/step_counter_service.dart';
 
 class SoloMode extends StatefulWidget {
   const SoloMode({super.key});
@@ -18,9 +21,14 @@ class SoloMode extends StatefulWidget {
 
 class _SoloModeState extends State<SoloMode> {
   final FocusNode _focusNode = FocusNode();
+  final HealthService _healthService = HealthService();
+  SoloModeGame? _game; // Local game instance
+  int _steps = 0;
+  int _previousSteps = 0; // Track previous steps to detect movement
   bool _isLoading = true;
-  int _currentSteps = 2400; // Default value
-  final double walkSpeed = 200; // pixels per second, adjust as needed
+  bool _isUserWalking = false; // Track if user is currently walking
+  StreamSubscription<Map<String, dynamic>>? _stepSubscription;
+  DateTime? _lastStepUpdate; // Track when last step was detected
 
   @override
   void initState() {
@@ -28,7 +36,179 @@ class _SoloModeState extends State<SoloMode> {
     _focusNode.addListener(() {
       print('Game focus changed: ${_focusNode.hasFocus}');
     });
-    _checkAnimationStatus();
+    // Initialize with walking state as false
+    _isUserWalking = false;
+    _initializeRealTimeTracking();
+  }
+
+  void _initializeRealTimeTracking() async {
+    try {
+      // Force reset walking state to ensure correct initial state
+      setState(() {
+        _isUserWalking = false;
+        _lastStepUpdate = null; // Reset step history
+      });
+
+      // Get initial steps using the same method as home.dart
+      await _fetchSteps();
+
+      // Force walking state to false after initial fetch
+      if (_isUserWalking) {
+        setState(() {
+          _isUserWalking = false;
+        });
+        print('🔄 Force reset walking state after initial fetch');
+      }
+
+      // Initialize hybrid tracking system (Health Connect + real-time sensors)
+      final initialized = await _healthService.initializeHybridTracking();
+
+      if (initialized) {
+        // Start hybrid monitoring (uses real-time sensors)
+        await _healthService.startHybridMonitoring();
+
+        // Set up real-time step stream listener
+        _setupRealTimeStepListener();
+      } else {
+        // Fallback to periodic polling if sensors not available
+        print('⚠️ Real-time sensors not available, using periodic polling');
+        _startPeriodicUpdates();
+      }
+    } catch (e) {
+      print('❌ Error initializing real-time tracking: $e');
+      // Fallback to periodic polling
+      _startPeriodicUpdates();
+    }
+  }
+
+  void _setupRealTimeStepListener() {
+    // Listen to unified step updates from the hybrid system
+    _stepSubscription = StepCounterService.stepStream.listen(
+      (data) {
+        if (data['type'] == 'step_update') {
+          // Get the unified step count from the hybrid system
+          _fetchSteps().then((_) {
+            if (mounted) {
+              final timestamp = data['timestamp'] as DateTime;
+              // Check walking status with proper timing
+              _checkUserWalkingWithTiming(timestamp);
+              // Sync character animation
+              _syncCharacterAnimation();
+            }
+          });
+        }
+      },
+      onError: (error) {
+        print('❌ Error in real-time step stream: $error');
+        // Fallback to periodic polling on error
+        _startPeriodicUpdates();
+      },
+    );
+  }
+
+  void _setWalkingState(bool walking) {
+    if (_isUserWalking != walking) {
+      setState(() {
+        _isUserWalking = walking;
+      });
+      walking ? _startCharacterWalking() : _stopCharacterWalking();
+      print(walking ? '🚶‍♂️ User started walking' : '🛑 User stopped walking');
+    }
+  }
+
+  void _checkUserWalkingWithTiming(DateTime timestamp) {
+    final now = DateTime.now();
+
+    // If steps increased, user is walking
+    if (_steps > _previousSteps) {
+      _setWalkingState(true);
+      _lastStepUpdate = now;
+      print(
+          '🚶‍♂️ Steps increased: $_previousSteps -> $_steps, user is walking');
+    } else {
+      // If steps didn't increase, user stopped walking immediately
+      if (_isUserWalking) {
+        _setWalkingState(false);
+        print('🛑 Steps didn\'t increase, user stopped walking immediately');
+      }
+    }
+  }
+
+  void _startPeriodicUpdates() {
+    // Fallback: Check steps every 5 seconds if real-time sensors fail
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        _fetchSteps();
+        // Ensure character animation is synchronized
+        _syncCharacterAnimation();
+        _startPeriodicUpdates(); // Recursive call for periodic updates
+      }
+    });
+  }
+
+  void _debugWalkingState() {
+    // Debug method to check current walking state
+    final now = DateTime.now();
+    final timeSinceLastStep = _lastStepUpdate != null
+        ? now.difference(_lastStepUpdate!).inSeconds
+        : 'No step history';
+
+    print('🔍 DEBUG WALKING STATE:');
+    print('  - Current steps: $_steps');
+    print('  - Previous steps: $_previousSteps');
+    print('  - Is walking: $_isUserWalking');
+    print('  - Last step update: $_lastStepUpdate');
+    print('  - Time since last step: $timeSinceLastStep seconds');
+    print('  - Character walking: ${_game?.character?.isWalking}');
+  }
+
+  void _syncCharacterAnimation() {
+    // Ensure character animation matches walking state
+    _game?.updateWalkingState(_isUserWalking);
+  }
+
+  Future<void> _fetchSteps() async {
+    try {
+      // Use the same method as home.dart to get consistent step count
+      int steps = await _healthService.fetchHybridStepsData();
+      if (mounted) {
+        setState(() {
+          _previousSteps = _steps; // Store previous steps
+          _steps = steps;
+          _isLoading = false;
+        });
+
+        // Check if user is walking (steps increased)
+        _checkUserWalkingWithTiming(DateTime.now());
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _steps = 0;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _startCharacterWalking() {
+    // Start character walking animation with proper error handling
+    try {
+      _game?.updateWalkingState(true);
+      print('🎬 Character walking animation started');
+    } catch (e) {
+      print('❌ Error starting character walking: $e');
+    }
+  }
+
+  void _stopCharacterWalking() {
+    // Stop character walking animation with proper error handling
+    try {
+      _game?.updateWalkingState(false);
+      print('🎬 Character walking animation stopped');
+    } catch (e) {
+      print('❌ Error stopping character walking: $e');
+    }
   }
 
   void _checkAnimationStatus() async {
@@ -49,9 +229,23 @@ class _SoloModeState extends State<SoloMode> {
     }
   }
 
+  // Ensure character animation is working
+  void _ensureCharacterAnimation() {
+    // Make sure the game instance and character are available
+    if (_game?.character != null) {
+      print('✅ Character animation system ready');
+      // Ensure character starts in idle state
+      _game!.updateWalkingState(false);
+    } else {
+      print('⚠️ Character animation system not ready yet');
+    }
+  }
+
   @override
   void dispose() {
     _focusNode.dispose();
+    _stepSubscription?.cancel();
+    _healthService.stopHybridMonitoring();
     super.dispose();
   }
 
@@ -93,7 +287,7 @@ class _SoloModeState extends State<SoloMode> {
               children: [
                 // Game Widget as background
                 GameWidget(
-                  game: SoloModeGame(),
+                  game: _game ??= SoloModeGame(),
                   focusNode: _focusNode,
                   autofocus: true,
                 ),
@@ -103,139 +297,92 @@ class _SoloModeState extends State<SoloMode> {
                   top: 90,
                   left: 32,
                   right: 32,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 18, horizontal: 18),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.25),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Steps (value only, no icon)
-                        Text(
-                          NumberFormat.decimalPattern().format(_currentSteps),
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Color.fromARGB(255, 7, 50, 86),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // Time, Distance, Calories Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // Time
-                            Column(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Icon(
-                                    Icons.access_time,
-                                    color: Colors.orange,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  '24:30',
-                                  style: TextStyle(
-                                    fontSize: 15,
+                  child: GestureDetector(
+                    onTap: () async {
+                      // Manual refresh for testing
+                      await _fetchSteps();
+                      _ensureCharacterAnimation();
+                      _syncCharacterAnimation();
+                      _debugWalkingState();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 18, horizontal: 18),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _isLoading
+                              ? const CircularProgressIndicator()
+                              : Text(
+                                  _steps.toString(),
+                                  style: const TextStyle(
+                                    fontSize: 36,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                    color: Color.fromARGB(255, 7, 50, 86),
                                   ),
                                 ),
-                              ],
-                            ),
-                            // Distance
-                            Column(
+                          if (!_isLoading) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Icon(
-                                    Icons.straighten,
-                                    color: Colors.green,
-                                    size: 20,
-                                  ),
+                                Icon(
+                                  _isUserWalking
+                                      ? Icons.directions_walk
+                                      : Icons.accessibility_new,
+                                  color: _isUserWalking
+                                      ? Colors.green
+                                      : Colors.grey,
+                                  size: 20,
                                 ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  '1.8 km',
+                                const SizedBox(width: 4),
+                                Text(
+                                  _isUserWalking ? 'Walking' : 'Idle',
                                   style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // Calories
-                            Column(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Icon(
-                                    Icons.local_fire_department,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  '120',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                    fontSize: 12,
+                                    color: _isUserWalking
+                                        ? Colors.green
+                                        : Colors.grey,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
                           ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
 
-                // Touch controls
+                // Walking Status Indicator
                 Positioned(
                   bottom: 20,
                   right: 20,
-                  child: GestureDetector(
-                    onPanStart: (_) {
-                      SoloModeGame.instance?.character?.startWalking();
-                    },
-                    onPanEnd: (_) {
-                      SoloModeGame.instance?.character?.stopWalking();
-                    },
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        shape: BoxShape.circle,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: _isUserWalking
+                          ? Colors.green.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _isUserWalking ? Colors.green : Colors.white,
+                        width: 2,
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        _isUserWalking
+                            ? Icons.directions_walk
+                            : Icons.accessibility_new,
+                        color: Colors.white,
+                        size: 40,
                       ),
                     ),
                   ),
@@ -246,8 +393,7 @@ class _SoloModeState extends State<SoloMode> {
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: StepProgressBar(
-                      currentSteps: _currentSteps, stepGoal: 6000),
+                  child: StepProgressBar(currentSteps: _steps, stepGoal: 6000),
                 ),
               ],
             ),
@@ -255,8 +401,7 @@ class _SoloModeState extends State<SoloMode> {
   }
 }
 
-class Character extends SpriteAnimationComponent
-    with HasGameRef, KeyboardHandler {
+class Character extends SpriteAnimationComponent with KeyboardHandler {
   SpriteAnimation? idleAnimation;
   SpriteAnimation? walkingAnimation;
   bool isWalking = false;
@@ -351,6 +496,15 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
 
   SoloModeGame() {
     instance = this;
+  }
+
+  void updateWalkingState(bool walking) {
+    if (character != null) {
+      walking ? character!.startWalking() : character!.stopWalking();
+      print('🎮 Game: Character ${walking ? "started" : "stopped"} walking');
+    } else {
+      print('⚠️ Game: Character not available for walking state update');
+    }
   }
 
   @override
