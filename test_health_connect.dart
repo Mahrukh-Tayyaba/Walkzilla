@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
 import 'lib/services/health_service.dart';
 
@@ -64,13 +65,17 @@ class _HealthConnectTestState extends State<HealthConnectTest> {
           _isLoading = false;
         });
 
-        print('Health Data Test Results:');
-        print('Steps: ${healthData['steps']['count']}');
-        print('Heart Rate: ${healthData['heartRate']['beatsPerMinute']} bpm');
-        print(
-            'Calories: ${healthData['calories']['energy']['inKilocalories']} kcal');
-        print(
-            'Data Source: ${healthData['steps']['metadata']['device']['manufacturer']}');
+        // Debug logging - only in debug mode
+        if (kDebugMode) {
+          debugPrint('Health Data Test Results:');
+          debugPrint('Steps: ${healthData['steps']['count']}');
+          debugPrint(
+              'Heart Rate: ${healthData['heartRate']['beatsPerMinute']} bpm');
+          debugPrint(
+              'Calories: ${healthData['calories']['energy']['inKilocalories']} kcal');
+          debugPrint(
+              'Data Source: ${healthData['steps']['metadata']['device']['manufacturer']}');
+        }
       } else {
         setState(() {
           _status = 'Cannot fetch data without permissions';
@@ -82,7 +87,9 @@ class _HealthConnectTestState extends State<HealthConnectTest> {
         _status = 'Error: $e';
         _isLoading = false;
       });
-      print('Health Connect Test Error: $e');
+      if (kDebugMode) {
+        debugPrint('Health Connect Test Error: $e');
+      }
     }
   }
 

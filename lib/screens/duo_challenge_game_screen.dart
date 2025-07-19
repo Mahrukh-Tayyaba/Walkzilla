@@ -5,10 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
-import 'package:flame/flame.dart';
+// Removed unused import
+// Removed unused import
 import 'package:flame/events.dart';
-import '../services/character_service.dart';
+// Removed unused import
 import '../services/character_animation_service.dart';
 
 class DuoChallengeGameScreen extends StatefulWidget {

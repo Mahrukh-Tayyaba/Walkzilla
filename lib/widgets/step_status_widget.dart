@@ -29,7 +29,7 @@ class _StepStatusWidgetState extends State<StepStatusWidget> {
       final sensorAvailable = await StepCounterService.isSensorAvailable();
       final baseline = _healthService.healthConnectBaseline;
       final realTimeSteps = StepCounterService.currentSteps;
-      final unifiedSteps = await _healthService.fetchHybridStepsData();
+      final unifiedSteps = await _healthService.fetchHybridRealTimeSteps();
 
       setState(() {
         _isRealTimeActive = realTimeActive;

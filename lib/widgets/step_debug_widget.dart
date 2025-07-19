@@ -27,7 +27,7 @@ class _StepDebugWidgetState extends State<StepDebugWidget> {
       // Get individual components
       final healthSteps = await _healthService.fetchStepsData();
       final realTimeSteps = StepCounterService.currentSteps;
-      final unifiedSteps = await _healthService.fetchHybridStepsData();
+      final unifiedSteps = await _healthService.fetchHybridRealTimeSteps();
       final baseline = _healthService.healthConnectBaseline;
 
       setState(() {

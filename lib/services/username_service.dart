@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 
 class UsernameService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -11,8 +12,10 @@ class UsernameService {
 
     try {
       final normalizedUsername = username.toLowerCase().trim();
-      print(
-          'Checking availability for normalized username: "$normalizedUsername"');
+      if (kDebugMode) {
+        debugPrint(
+            'Checking availability for normalized username: "$normalizedUsername"');
+      }
 
       // Check in usernames collection (reserved usernames)
       final usernameDoc = await _firestore
@@ -21,12 +24,17 @@ class UsernameService {
           .get();
 
       if (usernameDoc.exists) {
-        print(
-            'Username $normalizedUsername is reserved in usernames collection');
+        if (kDebugMode) {
+          debugPrint(
+              'Username $normalizedUsername is reserved in usernames collection');
+        }
         return false;
       }
 
-      print('Username $normalizedUsername not found in usernames collection');
+      if (kDebugMode) {
+        debugPrint(
+            'Username $normalizedUsername not found in usernames collection');
+      }
 
       // Also check in users collection to see if any user has this username
       final usersQuery = await _firestore
@@ -35,22 +43,32 @@ class UsernameService {
           .limit(1)
           .get();
 
-      print('Users query returned ${usersQuery.docs.length} documents');
+      if (kDebugMode) {
+        debugPrint('Users query returned ${usersQuery.docs.length} documents');
+      }
 
       if (usersQuery.docs.isNotEmpty) {
-        print('Username $normalizedUsername is already used by a user');
+        if (kDebugMode) {
+          debugPrint('Username $normalizedUsername is already used by a user');
+        }
         return false;
       }
 
-      print('Username $normalizedUsername is available');
+      if (kDebugMode) {
+        debugPrint('Username $normalizedUsername is available');
+      }
       return true;
     } catch (e) {
-      print('Error checking username availability: $e');
+      if (kDebugMode) {
+        debugPrint('Error checking username availability: $e');
+      }
 
       // Check if it's a permission error
       if (e.toString().contains('permission-denied')) {
-        print(
-            'Permission denied error - this might be due to Firestore rules not being deployed yet');
+        if (kDebugMode) {
+          debugPrint(
+              'Permission denied error - this might be due to Firestore rules not being deployed yet');
+        }
         // For permission errors, we'll assume the username is available to allow signup to proceed
         // The actual availability will be checked during the signup process
         return true;
@@ -150,7 +168,10 @@ class UsernameService {
       // First check availability outside transaction
       final isAvailable = await isUsernameAvailable(normalizedUsername);
       if (!isAvailable) {
-        print('Username $normalizedUsername is not available for reservation');
+        if (kDebugMode) {
+          debugPrint(
+              'Username $normalizedUsername is not available for reservation');
+        }
         return false;
       }
 
@@ -161,8 +182,10 @@ class UsernameService {
             .get(_firestore.collection('usernames').doc(normalizedUsername));
 
         if (usernameDoc.exists) {
-          print(
-              'Username $normalizedUsername is already reserved (transaction check)');
+          if (kDebugMode) {
+            debugPrint(
+                'Username $normalizedUsername is already reserved (transaction check)');
+          }
           return false;
         }
 
@@ -173,14 +196,18 @@ class UsernameService {
           'reservedAt': FieldValue.serverTimestamp(),
         });
 
-        print(
-            'Username $normalizedUsername reserved successfully for user $userId');
+        if (kDebugMode) {
+          debugPrint(
+              'Username $normalizedUsername reserved successfully for user $userId');
+        }
         return true;
       });
 
       return result;
     } catch (e) {
-      print('Error reserving username: $e');
+      if (kDebugMode) {
+        debugPrint('Error reserving username: $e');
+      }
       return false;
     }
   }
@@ -286,7 +313,9 @@ class UsernameService {
 
       return false;
     } catch (e) {
-      print('Error checking username reservation for user: $e');
+      if (kDebugMode) {
+        debugPrint('Error checking username reservation for user: $e');
+      }
       return false;
     }
   }
@@ -297,7 +326,9 @@ class UsernameService {
       final normalizedUsername = username.toLowerCase().trim();
       await _firestore.collection('usernames').doc(normalizedUsername).delete();
     } catch (e) {
-      print('Error releasing username: $e');
+      if (kDebugMode) {
+        debugPrint('Error releasing username: $e');
+      }
     }
   }
 
@@ -317,22 +348,30 @@ class UsernameService {
           if (!userDoc.exists) {
             // User doesn't exist, remove the reservation
             await doc.reference.delete();
-            print('Cleared stale reservation for username: ${doc.id}');
+            if (kDebugMode) {
+              debugPrint('Cleared stale reservation for username: ${doc.id}');
+            }
           }
         }
       }
     } catch (e) {
-      print('Error clearing stale reservations: $e');
+      if (kDebugMode) {
+        debugPrint('Error clearing stale reservations: $e');
+      }
     }
   }
 
   // Test function to debug username availability
   Future<void> debugUsernameAvailability(String username) async {
-    print('=== DEBUG: Username Availability Check ===');
-    print('Original username: "$username"');
+    if (kDebugMode) {
+      debugPrint('=== DEBUG: Username Availability Check ===');
+      debugPrint('Original username: "$username"');
+    }
 
     final normalizedUsername = username.toLowerCase().trim();
-    print('Normalized username: "$normalizedUsername"');
+    if (kDebugMode) {
+      debugPrint('Normalized username: "$normalizedUsername"');
+    }
 
     try {
       // Check usernames collection
@@ -341,9 +380,11 @@ class UsernameService {
           .doc(normalizedUsername)
           .get();
 
-      print('Username in usernames collection: ${usernameDoc.exists}');
-      if (usernameDoc.exists) {
-        print('Username data: ${usernameDoc.data()}');
+      if (kDebugMode) {
+        debugPrint('Username in usernames collection: ${usernameDoc.exists}');
+        if (usernameDoc.exists) {
+          debugPrint('Username data: ${usernameDoc.data()}');
+        }
       }
 
       // Check users collection
@@ -353,17 +394,25 @@ class UsernameService {
           .limit(1)
           .get();
 
-      print('Users with this username: ${usersQuery.docs.length}');
-      if (usersQuery.docs.isNotEmpty) {
-        print('User data: ${usersQuery.docs.first.data()}');
+      if (kDebugMode) {
+        debugPrint('Users with this username: ${usersQuery.docs.length}');
+        if (usersQuery.docs.isNotEmpty) {
+          debugPrint('User data: ${usersQuery.docs.first.data()}');
+        }
       }
 
       final isAvailable = await isUsernameAvailable(username);
-      print('Final availability result: $isAvailable');
+      if (kDebugMode) {
+        debugPrint('Final availability result: $isAvailable');
+      }
     } catch (e) {
-      print('Error during debug: $e');
+      if (kDebugMode) {
+        debugPrint('Error during debug: $e');
+      }
     }
 
-    print('=== END DEBUG ===');
+    if (kDebugMode) {
+      debugPrint('=== END DEBUG ===');
+    }
   }
 }

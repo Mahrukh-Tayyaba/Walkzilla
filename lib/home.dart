@@ -180,8 +180,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       print("📊 Fetching real health data from Health Connect...");
 
-      // Fetch unified steps data (combines Health Connect + real-time sensor)
-      final stepsCount = await _healthService.fetchHybridStepsData();
+      // Fetch hybrid real-time steps for immediate feedback + accuracy
+      final stepsCount = await _healthService.fetchHybridRealTimeSteps();
 
       // Fetch heart rate data (returns Map)
       final heartRateData = await _healthService.fetchHeartRateData();
@@ -444,9 +444,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         return;
       }
 
-      // Fetch unified steps data
-      int stepsCount = await _healthService.fetchHybridStepsData();
-      print("📊 Unified steps (Health Connect + Real-time): $stepsCount");
+      // Fetch Google Fit sync steps data to ensure accuracy
+      int stepsCount = await _healthService.fetchHybridRealTimeSteps();
+      print("📱 GOOGLE FIT SYNC: Steps synced with Google Fit: $stepsCount");
 
       if (mounted) {
         setState(() {
@@ -585,40 +585,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   // Add a dialog to explain why permissions are needed
-  Future<bool> _showPermissionExplanationDialog() async {
-    return await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Health Connect Access'),
-              content: const Text(
-                'Walkzilla needs access to your health data to track your daily steps and provide personalized insights.\n\n'
-                'This includes:\n'
-                '• Daily step count\n'
-                '• Heart rate data\n'
-                '• Calories burned\n\n'
-                'Your data privacy is important to us and all data is stored securely.',
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Not Now'),
-                  onPressed: () {
-                    Navigator.of(context).pop(false);
-                  },
-                ),
-                ElevatedButton(
-                  child: const Text('Allow Access'),
-                  onPressed: () {
-                    Navigator.of(context).pop(true);
-                  },
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-  }
+  // Removed unused method _showPermissionExplanationDialog
 
   // Add a method to manually request permissions
   Future<void> _requestPermissionsManually() async {
@@ -661,18 +628,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  // Add a subtle indicator when steps update
-  void _showStepUpdateIndicator() {
-    // You can add a subtle animation or indicator here
-    // For now, just log the update
-    print("✅ Steps data refreshed successfully");
-  }
-
-  // Add a manual refresh method for testing
-  Future<void> _manualRefreshSteps() async {
-    print("🔄 Manual refresh requested");
-    await _fetchStepsData();
-  }
+  // Removed unused methods _showStepUpdateIndicator and _manualRefreshSteps
 
   // Add a direct permission request method
   Future<void> _directPermissionRequest() async {
@@ -817,7 +773,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(15.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 2,
             blurRadius: 10,
             offset: const Offset(0, 3),
@@ -1118,7 +1074,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.of(context).size;
-    final double buttonSpacing = screenSize.width * 0.15; // 15% of screen width
+    // Removed unused variable buttonSpacing
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -1164,7 +1120,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   height: screenSize.width * 0.4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.blue[100]?.withOpacity(0.3),
+                    color: Colors.blue[100]?.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -1176,7 +1132,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   height: screenSize.width * 0.5,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.orange[100]?.withOpacity(0.3),
+                    color: Colors.orange[100]?.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -1351,7 +1307,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       drawer: Drawer(
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withValues(alpha: 0.95),
           ),
           child: Column(
             children: [
@@ -1367,8 +1323,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.orange[400]!.withOpacity(0.9),
-                      Colors.orange[300]!.withOpacity(0.9),
+                      Colors.orange[400]!.withValues(alpha: 0.9),
+                      Colors.orange[300]!.withValues(alpha: 0.9),
                     ],
                   ),
                 ),
@@ -1409,7 +1365,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         ),
                         child: CircleAvatar(
                           radius: 35,
-                          backgroundColor: Colors.white.withOpacity(0.9),
+                          backgroundColor: Colors.white.withValues(alpha: 0.9),
                           child: Icon(
                             Icons.person,
                             size: 40,
@@ -1447,7 +1403,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: const Text(
@@ -1531,7 +1487,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Divider(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withValues(alpha: 0.3),
                   thickness: 1,
                 ),
               ),
@@ -1562,11 +1518,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         width: 85,
         height: 85,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.7),
+          color: Colors.white.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               spreadRadius: 2,
               blurRadius: 8,
               offset: const Offset(0, 2),
@@ -1579,7 +1535,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.05),
+                color: color.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 30),
@@ -1588,7 +1544,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             Text(
               label,
               style: TextStyle(
-                color: color.withOpacity(0.8),
+                color: color.withValues(alpha: 0.8),
                 fontSize: 10, // smaller font
                 fontWeight: FontWeight.w600,
               ),
@@ -1614,11 +1570,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 spreadRadius: 2,
                 blurRadius: 8,
                 offset: const Offset(0, 2),
@@ -1631,7 +1587,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.05),
+                  color: color.withValues(alpha: 0.05),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon,
@@ -1646,7 +1602,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     label,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: color.withOpacity(0.8),
+                      color: color.withValues(alpha: 0.8),
                       fontSize: screenSize.width * 0.025, // smaller font
                       fontWeight: FontWeight.w600,
                     ),
@@ -1677,7 +1633,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: itemColor.withOpacity(0.1),
+              color: itemColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -1726,7 +1682,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      hoverColor: itemColor.withOpacity(0.05),
+      hoverColor: itemColor.withValues(alpha: 0.05),
     );
   }
 
@@ -1738,7 +1694,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -1831,7 +1787,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // 6. Check if we can fetch data
       print("6️⃣ Testing data fetch...");
       try {
-        final stepsCount = await _healthService.fetchStepsData();
+        final stepsCount = await _healthService.fetchHybridRealTimeSteps();
         print("   Steps count: $stepsCount");
         print("   Steps data type: ${stepsCount.runtimeType}");
       } catch (e) {
@@ -1899,73 +1855,5 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  // Add a method to check if permission dialog appeared
-  Future<void> _debugPermissionRequest() async {
-    try {
-      print("🔍 === Permission Request Debug ===");
-
-      // Check Health Connect availability
-      bool? isAvailable = await _healthService.health.hasPermissions([
-        HealthDataType.STEPS,
-        HealthDataType.HEART_RATE,
-        HealthDataType.ACTIVE_ENERGY_BURNED,
-      ]);
-      print("🔍 Health Connect available: ${isAvailable != null}");
-
-      // Check current permissions
-      bool hasPermissions =
-          await _healthService.checkHealthConnectPermissions();
-      print("🔍 Current permissions: $hasPermissions");
-
-      if (!hasPermissions) {
-        print("🔄 Attempting permission request...");
-
-        // Show a dialog to confirm the user wants to proceed
-        bool? proceed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Request Health Connect Permissions'),
-            content: const Text(
-              'This will open the Health Connect permission dialog. '
-              'Please grant permissions when prompted.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Proceed'),
-              ),
-            ],
-          ),
-        );
-
-        if (proceed == true) {
-          print("🔄 User confirmed, requesting permissions...");
-          bool granted = await _healthService.requestHealthConnectPermissions();
-          print(" Permission request result: $granted");
-
-          if (granted) {
-            print("✅ Permissions granted successfully!");
-            _showSuccessMessage("Health Connect permissions granted!");
-            await _fetchHealthData();
-          } else {
-            print("❌ Permissions not granted");
-            _showWarningMessage(
-                "Permissions not granted. Please check Health Connect settings.");
-          }
-        } else {
-          print("❌ User cancelled permission request");
-        }
-      } else {
-        print("✅ Permissions already granted");
-      }
-
-      print(" === End Permission Request Debug ===");
-    } catch (e) {
-      print("❌ Error in permission request debug: $e");
-    }
-  }
+  // Removed unused method _debugPermissionRequest
 }

@@ -212,7 +212,9 @@ class SignupScreenState extends State<SignupScreen> {
     }
 
     try {
-      // Only check for Google accounts - let Firebase handle other duplicates
+      // Check if email is already registered with Google
+      // Note: fetchSignInMethodsForEmail is deprecated, but we'll keep it for now
+      // as it's still functional and the alternative requires additional setup
       final methods =
           await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
       print('Sign-in methods for $email: $methods');
@@ -467,7 +469,7 @@ class SignupScreenState extends State<SignupScreen> {
             end: Alignment.bottomCenter,
             colors: [
               const Color(0xFFF7F4F4),
-              const Color(0xFFFEB14C).withOpacity(0.1),
+              const Color(0xFFFEB14C).withValues(alpha: 0.1),
             ],
           ),
         ),
@@ -491,7 +493,7 @@ class SignupScreenState extends State<SignupScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -608,7 +610,8 @@ class SignupScreenState extends State<SignupScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: const Color(0xFFFEB14C).withOpacity(0.3)),
+                          color:
+                              const Color(0xFFFEB14C).withValues(alpha: 0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -638,12 +641,12 @@ class SignupScreenState extends State<SignupScreen> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color:
-                                      const Color(0xFFFEB14C).withOpacity(0.1),
+                                  color: const Color(0xFFFEB14C)
+                                      .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
                                       color: const Color(0xFFFEB14C)
-                                          .withOpacity(0.3)),
+                                          .withValues(alpha: 0.3)),
                                 ),
                                 child: Text(
                                   suggestion,
@@ -669,7 +672,7 @@ class SignupScreenState extends State<SignupScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -718,7 +721,7 @@ class SignupScreenState extends State<SignupScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -787,7 +790,7 @@ class SignupScreenState extends State<SignupScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -863,7 +866,7 @@ class SignupScreenState extends State<SignupScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFEB14C).withOpacity(0.3),
+                        color: const Color(0xFFFEB14C).withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -895,7 +898,8 @@ class SignupScreenState extends State<SignupScreen> {
                 Row(
                   children: [
                     Expanded(
-                        child: Divider(color: Colors.grey.withOpacity(0.3))),
+                        child:
+                            Divider(color: Colors.grey.withValues(alpha: 0.3))),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
@@ -907,7 +911,8 @@ class SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                     Expanded(
-                        child: Divider(color: Colors.grey.withOpacity(0.3))),
+                        child:
+                            Divider(color: Colors.grey.withValues(alpha: 0.3))),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -980,7 +985,7 @@ class SignupScreenState extends State<SignupScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

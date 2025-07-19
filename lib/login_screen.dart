@@ -39,30 +39,7 @@ class LoginScreenState extends State<LoginScreen> {
     // _checkAuthState();
   }
 
-  Future<void> _checkAuthState() async {
-    final user = _auth.currentUser;
-    if (user != null && mounted) {
-      // Only navigate to home if user is verified
-      if (user.emailVerified) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const Home()),
-          (route) => false,
-        );
-      } else {
-        // If email is not verified, sign out the user
-        await _auth.signOut();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Please verify your email before logging in."),
-              duration: Duration(seconds: 5),
-            ),
-          );
-        }
-      }
-    }
-  }
+  // Removed unused method _checkAuthState
 
   Future<void> _handleSuccessfulLogin(UserCredential userCredential) async {
     try {
@@ -352,7 +329,7 @@ class LoginScreenState extends State<LoginScreen> {
             end: Alignment.bottomCenter,
             colors: [
               const Color(0xFFF7F4F4),
-              const Color(0xFFFEB14C).withOpacity(0.1),
+              const Color(0xFFFEB14C).withValues(alpha: 0.1),
             ],
           ),
         ),
@@ -440,7 +417,7 @@ class LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),

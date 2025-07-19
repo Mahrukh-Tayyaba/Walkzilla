@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
-import 'package:flame/parallax.dart';
+// Removed unused import
 import 'package:flame/input.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
+// Removed unused import
 import 'dart:async';
-import 'package:flame/flame.dart';
+// Removed unused import
 import 'services/character_animation_service.dart';
-import 'package:intl/intl.dart';
+// Removed unused import
 import 'services/health_service.dart';
 import 'services/step_counter_service.dart';
 
@@ -29,6 +29,8 @@ class _SoloModeState extends State<SoloMode> {
   bool _isUserWalking = false; // Track if user is currently walking
   StreamSubscription<Map<String, dynamic>>? _stepSubscription;
   DateTime? _lastStepUpdate; // Track when last step was detected
+  bool _isInitialized = false; // Track if screen is fully initialized
+  DateTime? _initializationTime; // Track when screen was initialized
 
   @override
   void initState() {
@@ -36,9 +38,23 @@ class _SoloModeState extends State<SoloMode> {
     _focusNode.addListener(() {
       print('Game focus changed: ${_focusNode.hasFocus}');
     });
+
+    // Set initialization time and start grace period
+    _initializationTime = DateTime.now();
+    print('🎯 SOLO MODE: Initialization started at $_initializationTime');
+
     // Initialize with walking state as false
     _isUserWalking = false;
     _initializeRealTimeTracking();
+
+    // Mark as initialized after 3 seconds to prevent false walking detection
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        _isInitialized = true;
+        print(
+            '🎯 SOLO MODE: Grace period ended, now accepting walking detection');
+      }
+    });
   }
 
   void _initializeRealTimeTracking() async {
@@ -49,29 +65,48 @@ class _SoloModeState extends State<SoloMode> {
         _lastStepUpdate = null; // Reset step history
       });
 
-      // Get initial steps using the same method as home.dart
-      await _fetchSteps();
+      // APPROACH 9: Use the same method as home.dart for consistency
+      await _fetchStepsFromHomeMethod();
+
+      // APPROACH 24: PROPERLY INITIALIZE STEP TRACKING
+      // Set previous steps to current steps for proper comparison
+      setState(() {
+        _previousSteps = _steps;
+      });
+      print(
+          '📊 Initialized step tracking: previous=$_previousSteps, current=$_steps');
 
       // Force walking state to false after initial fetch
-      if (_isUserWalking) {
-        setState(() {
-          _isUserWalking = false;
-        });
-        print('🔄 Force reset walking state after initial fetch');
+      setState(() {
+        _isUserWalking = false;
+      });
+      print('🔄 Force reset walking state after initial fetch');
+
+      // Force character to idle state during initialization
+      if (_game?.character != null) {
+        _game!.character!.isWalking = false;
+        _game!.character!.updateAnimation(false);
+        print('🎬 INITIALIZATION: Forced character to idle state');
       }
 
-      // Initialize hybrid tracking system (Health Connect + real-time sensors)
-      final initialized = await _healthService.initializeHybridTracking();
+      // APPROACH 26: START CONTINUOUS MONITORING
+      _startContinuousMonitoring();
 
-      if (initialized) {
-        // Start hybrid monitoring (uses real-time sensors)
-        await _healthService.startHybridMonitoring();
+      // Use ONLY Health Connect monitoring to avoid false increments
+      final hasPermissions =
+          await _healthService.checkHealthConnectPermissions();
 
-        // Set up real-time step stream listener
-        _setupRealTimeStepListener();
+      if (hasPermissions) {
+        // Start Health Connect monitoring only (no hybrid system)
+        await _healthService.startRealTimeStepMonitoring();
+
+        // Set up Health Connect listener
+        _setupHealthConnectListener();
+
+        print('✅ Health Connect monitoring started');
       } else {
-        // Fallback to periodic polling if sensors not available
-        print('⚠️ Real-time sensors not available, using periodic polling');
+        // Fallback to periodic polling if no permissions
+        print('⚠️ No Health Connect permissions, using periodic polling');
         _startPeriodicUpdates();
       }
     } catch (e) {
@@ -81,29 +116,226 @@ class _SoloModeState extends State<SoloMode> {
     }
   }
 
-  void _setupRealTimeStepListener() {
-    // Listen to unified step updates from the hybrid system
-    _stepSubscription = StepCounterService.stepStream.listen(
-      (data) {
-        if (data['type'] == 'step_update') {
-          // Get the unified step count from the hybrid system
-          _fetchSteps().then((_) {
-            if (mounted) {
-              final timestamp = data['timestamp'] as DateTime;
-              // Check walking status with proper timing
-              _checkUserWalkingWithTiming(timestamp);
-              // Sync character animation
-              _syncCharacterAnimation();
-            }
-          });
+  // APPROACH 10: Use the animation-safe hybrid method
+  Future<void> _fetchStepsFromHomeMethod() async {
+    try {
+      // Use the sensor-optimized method for accurate steps and responsive animations
+      final stepsCount = await _healthService
+          .fetchHybridRealTimeSteps(); // Use hybrid for immediate feedback + accuracy
+
+      if (mounted) {
+        // Store the current steps as previous before updating
+        int oldSteps = _steps;
+
+        setState(() {
+          _previousSteps = oldSteps; // Store the actual previous steps
+          _steps = stepsCount;
+          _isLoading = false;
+        });
+
+        // Check if user is walking (steps increased)
+        _checkUserWalkingWithTiming(DateTime.now());
+
+        print(
+            '📱 SENSOR-OPTIMIZED: Fetched accurate steps: $stepsCount (previous: $_previousSteps)');
+
+        // APPROACH 22: DEBUG STEP TRACKING
+        print(
+            '📊 Step tracking: previous=$_previousSteps, current=$_steps, difference=${_steps - _previousSteps}');
+      }
+    } catch (e) {
+      print('❌ Error in animation-safe step fetch: $e');
+      if (mounted) {
+        setState(() {
+          _steps = 0;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _setupHealthConnectListener() {
+    // Set up callback for Health Connect step updates
+    _healthService.setStepUpdateCallback((totalSteps, stepIncrease) async {
+      if (mounted) {
+        // Use sensor-optimized method to get accurate step count
+        final accurateSteps = await _healthService.fetchHybridRealTimeSteps();
+
+        // Update steps and check walking state
+        setState(() {
+          _previousSteps = _steps;
+          _steps = accurateSteps; // Use accurate steps, not hybrid total
+        });
+
+        // Check if user is walking (steps increased)
+        _checkUserWalkingWithTiming(DateTime.now());
+
+        // Sync character animation
+        _syncCharacterAnimation();
+
+        print(
+            '🏥 Health Connect update: +$stepIncrease steps (Accurate Total: $accurateSteps)');
+      }
+    });
+  }
+
+  // APPROACH 26: CONTINUOUS MONITORING SYSTEM
+  void _startContinuousMonitoring() {
+    print('🔄 Starting continuous monitoring system...');
+
+    // Monitor every 1 second for immediate response
+    _startFrequentMonitoring();
+
+    // Monitor every 2 seconds for backup
+    _startBackupMonitoring();
+
+    // Monitor every 3 seconds for safety
+    _startSafetyMonitoring();
+  }
+
+  void _startFrequentMonitoring() {
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        _checkWalkingStateFrequently();
+        _startFrequentMonitoring(); // Recursive call
+      }
+    });
+  }
+
+  void _startBackupMonitoring() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _checkWalkingStateBackup();
+        _startBackupMonitoring(); // Recursive call
+      }
+    });
+  }
+
+  void _startSafetyMonitoring() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        _checkWalkingStateSafety();
+        _startSafetyMonitoring(); // Recursive call
+      }
+    });
+  }
+
+  void _checkWalkingStateFrequently() {
+    // GRACE PERIOD: Don't check walking state during initialization
+    if (!_isInitialized) {
+      return;
+    }
+
+    if (_isUserWalking && _lastStepUpdate != null) {
+      final timeSinceLastStep =
+          DateTime.now().difference(_lastStepUpdate!).inSeconds;
+      print('⚡ FREQUENT CHECK: Time since last step: ${timeSinceLastStep}s');
+
+      if (timeSinceLastStep >= 5) {
+        print(
+            '⏰ FREQUENT 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW');
+        _setWalkingState(false);
+        _forceCharacterAnimationSync();
+      }
+    }
+
+    // APPROACH 29: CONTINUOUS CHARACTER SYNC
+    // Always sync character animation with walking state
+    if (mounted && _game?.character != null) {
+      final characterIsWalking = _game!.character!.isWalking;
+      if (characterIsWalking != _isUserWalking) {
+        print(
+            '🎬 FREQUENT SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC');
+
+        // APPROACH 34: AGGRESSIVE CHARACTER STATE FORCE
+        _game!.character!.isWalking = _isUserWalking;
+        _game!.character!.updateAnimation(_isUserWalking);
+
+        // Force animation directly if still not synced
+        if (!_isUserWalking && _game!.character!.idleAnimation != null) {
+          print('🎬 FREQUENT FORCE: Directly setting idle animation');
+          _game!.character!.animation = _game!.character!.idleAnimation;
         }
-      },
-      onError: (error) {
-        print('❌ Error in real-time step stream: $error');
-        // Fallback to periodic polling on error
-        _startPeriodicUpdates();
-      },
-    );
+      }
+    }
+  }
+
+  void _checkWalkingStateBackup() {
+    // GRACE PERIOD: Don't check walking state during initialization
+    if (!_isInitialized) {
+      return;
+    }
+
+    if (_isUserWalking && _lastStepUpdate != null) {
+      final timeSinceLastStep =
+          DateTime.now().difference(_lastStepUpdate!).inSeconds;
+      print('🔄 BACKUP CHECK: Time since last step: ${timeSinceLastStep}s');
+
+      if (timeSinceLastStep >= 5) {
+        print(
+            '⏰ BACKUP 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW');
+        _setWalkingState(false);
+        _forceCharacterAnimationSync();
+      }
+    }
+
+    // APPROACH 30: BACKUP CHARACTER SYNC
+    if (mounted && _game?.character != null) {
+      final characterIsWalking = _game!.character!.isWalking;
+      if (characterIsWalking != _isUserWalking) {
+        print(
+            '🎬 BACKUP SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC');
+
+        // APPROACH 35: AGGRESSIVE BACKUP CHARACTER FORCE
+        _game!.character!.isWalking = _isUserWalking;
+        _game!.character!.updateAnimation(_isUserWalking);
+
+        // Force animation directly if still not synced
+        if (!_isUserWalking && _game!.character!.idleAnimation != null) {
+          print('🎬 BACKUP FORCE: Directly setting idle animation');
+          _game!.character!.animation = _game!.character!.idleAnimation;
+        }
+      }
+    }
+  }
+
+  void _checkWalkingStateSafety() {
+    // GRACE PERIOD: Don't check walking state during initialization
+    if (!_isInitialized) {
+      return;
+    }
+
+    if (_isUserWalking && _lastStepUpdate != null) {
+      final timeSinceLastStep =
+          DateTime.now().difference(_lastStepUpdate!).inSeconds;
+      print('🛡️ SAFETY CHECK: Time since last step: ${timeSinceLastStep}s');
+
+      if (timeSinceLastStep >= 5) {
+        print(
+            '⏰ SAFETY 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW');
+        _setWalkingState(false);
+        _forceCharacterAnimationSync();
+      }
+    }
+
+    // APPROACH 31: SAFETY CHARACTER SYNC
+    if (mounted && _game?.character != null) {
+      final characterIsWalking = _game!.character!.isWalking;
+      if (characterIsWalking != _isUserWalking) {
+        print(
+            '🎬 SAFETY SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC');
+
+        // APPROACH 36: AGGRESSIVE SAFETY CHARACTER FORCE
+        _game!.character!.isWalking = _isUserWalking;
+        _game!.character!.updateAnimation(_isUserWalking);
+
+        // Force animation directly if still not synced
+        if (!_isUserWalking && _game!.character!.idleAnimation != null) {
+          print('🎬 SAFETY FORCE: Directly setting idle animation');
+          _game!.character!.animation = _game!.character!.idleAnimation;
+        }
+      }
+    }
   }
 
   void _setWalkingState(bool walking) {
@@ -113,37 +345,256 @@ class _SoloModeState extends State<SoloMode> {
       });
       walking ? _startCharacterWalking() : _stopCharacterWalking();
       print(walking ? '🚶‍♂️ User started walking' : '🛑 User stopped walking');
+
+      // APPROACH 6: Additional safety check after state change
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && _game?.character != null) {
+          final characterIsWalking = _game!.character!.isWalking;
+          if (characterIsWalking != walking) {
+            print(
+                '🛡️ Safety check: Character state mismatch, forcing correction');
+            _game!.updateWalkingState(walking);
+          }
+        }
+      });
+
+      // APPROACH 13: IMMEDIATE ANIMATION FORCE
+      if (!walking) {
+        // When stopping walking, force idle animation immediately
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (mounted && _game?.character != null) {
+            print('🎬 IMMEDIATE: Forcing idle animation');
+            _game!.character!.updateAnimation(false);
+          }
+        });
+      }
+    } else {
+      // APPROACH 28: FORCE ANIMATION EVEN IF STATE IS SAME
+      // If state is already correct but animation might not be
+      print('🔄 State already correct ($walking), but forcing animation sync');
+      walking ? _startCharacterWalking() : _stopCharacterWalking();
+
+      // Force character animation immediately
+      if (mounted && _game?.character != null) {
+        print(
+            '🎬 FORCE SYNC: Forcing character animation to ${walking ? "walking" : "idle"}');
+        _game!.character!.updateAnimation(walking);
+      }
     }
   }
 
   void _checkUserWalkingWithTiming(DateTime timestamp) {
     final now = DateTime.now();
 
-    // If steps increased, user is walking
+    print(
+        '🔍 Checking walking state: previous=$_previousSteps, current=$_steps, isWalking=$_isUserWalking, initialized=$_isInitialized');
+
+    // GRACE PERIOD: Don't detect walking during initialization
+    if (!_isInitialized) {
+      print(
+          '🎯 GRACE PERIOD: Screen not fully initialized, ignoring walking detection');
+      return;
+    }
+
+    // APPROACH 1: Immediate detection with multiple checks
+    bool shouldBeWalking = false;
+
+    // Check if steps increased
     if (_steps > _previousSteps) {
-      _setWalkingState(true);
+      shouldBeWalking = true;
       _lastStepUpdate = now;
       print(
           '🚶‍♂️ Steps increased: $_previousSteps -> $_steps, user is walking');
+
+      // APPROACH 23: UPDATE PREVIOUS STEPS WHEN WALKING
+      // Update previous steps to current steps for next comparison
+      _previousSteps = _steps;
+      print('📊 Updated previous steps to: $_previousSteps');
     } else {
-      // If steps didn't increase, user stopped walking immediately
-      if (_isUserWalking) {
+      // Steps didn't increase - user should be idle
+      shouldBeWalking = false;
+      print('🛑 Steps unchanged: $_steps, user should be idle');
+    }
+
+    // APPROACH 2: Force state change if different
+    if (_isUserWalking != shouldBeWalking) {
+      print('🔄 State change needed: $_isUserWalking -> $shouldBeWalking');
+      _setWalkingState(shouldBeWalking);
+    } else {
+      print('✅ State is correct: $_isUserWalking');
+    }
+
+    // APPROACH 27: AGGRESSIVE WALKING FORCE
+    // If steps are increasing but user is not marked as walking, force it
+    if (_steps > _previousSteps && !_isUserWalking) {
+      print(
+          '🚨 AGGRESSIVE WALKING FORCE: Steps increasing but user not walking - FORCING WALKING');
+      print(
+          '🚨 AGGRESSIVE WALKING FORCE: $_previousSteps -> $_steps, forcing _isUserWalking = true');
+      _setWalkingState(true);
+    }
+
+    // APPROACH 3: Additional safety check - force idle if no recent steps
+    if (_isUserWalking && _lastStepUpdate != null) {
+      final timeSinceLastStep = now.difference(_lastStepUpdate!).inSeconds;
+      print('⏰ Time since last step: ${timeSinceLastStep}s');
+
+      if (timeSinceLastStep >= 5) {
+        // Force idle after 5 seconds of no steps (proper idle detection)
+        print(
+            '⏰ 5-SECOND TIMEOUT: No steps for ${timeSinceLastStep}s, FORCING IDLE');
+        print(
+            '⏰ 5-SECOND TIMEOUT: User has stopped walking - switching to idle');
         _setWalkingState(false);
-        print('🛑 Steps didn\'t increase, user stopped walking immediately');
+      } else if (timeSinceLastStep >= 3) {
+        print(
+            '⚠️ WARNING: No steps for ${timeSinceLastStep}s - preparing to force idle soon');
+      } else if (timeSinceLastStep >= 1) {
+        print(
+            '👀 MONITORING: No steps for ${timeSinceLastStep}s - watching for idle state');
+      }
+    }
+
+    // APPROACH 32: PROPER 5-SECOND IDLE DETECTION
+    // Only force idle if steps haven't increased for 5 seconds
+    if (_isUserWalking && _lastStepUpdate != null) {
+      final timeSinceLastStep = now.difference(_lastStepUpdate!).inSeconds;
+
+      if (timeSinceLastStep >= 5) {
+        print(
+            '⏰ 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle');
+        _setWalkingState(false);
+        _forceCharacterAnimationSync();
+      } else {
+        print(
+            '👀 MONITORING: ${timeSinceLastStep}s since last step - still in walking window');
+      }
+    }
+
+    // APPROACH 16: DEBUG CHARACTER STATE
+    if (_game?.character != null) {
+      print(
+          '🎬 Character state: isWalking=${_game!.character!.isWalking}, animation=${_game!.character!.animation == _game!.character!.walkingAnimation ? "walking" : "idle"}');
+
+      // APPROACH 20: FORCE CHARACTER IDLE IF STEPS UNCHANGED
+      if (_steps == _previousSteps && _game!.character!.isWalking) {
+        print(
+            '🚨 CHARACTER FORCE: Steps unchanged but character is walking - FORCING IDLE');
+        _game!.character!.isWalking = false;
+        _game!.character!.updateAnimation(false);
+        if (_game!.character!.idleAnimation != null) {
+          _game!.character!.animation = _game!.character!.idleAnimation;
+          print('🎬 CHARACTER FORCE: Animation set to idle');
+        }
       }
     }
   }
 
+  void _forceCharacterAnimationSync() {
+    // APPROACH 8: Force immediate character animation sync
+    if (_game?.character != null) {
+      print('🔄 FORCING character animation sync to IDLE');
+
+      // APPROACH 37: ULTRA AGGRESSIVE CHARACTER FORCE
+      _game!.character!.isWalking = false;
+      _game!.character!.updateAnimation(false);
+      _game!.character!.stopWalking();
+
+      // Force idle animation directly
+      if (_game!.character!.idleAnimation != null) {
+        print('🎬 ULTRA FORCE: Setting animation to idleAnimation');
+        _game!.character!.animation = _game!.character!.idleAnimation;
+
+        // Force animation restart by reassignment
+        print('🎬 ULTRA FORCE: Animation reassigned to force restart');
+      }
+
+      // Double-check state after forcing
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (mounted && _game?.character != null) {
+          final isWalking = _game!.character!.isWalking;
+          if (isWalking) {
+            print(
+                '🎬 ULTRA FORCE: Character still walking after force, trying again');
+            _game!.character!.isWalking = false;
+            _game!.character!.updateAnimation(false);
+          }
+        }
+      });
+    }
+  }
+
   void _startPeriodicUpdates() {
-    // Fallback: Check steps every 5 seconds if real-time sensors fail
+    // APPROACH 5: More frequent updates with aggressive sync
     Future.delayed(const Duration(seconds: 5), () {
+      // 5-second interval to ensure reliability
       if (mounted) {
-        _fetchSteps();
-        // Ensure character animation is synchronized
+        _fetchStepsFromHomeMethod();
+
+        // Force check walking state if still walking but no recent steps
+        if (_isUserWalking && _lastStepUpdate != null) {
+          final timeSinceLastStep =
+              DateTime.now().difference(_lastStepUpdate!).inSeconds;
+          print(
+              '🔄 PERIODIC CHECK: Time since last step: ${timeSinceLastStep}s');
+
+          if (timeSinceLastStep >= 5) {
+            // Force idle after 5 seconds of no steps (proper idle detection)
+            print(
+                '⏰ PERIODIC 5-SECOND TIMEOUT: No steps for ${timeSinceLastStep}s - FORCING IDLE');
+            print(
+                '⏰ PERIODIC 5-SECOND TIMEOUT: User definitely stopped walking');
+            _setWalkingState(false);
+            _forceCharacterAnimationSync(); // Force immediate sync
+          } else if (timeSinceLastStep >= 7) {
+            print(
+                '⚠️ PERIODIC WARNING: No steps for ${timeSinceLastStep}s - will force idle soon');
+          }
+        }
+
+        // APPROACH 6: Always force sync character animation
         _syncCharacterAnimation();
+
+        // APPROACH 7: Additional safety check every 5 seconds
+        _forceCharacterStateCheck();
+
+        // APPROACH 33: PROPER PERIODIC IDLE DETECTION (5 seconds)
+        if (_isUserWalking && _lastStepUpdate != null) {
+          final timeSinceLastStep =
+              DateTime.now().difference(_lastStepUpdate!).inSeconds;
+
+          if (timeSinceLastStep >= 5) {
+            print(
+                '⏰ PERIODIC 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle');
+            _setWalkingState(false);
+            _forceCharacterAnimationSync();
+          }
+        }
+
         _startPeriodicUpdates(); // Recursive call for periodic updates
       }
     });
+  }
+
+  void _forceCharacterStateCheck() {
+    // APPROACH 8: Force character state check
+    if (_game?.character != null) {
+      final characterIsWalking = _game!.character!.isWalking;
+      if (characterIsWalking != _isUserWalking) {
+        print(
+            '🛡️ Force character state correction: character=$characterIsWalking, should=$_isUserWalking');
+        _game!.updateWalkingState(_isUserWalking);
+      }
+
+      // APPROACH 11: AGGRESSIVE CHARACTER STATE FORCE
+      if (_isUserWalking == false && characterIsWalking == true) {
+        print(
+            '🚨 AGGRESSIVE: Character is walking but should be idle - FORCING');
+        _game!.character!.isWalking = false;
+        _game!.character!.updateAnimation(false);
+        _game!.character!.stopWalking();
+      }
+    }
   }
 
   void _debugWalkingState() {
@@ -160,20 +611,54 @@ class _SoloModeState extends State<SoloMode> {
     print('  - Last step update: $_lastStepUpdate');
     print('  - Time since last step: $timeSinceLastStep seconds');
     print('  - Character walking: ${_game?.character?.isWalking}');
+
+    // APPROACH 25: RESET STEP TRACKING IF NEEDED
+    if (_steps != _previousSteps) {
+      print('🔄 Resetting step tracking to current steps');
+      setState(() {
+        _previousSteps = _steps;
+      });
+    }
   }
 
   void _syncCharacterAnimation() {
-    // Ensure character animation matches walking state
-    _game?.updateWalkingState(_isUserWalking);
+    // APPROACH 4: Aggressive character animation sync with multiple attempts
+    if (_game != null) {
+      try {
+        // Force update walking state
+        _game!.updateWalkingState(_isUserWalking);
+
+        // Additional check - ensure character state is correct
+        if (_game!.character != null) {
+          final characterIsWalking = _game!.character!.isWalking;
+          if (characterIsWalking != _isUserWalking) {
+            print(
+                '🔄 Character state mismatch: character=$characterIsWalking, should=$_isUserWalking');
+            // Force correct state
+            _game!.updateWalkingState(_isUserWalking);
+          }
+        }
+
+        print(
+            '✅ Character animation synced: ${_isUserWalking ? "Walking" : "Idle"}');
+      } catch (e) {
+        print('❌ Error syncing character animation: $e');
+      }
+    } else {
+      print('⚠️ Game instance not available for animation sync');
+    }
   }
 
   Future<void> _fetchSteps() async {
     try {
-      // Use the same method as home.dart to get consistent step count
-      int steps = await _healthService.fetchHybridStepsData();
+      // Use sensor-optimized method to include accurate step data and responsive animations
+      int steps = await _healthService.fetchHybridRealTimeSteps();
       if (mounted) {
+        // Store the current steps as previous before updating
+        int oldSteps = _steps;
+
         setState(() {
-          _previousSteps = _steps; // Store previous steps
+          _previousSteps = oldSteps; // Store the actual previous steps
           _steps = steps;
           _isLoading = false;
         });
@@ -182,6 +667,7 @@ class _SoloModeState extends State<SoloMode> {
         _checkUserWalkingWithTiming(DateTime.now());
       }
     } catch (e) {
+      print('❌ Error in fallback step fetch: $e');
       if (mounted) {
         setState(() {
           _steps = 0;
@@ -245,7 +731,7 @@ class _SoloModeState extends State<SoloMode> {
   void dispose() {
     _focusNode.dispose();
     _stepSubscription?.cancel();
-    _healthService.stopHybridMonitoring();
+    _healthService.stopRealTimeStepMonitoring();
     super.dispose();
   }
 
@@ -290,6 +776,8 @@ class _SoloModeState extends State<SoloMode> {
                   game: _game ??= SoloModeGame(),
                   focusNode: _focusNode,
                   autofocus: true,
+                  // APPROACH 5: Prevent game re-instantiation
+                  key: const ValueKey('solo_mode_game'),
                 ),
 
                 // Unified Stats Container - positioned as overlay
@@ -300,10 +788,26 @@ class _SoloModeState extends State<SoloMode> {
                   child: GestureDetector(
                     onTap: () async {
                       // Manual refresh for testing
-                      await _fetchSteps();
+                      await _fetchStepsFromHomeMethod();
                       _ensureCharacterAnimation();
                       _syncCharacterAnimation();
                       _debugWalkingState();
+
+                      // APPROACH 18: MANUAL FORCE IDLE FOR TESTING
+                      print('🔧 Manual force idle triggered');
+                      _setWalkingState(false);
+                      _forceCharacterAnimationSync();
+
+                      // Force character to idle immediately
+                      if (_game?.character != null) {
+                        print('🎬 MANUAL: Forcing character to idle');
+                        _game!.character!.isWalking = false;
+                        _game!.character!.updateAnimation(false);
+                        if (_game!.character!.idleAnimation != null) {
+                          _game!.character!.animation =
+                              _game!.character!.idleAnimation;
+                        }
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -354,35 +858,6 @@ class _SoloModeState extends State<SoloMode> {
                             ),
                           ],
                         ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Walking Status Indicator
-                Positioned(
-                  bottom: 20,
-                  right: 20,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: _isUserWalking
-                          ? Colors.green.withOpacity(0.3)
-                          : Colors.black.withOpacity(0.3),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _isUserWalking ? Colors.green : Colors.white,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        _isUserWalking
-                            ? Icons.directions_walk
-                            : Icons.accessibility_new,
-                        color: Colors.white,
-                        size: 40,
                       ),
                     ),
                   ),
@@ -446,6 +921,8 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
   @override
   void update(double dt) {
     super.update(dt);
+    // APPROACH 1: Force recheck animation every frame
+    updateAnimation(isWalking);
   }
 
   @override
@@ -459,21 +936,29 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
     if (!_animationsLoaded ||
         idleAnimation == null ||
         walkingAnimation == null) {
+      print('⚠️ Character updateAnimation: Animations not loaded');
       return;
     }
-    if (walking && animation != walkingAnimation) {
-      animation = walkingAnimation;
-    } else if (!walking && animation != idleAnimation) {
-      animation = idleAnimation;
+
+    final newAnimation = walking ? walkingAnimation : idleAnimation;
+
+    if (animation != newAnimation) {
+      print(
+          '🔄 Character: Switching animation to ${walking ? "walking" : "idle"}');
+      animation = newAnimation;
+      // Force animation restart by reassigning
+      print('🎬 Animation switched and will restart');
     }
   }
 
   void startWalking() {
+    print('🎬 Character startWalking called');
     isWalking = true;
     updateAnimation(true);
   }
 
   void stopWalking() {
+    print('🎬 Character stopWalking called');
     isWalking = false;
     updateAnimation(false);
   }
@@ -500,7 +985,8 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
 
   void updateWalkingState(bool walking) {
     if (character != null) {
-      walking ? character!.startWalking() : character!.stopWalking();
+      character!.isWalking = walking;
+      character!.updateAnimation(walking);
       print('🎮 Game: Character ${walking ? "started" : "stopped"} walking');
     } else {
       print('⚠️ Game: Character not available for walking state update');
@@ -579,6 +1065,12 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
             transparentOffset, // Y = top of path + offset
       );
       add(character!);
+
+      // Ensure character starts in idle state during initialization
+      character!.isWalking = false;
+      character!.updateAnimation(false);
+      print('🎬 GAME INITIALIZATION: Character forced to idle state');
+
       print('SoloModeGame onLoad success');
     } catch (e, st) {
       print('SoloModeGame onLoad error: $e');
@@ -591,6 +1083,9 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
     super.update(dt);
     if (character?.isWalking == true) {
       final double dx = walkSpeed * dt;
+      // APPROACH 3: Add debug logging for background movement
+      print('🎮 Game: Moving background (character walking)');
+
       // Sky
       skyA?.x -= dx;
       skyB?.x -= dx;
@@ -624,6 +1119,11 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
         if (pathB!.x <= -size.x) {
           pathB!.x = pathA!.x + size.x;
         }
+      }
+    } else {
+      // APPROACH 4: Debug when character is not walking
+      if (character != null) {
+        print('🎮 Game: Background stopped (character idle)');
       }
     }
   }
