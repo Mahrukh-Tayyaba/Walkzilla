@@ -212,28 +212,80 @@ class SignupScreenState extends State<SignupScreen> {
     }
 
     try {
-      // Check if email is already registered with Google
-      // Note: fetchSignInMethodsForEmail is deprecated, but we'll keep it for now
-      // as it's still functional and the alternative requires additional setup
+      // Check if email is already registered
       final methods =
           await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
       print('Sign-in methods for $email: $methods');
 
-      // Only show error if it's specifically a Google account
-      if (methods.isNotEmpty && methods.contains('google.com')) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).clearSnackBars();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  "This email is registered with Google. Please use Google Sign-In."),
-            ),
-          );
+      if (methods.isNotEmpty) {
+        if (methods.contains('google.com')) {
+          // Google account exists
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "This email is registered with Google. Please use Google Sign-In."),
+              ),
+            );
+          }
+          return;
+        } else if (methods.contains('password')) {
+          // Email/password account exists, check if it's verified
+          try {
+            // Try to sign in to check verification status
+            final signInResult =
+                await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
+
+            if (signInResult.user!.emailVerified) {
+              // Account exists and is verified
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("An account already exists for that email."),
+                  ),
+                );
+              }
+              return;
+            } else {
+              // Account exists but is not verified, redirect to verification
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).clearSnackBars();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EmailVerificationScreen(
+                      email: email,
+                      password: password,
+                      username: username,
+                      userCredential: signInResult,
+                    ),
+                  ),
+                );
+              }
+              return;
+            }
+          } catch (signInError) {
+            // Wrong password or other sign-in error
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "An account already exists with this email. Please use the login screen instead."),
+                ),
+              );
+            }
+            return;
+          }
         }
-        return;
       }
 
-      // Create authentication record
+      // Create new authentication record
       final UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
@@ -281,8 +333,6 @@ class SignupScreenState extends State<SignupScreen> {
       String errorMessage = "An error occurred during signup";
       if (e.code == 'weak-password') {
         errorMessage = 'The password provided is too weak.';
-      } else if (e.code == 'email-already-in-use') {
-        errorMessage = 'An account already exists for that email.';
       } else if (e.code == 'invalid-email') {
         errorMessage = 'Please enter a valid email address.';
       } else if (e.code == 'operation-not-allowed') {
@@ -290,6 +340,7 @@ class SignupScreenState extends State<SignupScreen> {
       } else if (e.code == 'network-request-failed') {
         errorMessage = 'Network error. Please check your internet connection.';
       }
+      // Note: email-already-in-use is handled upfront in the signup logic
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(

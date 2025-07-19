@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'forgot_password_screen.dart';
+import 'email_verification_screen.dart';
 import 'services/health_service.dart';
 import 'services/username_service.dart';
 import 'services/duo_challenge_service.dart';
@@ -43,6 +44,29 @@ class LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleSuccessfulLogin(UserCredential userCredential) async {
     try {
+      // Check if email is verified for non-Google users
+      bool isGoogleUser = userCredential.user!.providerData
+          .any((provider) => provider.providerId == 'google.com');
+
+      if (!userCredential.user!.emailVerified && !isGoogleUser) {
+        // User is not verified and not a Google user, redirect to verification screen
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EmailVerificationScreen(
+                email: userCredential.user!.email!,
+                password: _passwordController.text.trim(),
+                username: userCredential.user!.displayName ?? 'user',
+                userCredential: userCredential,
+              ),
+            ),
+            (route) => false,
+          );
+        }
+        return;
+      }
+
       // Get the user's document from Firestore
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -212,6 +236,8 @@ class LoginScreenState extends State<LoginScreen> {
       } else if (e.code == 'too-many-requests') {
         errorMessage =
             'Too many failed login attempts. Please try again later.';
+      } else if (e.code == 'user-not-verified') {
+        errorMessage = 'Please verify your email address before logging in.';
       }
 
       if (!mounted) return;
