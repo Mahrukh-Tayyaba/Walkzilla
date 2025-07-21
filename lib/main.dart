@@ -10,6 +10,7 @@ import 'health_dashboard.dart';
 import 'streaks_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'widgets/duo_challenge_invite_dialog.dart';
+import 'services/user_document_cleanup_service.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -35,6 +36,11 @@ void main() async {
     try {
       await Firebase.initializeApp();
       print('Firebase initialized successfully');
+
+      // Initialize cleanup service to remove unnecessary fields from existing user documents
+      final cleanupService = UserDocumentCleanupService();
+      await cleanupService.cleanupAllUserDocuments();
+      print('User document cleanup completed');
     } catch (e) {
       print('Error initializing Firebase: $e');
       // Continue without Firebase for now

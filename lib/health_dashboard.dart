@@ -38,34 +38,10 @@ class _HealthDashboardState extends State<HealthDashboard> {
   Timer? _reminderTimer;
   bool _isLoading = true;
 
-  // Simulated data for the week
-  final List<Map<String, dynamic>> _weeklyData = [
-    {'steps': 1200, 'calories': 120.5, 'heartRate': 72},
-    {'steps': 1500, 'calories': 150.2, 'heartRate': 75},
-    {'steps': 1800, 'calories': 180.7, 'heartRate': 68},
-    {'steps': 2000, 'calories': 200.8, 'heartRate': 82},
-    {'steps': 2500, 'calories': 250.3, 'heartRate': 76},
-    {'steps': 3000, 'calories': 300.5, 'heartRate': 65},
-    {'steps': 1200, 'calories': 120.8, 'heartRate': 70},
-  ];
-
-  // Simulated heart rate data for the day (24 hours)
-  final List<Map<String, dynamic>> _heartRateData = List.generate(
-    24,
-    (index) => {
-      'hour': index,
-      'bpm': 65 + (index % 3) * 5 + (index % 2) * 3,
-    },
-  );
-
-  // Simulated calories data for the day (by hour)
-  final List<Map<String, dynamic>> _caloriesData = List.generate(
-    24,
-    (index) => {
-      'hour': index,
-      'calories': 5.0 + (index % 4) * 3.5 + (index % 3) * 2.2,
-    },
-  );
+  // Real data will be fetched from Health Service
+  List<Map<String, dynamic>> _weeklyData = [];
+  List<Map<String, dynamic>> _heartRateData = [];
+  List<Map<String, dynamic>> _caloriesData = [];
 
   @override
   void initState() {
@@ -103,8 +79,15 @@ class _HealthDashboardState extends State<HealthDashboard> {
       await fetchHealthData();
     } catch (e) {
       print("Error initializing health: $e");
-      // Use simulated data as fallback
-      _updateWithSimulatedData();
+      // Show error state instead of simulated data
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _steps = 0;
+          _calories = 0.0;
+          _heartRate = 0.0;
+        });
+      }
     }
   }
 
@@ -120,7 +103,12 @@ class _HealthDashboardState extends State<HealthDashboard> {
       if (!hasPermissions) {
         print("No health permissions granted");
         if (!mounted) return;
-        _updateWithSimulatedData();
+        setState(() {
+          _isLoading = false;
+          _steps = 0;
+          _calories = 0.0;
+          _heartRate = 0.0;
+        });
         return;
       }
 
@@ -147,30 +135,14 @@ class _HealthDashboardState extends State<HealthDashboard> {
     } catch (e) {
       print("Error fetching health data: $e");
       if (mounted) {
-        _updateWithSimulatedData();
+        setState(() {
+          _isLoading = false;
+          _steps = 0;
+          _calories = 0.0;
+          _heartRate = 0.0;
+        });
       }
     }
-  }
-
-  void _updateWithSimulatedData() {
-    if (!mounted) return;
-    setState(() {
-      _steps = _weeklyData.last['steps'];
-      _calories = _weeklyData.last['calories'];
-      _heartRate = _weeklyData.last['heartRate'].toDouble();
-      _isLoading = false;
-    });
-    // Update streaks with simulated data
-    final streakProvider = Provider.of<StreakProvider>(context, listen: false);
-    final stepGoal =
-        Provider.of<StepGoalProvider>(context, listen: false).goalSteps;
-    final today = DateTime.now();
-    final Map<DateTime, int> dailySteps = {};
-    for (int i = 0; i < 7; i++) {
-      final date = today.subtract(Duration(days: 6 - i));
-      dailySteps[date] = _weeklyData[i]['steps'] as int;
-    }
-    streakProvider.updateStreaks(dailySteps, stepGoal);
   }
 
   void _showHealthConnectInstallDialog() {

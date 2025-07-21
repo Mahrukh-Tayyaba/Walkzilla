@@ -9,7 +9,7 @@ service cloud.firestore {
     
     // Allow reading users collection for username availability checking (no auth required)
     match /users/{userId} {
-      allow read: if true; // Allow reading for username availability checks
+      allow read: if true; // Allow reading for username availability checks and leaderboard data
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
@@ -38,6 +38,14 @@ service cloud.firestore {
     match /chats/{chatId}/messages/{messageId} {
       allow read, write: if request.auth != null && 
         request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+    }
+    
+    // Leaderboard history collection
+    match /leaderboard_history/{historyId} {
+      // All authenticated users can read leaderboard history
+      allow read: if request.auth != null;
+      // Only cloud functions can write to leaderboard history
+      allow write: if false;
     }
     
     // Allow reading and writing to other collections as needed

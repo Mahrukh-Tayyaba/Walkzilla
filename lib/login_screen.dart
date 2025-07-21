@@ -108,17 +108,10 @@ class LoginScreenState extends State<LoginScreen> {
           'hasHealthPermissions': false,
           'profileImage': userCredential.user!.photoURL,
           'level': 1,
-          'todaySteps': 0,
           'currentStreak': 0,
           'coins': 100, // Initial coins for new users
           'isOnline': false,
           'lastActive': FieldValue.serverTimestamp(),
-          'bio': '',
-          'steps': 0,
-          'distance': 0.0,
-          'calories': 0,
-          'weeklyGoal': 0,
-          'monthlyGoal': 0,
           'characterSpriteSheets': {
             'idle': 'images/character_idle.json',
             'walking': 'images/character_walking.json'

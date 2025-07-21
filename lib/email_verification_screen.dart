@@ -216,7 +216,6 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
         'hasHealthPermissions': false,
         'displayName': widget.username,
         'level': 1,
-        'todaySteps': 0,
         'currentStreak': 0,
         'coins': 100,
         'isOnline': false,

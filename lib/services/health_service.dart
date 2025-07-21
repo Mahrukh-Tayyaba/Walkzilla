@@ -3,18 +3,18 @@ import 'package:health/health.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'dart:async'; // Added for Timer and StreamSubscription
 import 'step_counter_service.dart';
+import 'leaderboard_service.dart';
 
 class HealthService {
   static final HealthService _instance = HealthService._internal();
   factory HealthService() => _instance;
   HealthService._internal();
 
-  static const bool _FORCE_HYBRID_MODE =
+  static const bool _forceHybridMode =
       true; // NEVER CHANGE THIS - Ensures hybrid method is always used
-  static const String _ANIMATION_SAFE_METHOD =
-      'fetchAnimationSafeSteps'; // Method name for animations
 
   final Health health = Health();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -23,9 +23,6 @@ class HealthService {
 
   // Firestore collection names
   static const String _healthDataCollection = 'health_data';
-  static const String _stepsCollection = 'steps';
-  static const String _heartRateCollection = 'heart_rate';
-  static const String _caloriesCollection = 'calories';
 
   // Health Connect data types - ONLY what your app actually uses
   final List<HealthDataType> _dataTypes = [
@@ -234,27 +231,6 @@ class HealthService {
     }
   }
 
-  // Get the last synced timestamp for a specific data type
-  Future<DateTime?> _getLastSyncTime(String userId, String collection) async {
-    try {
-      final querySnapshot = await _firestore
-          .collection(_healthDataCollection)
-          .doc(userId)
-          .collection(collection)
-          .orderBy('syncTime', descending: true)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        return DateTime.parse(querySnapshot.docs.first.data()['syncTime']);
-      }
-      return null;
-    } catch (e) {
-      print('Error getting last sync time: $e');
-      return null;
-    }
-  }
-
   Future<bool> checkExistingPermissions() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -384,7 +360,10 @@ class HealthService {
       bool? isAvailable = await health.hasPermissions(_dataTypes);
       if (isAvailable == null) {
         print("Health Connect not available, showing install dialog");
-        return await _showHealthConnectInstallDialog(context);
+        if (context.mounted) {
+          return await _showHealthConnectInstallDialog(context);
+        }
+        return false;
       }
 
       bool hasExistingPermissions = await checkHealthConnectPermissions();
@@ -394,7 +373,10 @@ class HealthService {
       }
 
       print("Requesting Health Connect permissions...");
-      bool userAccepted = await showPermissionDialog(context);
+      bool userAccepted = false;
+      if (context.mounted) {
+        userAccepted = await showPermissionDialog(context);
+      }
       print("User accepted dialog: $userAccepted");
 
       if (userAccepted) {
@@ -466,20 +448,15 @@ class HealthService {
           print("    - Data type: ${p.type}");
           print("    - Unit: ${p.unit}");
 
-          if (p.value != null) {
-            // Handle different value types
-            if (p.value is int) {
-              totalSteps += p.value as int;
-              print("    ✅ Added ${p.value} steps (int)");
-            } else if (p.value is double) {
-              totalSteps += (p.value as double).toInt();
-              print(
-                  "    ✅ Added ${(p.value as double).toInt()} steps (double)");
-            } else {
-              print("    ❌ Unknown value type: ${p.value.runtimeType}");
-            }
+          // Handle different value types
+          if (p.value is int) {
+            totalSteps += p.value as int;
+            print("    ✅ Added ${p.value} steps (int)");
+          } else if (p.value is double) {
+            totalSteps += (p.value as double).toInt();
+            print("    ✅ Added ${(p.value as double).toInt()} steps (double)");
           } else {
-            print("    ❌ Value is null");
+            print("    ❌ Unknown value type: ${p.value.runtimeType}");
           }
         }
 
@@ -502,7 +479,8 @@ class HealthService {
       bool hasPermissions = await checkHealthConnectPermissions();
       if (!hasPermissions) {
         print("❌ No Health Connect permissions for heart rate");
-        return _getSimulatedHeartRateData();
+        throw Exception(
+            'Health Connect permissions required for heart rate data');
       }
 
       print(
@@ -546,8 +524,7 @@ class HealthService {
       };
     } catch (e) {
       print('Error in fetchHeartRateData: $e');
-      // Fallback to simulated data
-      return _getSimulatedHeartRateData();
+      throw Exception('Failed to fetch heart rate data: $e');
     }
   }
 
@@ -561,7 +538,8 @@ class HealthService {
       bool hasPermissions = await checkHealthConnectPermissions();
       if (!hasPermissions) {
         print("❌ No Health Connect permissions for calories");
-        return _getSimulatedCaloriesData();
+        throw Exception(
+            'Health Connect permissions required for calories data');
       }
 
       print(
@@ -604,69 +582,8 @@ class HealthService {
       };
     } catch (e) {
       print('Error in fetchCaloriesData: $e');
-      // Fallback to simulated data
-      return _getSimulatedCaloriesData();
+      throw Exception('Failed to fetch calories data: $e');
     }
-  }
-
-  // Simulated data methods (fallback)
-  Map<String, dynamic> _getSimulatedStepsData() {
-    final now = DateTime.now();
-    final thirtyMinutesAgo = now.subtract(const Duration(minutes: 30));
-
-    return {
-      "startTime": thirtyMinutesAgo.toIso8601String(),
-      "endTime": now.toIso8601String(),
-      "count": 1200,
-      "metadata": {
-        "id": "sim_${now.millisecondsSinceEpoch}",
-        "device": {
-          "manufacturer": "Google",
-          "model": "Pixel 6",
-          "type": "watch"
-        },
-        "lastModifiedTime": now.toIso8601String(),
-        "clientRecordId": "sim_client_${now.millisecondsSinceEpoch}"
-      }
-    };
-  }
-
-  Map<String, dynamic> _getSimulatedHeartRateData() {
-    final now = DateTime.now();
-
-    return {
-      "time": now.toIso8601String(),
-      "beatsPerMinute": 75,
-      "metadata": {
-        "id": "sim_hr_${now.millisecondsSinceEpoch}",
-        "device": {
-          "manufacturer": "Samsung",
-          "model": "Galaxy Watch",
-          "type": "watch"
-        },
-        "lastModifiedTime": now.toIso8601String()
-      }
-    };
-  }
-
-  Map<String, dynamic> _getSimulatedCaloriesData() {
-    final now = DateTime.now();
-    final oneHourAgo = now.subtract(const Duration(hours: 1));
-
-    return {
-      "startTime": oneHourAgo.toIso8601String(),
-      "endTime": now.toIso8601String(),
-      "energy": {"inKilocalories": 145.5},
-      "metadata": {
-        "id": "sim_cal_${now.millisecondsSinceEpoch}",
-        "device": {
-          "manufacturer": "Garmin",
-          "model": "Vivoactive 4",
-          "type": "watch"
-        },
-        "lastModifiedTime": now.toIso8601String()
-      }
-    };
   }
 
   // Main method to fetch all health data
@@ -1120,12 +1037,10 @@ class HealthService {
 
       int totalSteps = 0;
       for (HealthDataPoint p in healthData) {
-        if (p.value != null) {
-          if (p.value is int) {
-            totalSteps += p.value as int;
-          } else if (p.value is double) {
-            totalSteps += (p.value as double).toInt();
-          }
+        if (p.value is int) {
+          totalSteps += p.value as int;
+        } else if (p.value is double) {
+          totalSteps += (p.value as double).toInt();
         }
       }
 
@@ -1481,10 +1396,10 @@ class HealthService {
     print("🎬 ANIMATION-SAFE: Fetching steps for character animation...");
 
     // VALIDATION: Ensure hybrid mode is always used
-    if (!_FORCE_HYBRID_MODE) {
+    if (!_forceHybridMode) {
       print(
           "🚨 CRITICAL ERROR: Hybrid mode is disabled! This will break animations!");
-      print("🚨 CRITICAL ERROR: _FORCE_HYBRID_MODE must always be true!");
+      print("🚨 CRITICAL ERROR: _forceHybridMode must always be true!");
     }
 
     // Use Google Fit sync for accuracy
@@ -1496,7 +1411,7 @@ class HealthService {
 
   /// VALIDATION: Ensure hybrid method is always used
   void validateHybridMode() {
-    if (!_FORCE_HYBRID_MODE) {
+    if (!_forceHybridMode) {
       throw Exception(
           "CRITICAL: Hybrid mode is disabled! This will break character animations!");
     }
@@ -1841,10 +1756,86 @@ class HealthService {
       print("🔄 HYBRID: Real-time total: $realTimeSteps");
       print("🔄 HYBRID: User sees steps update immediately!");
 
+      // Update leaderboard data in background
+      _updateLeaderboardData(realTimeSteps);
+
       return realTimeSteps;
     } catch (e) {
       print("🔄 HYBRID: Error, using fallback: $e");
       return _healthConnectBaseline;
+    }
+  }
+
+  /// Update leaderboard data when steps are fetched
+  Future<void> _updateLeaderboardData(int steps) async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null && steps > 0) {
+        // Update both daily steps and leaderboard totals
+        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+        // Get current user data
+        final userRef = _firestore.collection('users').doc(user.uid);
+        final userDoc = await userRef.get();
+
+        if (userDoc.exists) {
+          final userData = userDoc.data() as Map<String, dynamic>;
+          final dailySteps =
+              userData['daily_steps'] as Map<String, dynamic>? ?? {};
+          final currentDailySteps = dailySteps[today] ?? 0;
+
+          // Only update if steps have increased
+          if (steps > currentDailySteps) {
+            final stepIncrease = steps - currentDailySteps;
+
+            // Update daily steps first
+            await userRef.update({
+              'daily_steps.$today': steps,
+            });
+
+            // Calculate weekly total correctly (Monday to Sunday)
+            final startOfWeek = _getStartOfWeek(DateTime.now());
+            int weeklyTotal = 0;
+
+            // Sum all daily steps from this week (Monday to Sunday)
+            for (int i = 0; i < 7; i++) {
+              final date = startOfWeek.add(Duration(days: i));
+              final dateKey = DateFormat('yyyy-MM-dd').format(date);
+
+              // Use today's new steps if it's today, otherwise use stored daily steps
+              if (dateKey == today) {
+                weeklyTotal += steps;
+              } else {
+                final daySteps = (dailySteps[dateKey] ?? 0) as int;
+                weeklyTotal += daySteps;
+              }
+            }
+
+            // Update weekly_steps field
+            await userRef.update({
+              'weekly_steps': weeklyTotal,
+            });
+
+            print(
+                "📊 LEADERBOARD: Updated daily steps: $currentDailySteps → $steps (+$stepIncrease)");
+            print("📊 LEADERBOARD: Updated weekly total: $weeklyTotal");
+            print("📊 LEADERBOARD: Updated leaderboard data for ${user.uid}");
+          }
+        } else {
+          // Initialize user data if it doesn't exist
+          await userRef.set({
+            'daily_steps': {today: steps},
+            'weekly_steps': steps,
+            'total_coins': 0,
+            'last_week_rewarded': null,
+          }, SetOptions(merge: true));
+
+          print(
+              "📊 LEADERBOARD: Initialized user data for ${user.uid} with $steps steps");
+        }
+      }
+    } catch (e) {
+      print("📊 LEADERBOARD: Error updating leaderboard data: $e");
     }
   }
 
@@ -1917,6 +1908,87 @@ class HealthService {
         'sensorSteps': 0,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
+    }
+  }
+
+  /// Start continuous step monitoring and Firestore updates (No Loading Screens)
+  Future<void> startContinuousStepUpdates() async {
+    try {
+      print("🔄 Starting continuous step updates...");
+
+      // Update steps every 30 seconds (background, no UI impact)
+      Timer.periodic(const Duration(seconds: 30), (timer) async {
+        try {
+          final currentSteps = await fetchHybridRealTimeSteps();
+          await _updateLeaderboardData(currentSteps);
+          print("🔄 Background step update: $currentSteps steps");
+        } catch (e) {
+          print("🔄 Error in continuous step update: $e");
+        }
+      });
+
+      // Also update when app becomes active (seamless)
+      WidgetsBinding.instance.addObserver(
+        LifecycleEventHandler(
+          detachedCallBack: () async {},
+          inactiveCallBack: () async {},
+          pausedCallBack: () async {},
+          resumedCallBack: () async {
+            try {
+              final currentSteps = await fetchHybridRealTimeSteps();
+              await _updateLeaderboardData(currentSteps);
+              print("🔄 Resume step update: $currentSteps steps");
+            } catch (e) {
+              print("🔄 Error updating steps on resume: $e");
+            }
+          },
+        ),
+      );
+
+      print("✅ Continuous step updates started (no loading screens)");
+    } catch (e) {
+      print("❌ Error starting continuous step updates: $e");
+    }
+  }
+
+  /// Get start of current week (Monday) - for HealthService
+  DateTime _getStartOfWeek(DateTime date) {
+    final daysFromMonday = date.weekday - 1;
+    return date.subtract(Duration(days: daysFromMonday));
+  }
+}
+
+/// Lifecycle event handler for app state changes
+class LifecycleEventHandler extends WidgetsBindingObserver {
+  final Future<void> Function()? detachedCallBack;
+  final Future<void> Function()? inactiveCallBack;
+  final Future<void> Function()? pausedCallBack;
+  final Future<void> Function()? resumedCallBack;
+
+  LifecycleEventHandler({
+    this.detachedCallBack,
+    this.inactiveCallBack,
+    this.pausedCallBack,
+    this.resumedCallBack,
+  });
+
+  @override
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    switch (state) {
+      case AppLifecycleState.detached:
+        await detachedCallBack?.call();
+        break;
+      case AppLifecycleState.inactive:
+        await inactiveCallBack?.call();
+        break;
+      case AppLifecycleState.paused:
+        await pausedCallBack?.call();
+        break;
+      case AppLifecycleState.resumed:
+        await resumedCallBack?.call();
+        break;
+      default:
+        break;
     }
   }
 }

@@ -7,15 +7,20 @@ import 'login_screen.dart';
 import 'services/health_service.dart';
 import 'services/character_service.dart';
 import 'services/character_migration_service.dart';
+import 'services/leaderboard_migration_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
+import 'services/leaderboard_service.dart';
 import 'widgets/daily_challenge_spin.dart';
+import 'widgets/reward_notification_widget.dart';
 import 'challenges_screen.dart';
 import 'notification_page.dart';
+
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'friends_page.dart';
 import 'chat_list_page.dart';
+import 'leaderboard_page.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'solo_mode.dart';
 import 'main.dart';
@@ -42,7 +47,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   String _userEmail = '';
   bool _isUserDataLoading = true; // Add loading state for user data
   int _coins = 0; // Will be loaded from coin service
-  bool _isUsingSimulatedData = true; // Track if using real or simulated data
+  bool _isUsingRealData = false; // Track if using real health data
   DuoChallengeService? _duoChallengeService;
   StreamSubscription<QuerySnapshot>? _acceptedInviteListener;
   StreamSubscription<QuerySnapshot>? _declinedInviteListener;
@@ -55,13 +60,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _fetchHealthData();
     _startHealthDataRefresh();
     _startHybridStepMonitoring(); // Use hybrid monitoring instead
+    _healthService
+        .startContinuousStepUpdates(); // Start continuous Firestore updates
     _loadUserData();
     _startCharacterPreloading();
     _migrateCurrentUserCharacter();
+    _initializeLeaderboardData();
     _initializeDuoChallengeService();
     _listenForAcceptedInvitesAsSender();
     _listenForDeclinedInvitesAsSender();
     _startCoinListener();
+    _startRewardListener();
   }
 
   void _initializeDuoChallengeService() {
@@ -172,7 +181,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             _heartRate = 0.0;
             _calories = 0.0;
             _isLoading = false;
-            _isUsingSimulatedData = true;
+            _isUsingRealData = false;
           });
           return;
         }
@@ -192,17 +201,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       final calories =
           (caloriesData['energy']['inKilocalories'] as num).toDouble();
 
-      // Check if data source is Health Connect (not simulated)
-      // Since fetchStepsData now returns int directly from Health Connect,
-      // we need to check if we have permissions (stepsCount can be 0 if no steps today)
-      bool hasRealStepsData = hasPermissions; // Remove the stepsCount > 0 check
+      // Check if data source is Health Connect
+      bool hasRealStepsData = hasPermissions;
       final heartRateSource =
           heartRateData['metadata']['device']['manufacturer'] as String;
       final caloriesSource =
           caloriesData['metadata']['device']['manufacturer'] as String;
 
       print(
-          "🏥 Steps data source: ${hasRealStepsData ? 'Health Connect' : 'Simulated'}");
+          "🏥 Steps data source: ${hasRealStepsData ? 'Health Connect' : 'No Data'}");
       print("💖 Heart rate data source: $heartRateSource");
       print("🔥 Calories data source: $caloriesSource");
 
@@ -223,7 +230,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         _heartRate = heartRate;
         _calories = calories;
         _isLoading = false;
-        _isUsingSimulatedData = !isRealData;
+        _isUsingRealData = isRealData;
       });
 
       print(
@@ -231,14 +238,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       if (!isRealData) {
         print(
-            "! Using simulated data (Health Connect not available or no permissions)");
+            "⚠️ No real health data available (Health Connect not available or no permissions)");
       }
     } catch (e) {
       print("❌ Error fetching health data: $e");
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _isUsingSimulatedData = true;
+        _isUsingRealData = false;
       });
     }
   }
@@ -348,7 +355,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         if (mounted) {
           setState(() {
             _steps = totalSteps;
-            _isUsingSimulatedData = false;
+            _isUsingRealData = true;
           });
 
           // Show step increase animation/notification
@@ -384,7 +391,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             if (mounted) {
               setState(() {
                 _steps = totalSteps;
-                _isUsingSimulatedData = false;
+                _isUsingRealData = true;
               });
 
               // Show step increase animation/notification
@@ -439,7 +446,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         print("❌ No Health Connect permissions for steps");
         setState(() {
           _steps = 0;
-          _isUsingSimulatedData = true;
+          _isUsingRealData = false;
         });
         return;
       }
@@ -451,7 +458,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           _steps = stepsCount;
-          _isUsingSimulatedData = false;
+          _isUsingRealData = true;
         });
         print("✅ Updated UI with steps: $_steps");
       }
@@ -460,7 +467,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           _steps = 0;
-          _isUsingSimulatedData = true;
+          _isUsingRealData = false;
         });
       }
     }
@@ -472,9 +479,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
     try {
       print("🔄 Force syncing steps...");
-      setState(() {
-        _isLoading = true;
-      });
 
       // Show a message to the user
       _showInfoMessage("Syncing steps from Google Fit...");
@@ -486,8 +490,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           _steps = newSteps;
-          _isLoading = false;
-          _isUsingSimulatedData = false;
+          _isUsingRealData = false;
         });
 
         // Show success message
@@ -495,13 +498,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       }
     } catch (e) {
       print("❌ Error force syncing steps: $e");
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        _showWarningMessage(
-            "Failed to sync steps. Try opening Google Fit first.");
-      }
+      _showWarningMessage(
+          "Failed to sync steps. Try opening Google Fit first.");
     }
   }
 
@@ -791,54 +789,50 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   _directPermissionRequest, // Long press for direct permission request
               onDoubleTap: _debugHealthConnectStatus, // Double tap for debug
               child: Center(
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              '$_steps',
-                              style: TextStyle(
-                                color: const Color(0xFF2D2D2D),
-                                fontSize: screenSize.width * 0.045,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Steps',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: screenSize.width * 0.025,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.refresh,
-                                size: screenSize.width * 0.02,
-                                color: Colors.grey[400],
-                              ),
-                            ],
-                          ),
-                          // Add sync status indicator
-                          Text(
-                            _isUsingSimulatedData ? 'Simulated' : 'Real Data',
-                            style: TextStyle(
-                              color: _isUsingSimulatedData
-                                  ? Colors.orange
-                                  : Colors.green,
-                              fontSize: screenSize.width * 0.01,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '$_steps',
+                        style: TextStyle(
+                          color: const Color(0xFF2D2D2D),
+                          fontSize: screenSize.width * 0.045,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Steps',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: screenSize.width * 0.025,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.refresh,
+                          size: screenSize.width * 0.02,
+                          color: Colors.grey[400],
+                        ),
+                      ],
+                    ),
+                    // Add sync status indicator
+                    Text(
+                      _isUsingRealData ? 'Real Data' : 'No Data',
+                      style: TextStyle(
+                        color: _isUsingRealData ? Colors.green : Colors.grey,
+                        fontSize: screenSize.width * 0.01,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -882,6 +876,90 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     });
   }
 
+  void _startRewardListener() {
+    // Listen for reward notifications
+    _firestore
+        .collection('users')
+        .doc(_auth.currentUser?.uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists && mounted) {
+        final data = snapshot.data()!;
+        final lastWeekRewarded = data['last_week_rewarded'];
+
+        // Check for new weekly rewards
+        if (lastWeekRewarded != null) {
+          _checkAndShowRewardNotification('weekly', lastWeekRewarded);
+        }
+      }
+    });
+  }
+
+  void _checkAndShowRewardNotification(String type, String rewardDate) {
+    // This is a simplified version - in production you'd want to track shown notifications
+    final now = DateTime.now();
+    final rewardDateTime = DateTime.parse(rewardDate);
+
+    // Show notification if reward was given recently (within last hour)
+    if (now.difference(rewardDateTime).inHours < 1) {
+      final rewards = [500, 250, 100]; // Weekly rewards
+
+      // This is a simplified example - you'd need to get actual rank from leaderboard history
+      showRewardNotification(
+        context: context,
+        title: 'Congratulations! 🎉',
+        message: 'You ranked in the top 3 for this week!',
+        coins: rewards[0], // Assuming 1st place for demo
+        rank: 1,
+        period: type,
+      );
+    }
+  }
+
+  /// Handle FCM notifications for rewards
+  void _handleRewardNotification(Map<String, dynamic> data) {
+    try {
+      final type = data['type'];
+      final rank = int.tryParse(data['rank'] ?? '0') ?? 0;
+      final steps = int.tryParse(data['steps'] ?? '0') ?? 0;
+      final coins = int.tryParse(data['coins'] ?? '0') ?? 0;
+
+      if (type == 'daily_reward') {
+        final date = data['date'] ?? 'today';
+        final rankText = rank == 1
+            ? '1st'
+            : rank == 2
+                ? '2nd'
+                : '3rd';
+        showRewardNotification(
+          context: context,
+          title: 'Daily Winner! 🏆',
+          message: '$rankText Place - $coins coins earned!',
+          coins: coins,
+          rank: rank,
+          period: 'daily',
+        );
+      } else if (type == 'weekly_reward') {
+        final weekEndDate = data['weekEndDate'] ?? 'this week';
+        final rankText = rank == 1
+            ? '1st'
+            : rank == 2
+                ? '2nd'
+                : '3rd';
+        showRewardNotification(
+          context: context,
+          title: 'Weekly Winner! 🏆',
+          message: '$rankText Place - $coins coins earned!',
+          coins: coins,
+          rank: rank,
+          period: 'weekly',
+        );
+      }
+    } catch (e) {
+      print('Error handling reward notification: $e');
+    }
+  }
+
   Future<void> _logout() async {
     try {
       await _auth.signOut();
@@ -913,6 +991,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void _migrateCurrentUserCharacter() {
     CharacterMigrationService().migrateCurrentUser().catchError((error) {
       print('Failed to migrate character data: $error');
+    });
+  }
+
+  void _initializeLeaderboardData() {
+    LeaderboardMigrationService()
+        .initializeUserLeaderboardData(_auth.currentUser?.uid ?? '')
+        .catchError((error) {
+      print('Failed to initialize leaderboard data: $error');
     });
   }
 
@@ -1054,7 +1140,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           if (mounted) {
             setState(() {
               _steps = newSteps;
-              _isUsingSimulatedData = false;
+              _isUsingRealData = false;
             });
           }
         });
@@ -1453,6 +1539,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     context,
                     MaterialPageRoute(
                         builder: (context) => const FriendsPage()),
+                  );
+                },
+              ),
+              _buildDrawerItem(
+                icon: Icons.leaderboard,
+                title: "Leaderboard",
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const LeaderboardPage()),
                   );
                 },
               ),

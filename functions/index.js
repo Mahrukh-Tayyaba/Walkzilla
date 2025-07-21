@@ -3,7 +3,13 @@ const {initializeApp} = require("firebase-admin/app");
 const {getFirestore} = require("firebase-admin/firestore");
 const {getMessaging} = require("firebase-admin/messaging");
 
-initializeApp();
+// Import leaderboard functions
+const leaderboardFunctions = require('./leaderboard_functions');
+
+// Initialize Firebase Admin if not already initialized
+if (!require("firebase-admin/app").getApps().length) {
+  initializeApp();
+}
 
 exports.sendDuoChallengeInvite = onDocumentCreated(
   "duo_challenge_invites/{inviteId}",
@@ -39,3 +45,10 @@ exports.sendDuoChallengeInvite = onDocumentCreated(
     return;
   }
 );
+
+// Export leaderboard functions
+exports.updateDailyStepAggregation = leaderboardFunctions.updateDailyStepAggregation;
+exports.distributeWeeklyRewards = leaderboardFunctions.distributeWeeklyRewards;
+exports.manualStepAggregation = leaderboardFunctions.manualStepAggregation;
+exports.getLeaderboardData = leaderboardFunctions.getLeaderboardData;
+exports.initializeUserLeaderboardData = leaderboardFunctions.initializeUserLeaderboardData;

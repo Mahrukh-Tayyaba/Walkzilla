@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - leaderboard data
+    match /users/{userId} {
+      // Users can read their own data and leaderboard data
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || 
+        // Allow reading leaderboard fields for all authenticated users
+        resource.data.keys().hasAny(['username', 'displayName', 'weekly_steps', 'monthly_steps', 'profileImageUrl'])
+      );
+      
+      // Users can update their own data
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // Only allow creation by authenticated users for themselves
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Leaderboard history collection
+    match /leaderboard_history/{historyId} {
+      // All authenticated users can read leaderboard history
+      allow read: if request.auth != null;
+      
+      // Only cloud functions can write to leaderboard history
+      allow write: if false;
+    }
+    
+    // Health data collection (if separate)
+    match /health_data/{userId} {
+      // Users can only access their own health data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Steps collection (if separate)
+    match /steps/{userId} {
+      // Users can only access their own step data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+} 

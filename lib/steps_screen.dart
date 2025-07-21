@@ -6,6 +6,7 @@ import 'home.dart';
 import 'widgets/steps_goal_card.dart';
 import 'package:provider/provider.dart';
 import 'providers/step_goal_provider.dart';
+import 'services/health_service.dart';
 
 class StepsScreen extends StatefulWidget {
   final int currentSteps;
@@ -33,19 +34,14 @@ class _StepsScreenState extends State<StepsScreen> {
   int _selectedIndex = 1; // Health section selected by default
   bool _isGoalEnabled = true;
 
-  // Simulated data for the week - matching home.dart and health_dashboard.dart
-  final List<Map<String, dynamic>> _weeklyData = [
-    {'steps': 1200, 'calories': 120.5, 'heartRate': 72},
-    {'steps': 1500, 'calories': 150.2, 'heartRate': 75},
-    {'steps': 1800, 'calories': 180.7, 'heartRate': 68},
-    {'steps': 2000, 'calories': 200.8, 'heartRate': 82},
-    {'steps': 2500, 'calories': 250.3, 'heartRate': 76},
-    {'steps': 3000, 'calories': 300.5, 'heartRate': 65},
-    {'steps': 1200, 'calories': 120.8, 'heartRate': 70},
-  ];
+  // Real data will be fetched from Health Service
+  List<Map<String, dynamic>> _weeklyData = [];
 
   List<double> _generateDayData() {
-    final todaySteps = _weeklyData.last['steps'] as int; // 1200
+    // Use real step data if available, otherwise return empty
+    if (_weeklyData.isEmpty) return List.filled(24, 0.0);
+
+    final todaySteps = _weeklyData.last['steps'] as int? ?? 0;
     final pattern = [
       0.04,
       0.03,
@@ -77,34 +73,40 @@ class _StepsScreenState extends State<StepsScreen> {
   }
 
   List<double> _generateWeekData() {
-    // Use the weekly data directly from _weeklyData
-    return _weeklyData.map((day) => (day['steps'] as int).toDouble()).toList();
+    // Use real weekly data if available
+    if (_weeklyData.isEmpty) return List.filled(7, 0.0);
+    return _weeklyData
+        .map((day) => (day['steps'] as int? ?? 0).toDouble())
+        .toList();
   }
 
   List<double> _generateMonthData() {
-    final random = math.Random(42); // Fixed seed for consistency
+    // Use real monthly data if available, otherwise return empty
+    if (_weeklyData.isEmpty) return List.filled(30, 0.0);
+
+    // For now, use weekly data repeated to fill month
+    final weeklySteps =
+        _weeklyData.map((day) => day['steps'] as int? ?? 0).toList();
     return List.generate(30, (index) {
-      // Simulate a realistic pattern: weekdays lower, weekends higher, plus some noise
-      final isWeekend = (index % 7 == 5) || (index % 7 == 6);
-      final base = isWeekend ? 2500 : 1400; // weekends much higher
-      final trend =
-          (index > 14) ? 200 : 0; // second half of month slightly higher
-      final noise = random.nextInt(600) - 300; // -300 to +300
-      return (base + trend + noise).clamp(900, 4000).toDouble();
+      final weekIndex = index % 7;
+      return weeklySteps[weekIndex].toDouble();
     });
   }
 
   List<double> _generateYearData() {
-    final random = math.Random(99); // Fixed seed for consistency
-    return List.generate(12, (index) {
-      // Stronger seasonal variation: much more steps in summer (months 4-8)
-      final seasonBoost = (index >= 4 && index <= 8) ? 2000 : 0;
-      final base = 2200 + seasonBoost;
-      final trend = (index >= 9) ? -300 : 0; // last quarter slightly lower
-      final noise = random.nextInt(1200) - 600; // -600 to +600
-      // Each month is the average of 30 days
-      return (base + trend + noise).clamp(1200, 7000).toDouble();
-    });
+    // Use real yearly data if available, otherwise return empty
+    if (_weeklyData.isEmpty) return List.filled(12, 0.0);
+
+    // For now, use average of weekly data for each month
+    final avgWeeklySteps = _weeklyData.isEmpty
+        ? 0.0
+        : _weeklyData
+                .map((day) => day['steps'] as int? ?? 0)
+                .reduce((a, b) => a + b) /
+            _weeklyData.length;
+
+    return List.filled(
+        12, avgWeeklySteps * 4.33); // Approximate weeks per month
   }
 
   // Sample data for different periods
@@ -118,10 +120,42 @@ class _StepsScreenState extends State<StepsScreen> {
   @override
   void initState() {
     super.initState();
-    periodData['Day'] = _generateDayData();
-    periodData['Week'] = _generateWeekData();
-    periodData['Month'] = _generateMonthData();
-    periodData['Year'] = _generateYearData();
+    _loadRealData();
+  }
+
+  Future<void> _loadRealData() async {
+    try {
+      // Load real data from Health Service
+      final healthService = HealthService();
+      final stepData = await healthService.fetchCompleteStepData();
+
+      if (stepData.isNotEmpty) {
+        setState(() {
+          _weeklyData = stepData['weekly_data'] ?? [];
+          periodData['Day'] = _generateDayData();
+          periodData['Week'] = _generateWeekData();
+          periodData['Month'] = _generateMonthData();
+          periodData['Year'] = _generateYearData();
+        });
+      } else {
+        // Initialize with empty data
+        setState(() {
+          periodData['Day'] = _generateDayData();
+          periodData['Week'] = _generateWeekData();
+          periodData['Month'] = _generateMonthData();
+          periodData['Year'] = _generateYearData();
+        });
+      }
+    } catch (e) {
+      print('Error loading real step data: $e');
+      // Initialize with empty data on error
+      setState(() {
+        periodData['Day'] = _generateDayData();
+        periodData['Week'] = _generateWeekData();
+        periodData['Month'] = _generateMonthData();
+        periodData['Year'] = _generateYearData();
+      });
+    }
   }
 
   @override
