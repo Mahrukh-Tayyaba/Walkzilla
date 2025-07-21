@@ -32,6 +32,9 @@ class _SoloModeState extends State<SoloMode> {
   bool _isInitialized = false; // Track if screen is fully initialized
   DateTime? _initializationTime; // Track when screen was initialized
 
+  // Day change detection
+  DateTime? _lastKnownDate;
+
   @override
   void initState() {
     super.initState();
@@ -524,12 +527,39 @@ class _SoloModeState extends State<SoloMode> {
     }
   }
 
+  // Day change detection
+  void _checkForDayChange() {
+    final currentDate = DateTime.now();
+
+    if (_lastKnownDate == null) {
+      _lastKnownDate = currentDate;
+      return;
+    }
+
+    if (currentDate.day != _lastKnownDate!.day ||
+        currentDate.month != _lastKnownDate!.month ||
+        currentDate.year != _lastKnownDate!.year) {
+      print('📅 DAY CHANGE DETECTED! Forcing step refresh...');
+      print('📅 Previous date: ${_lastKnownDate!.toIso8601String()}');
+      print('📅 Current date: ${currentDate.toIso8601String()}');
+
+      // Force immediate refresh when day changes
+      _fetchStepsFromHomeMethod();
+
+      // Update last known date
+      _lastKnownDate = currentDate;
+    }
+  }
+
   void _startPeriodicUpdates() {
     // APPROACH 5: More frequent updates with aggressive sync
     Future.delayed(const Duration(seconds: 5), () {
       // 5-second interval to ensure reliability
       if (mounted) {
         _fetchStepsFromHomeMethod();
+
+        // Check for day change
+        _checkForDayChange();
 
         // Force check walking state if still walking but no recent steps
         if (_isUserWalking && _lastStepUpdate != null) {

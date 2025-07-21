@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'services/friend_service.dart';
+import 'services/chat_service.dart';
 
 class FriendProfilePage extends StatelessWidget {
   final String name;
@@ -6,6 +9,7 @@ class FriendProfilePage extends StatelessWidget {
   final String steps;
   final Color color;
   final bool isOnline;
+  final String friendUserId; // Add friendUserId parameter
 
   const FriendProfilePage({
     super.key,
@@ -14,6 +18,7 @@ class FriendProfilePage extends StatelessWidget {
     required this.steps,
     required this.color,
     required this.isOnline,
+    required this.friendUserId, // Add this parameter
   });
 
   @override
@@ -187,10 +192,168 @@ class FriendProfilePage extends StatelessWidget {
                 ],
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Remove Friend Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showRemoveFriendDialog(context),
+                  icon: const Icon(Icons.person_remove, color: Colors.white),
+                  label: const Text(
+                    'Remove Friend',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _showRemoveFriendDialog(BuildContext context) async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Remove Friend'),
+          content: Text(
+              'Are you sure you want to remove $name from your friends? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _removeFriend(context);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _removeFriend(BuildContext context) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+
+      final friendService = FriendService();
+      final chatService = ChatService();
+
+      // Run operations in parallel with timeout
+      final results = await Future.wait([
+        friendService.removeFriend(friendUserId),
+        chatService.getChatByParticipants(friendUserId),
+      ]).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Operation timed out');
+        },
+      );
+
+      final friendshipRemoved = results[0] as bool;
+      final chatId = results[1] as String?;
+
+      if (friendshipRemoved) {
+        // Delete chat data if it exists (don't wait for this to complete)
+        if (chatId != null) {
+          chatService.deleteChat(chatId).catchError((e) {
+            print('Error deleting chat: $e');
+            // Don't fail the entire operation if chat deletion fails
+          });
+        }
+
+        // Close loading dialog
+        if (context.mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$name has been removed from your friends'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Navigate back to friends page
+          Navigator.of(context).pop();
+        }
+      } else {
+        // Close loading dialog
+        if (context.mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to remove friend. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } on TimeoutException {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show timeout error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Operation timed out. Please check your connection and try again.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error removing friend: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildStatCard({

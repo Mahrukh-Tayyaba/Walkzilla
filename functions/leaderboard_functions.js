@@ -9,11 +9,11 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 /**
- * Daily step aggregation and reward distribution
+ * Daily reward distribution
  * Runs every day at 12:00 AM to distribute daily rewards
  */
-exports.updateDailyStepAggregation = functions.scheduler
-  .onSchedule('0 0 * * *', 'UTC', async (event) => {
+exports.distributeDailyRewards = functions.scheduler
+  .onSchedule('0 0 * * *', async (event) => {
     try {
       console.log('Starting daily reward distribution...');
       
@@ -53,9 +53,9 @@ exports.updateDailyStepAggregation = functions.scheduler
         });
         
         // Add coins to user
-        const currentCoins = userData.total_coins || 0;
+        const currentCoins = userData.coins || 0;
         batch.update(doc.ref, {
-          total_coins: currentCoins + reward,
+          coins: currentCoins + reward,
         });
       });
       
@@ -146,9 +146,9 @@ exports.distributeWeeklyRewards = functions.scheduler
         });
         
         // Add coins to user
-        const currentCoins = userData.total_coins || 0;
+        const currentCoins = userData.coins || 0;
         batch.update(doc.ref, {
-          total_coins: currentCoins + reward,
+          coins: currentCoins + reward,
           last_week_rewarded: weekEndDate,
         });
       });
@@ -208,67 +208,9 @@ exports.distributeWeeklyRewards = functions.scheduler
     }
   });
 
-/**
- * Manual step aggregation function (for testing or manual triggers)
- */
-exports.manualStepAggregation = functions.https.onCall(async (data, context) => {
-  try {
-    // Check if user is authenticated
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
-    }
-    
-    const userId = context.auth.uid;
-    const steps = data.steps || 0;
-    
-    if (steps <= 0) {
-      throw new functions.https.HttpsError('invalid-argument', 'Steps must be greater than 0');
-    }
-    
-    const today = new Date().toISOString().split('T')[0];
-    const userRef = db.collection('users').doc(userId);
-    
-    // Get current user data
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) {
-      throw new functions.https.HttpsError('not-found', 'User not found');
-    }
-    
-    const userData = userDoc.data();
-    const dailySteps = userData.daily_steps || {};
-    
-    // Check if today's steps have already been added
-    if (dailySteps[today] && dailySteps[today] === steps) {
-      return { message: 'Steps already aggregated for today' };
-    }
-    
-    // Calculate new totals
-    let weeklySteps = userData.weekly_steps || 0;
-    
-    // Remove previous today's steps if they exist
-    if (dailySteps[today]) {
-      weeklySteps -= dailySteps[today];
-    }
-    
-    // Add new steps
-    weeklySteps += steps;
-    
-    // Update the database
-    await userRef.update({
-      [`daily_steps.${today}`]: steps,
-      weekly_steps: weeklySteps,
-    });
-    
-    return {
-      message: 'Steps aggregated successfully',
-      dailySteps: steps,
-      weeklySteps: weeklySteps,
-    };
-  } catch (error) {
-    console.error('Error in manual step aggregation:', error);
-    throw new functions.https.HttpsError('internal', error.message);
-  }
-});
+
+
+
 
 /**
  * Get leaderboard data function
@@ -327,7 +269,7 @@ exports.initializeUserLeaderboardData = functions.auth.user().onCreate(async (us
     await db.collection('users').doc(user.uid).set({
       daily_steps: {},
       weekly_steps: 0,
-      total_coins: 0,
+      coins: 0,
       last_week_rewarded: null,
     }, { merge: true });
     

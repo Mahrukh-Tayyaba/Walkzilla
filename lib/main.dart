@@ -2,15 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'welcome_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
+import 'welcome_screen.dart';
 import 'providers/step_goal_provider.dart';
 import 'providers/streak_provider.dart';
 import 'health_dashboard.dart';
 import 'streaks_screen.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'widgets/duo_challenge_invite_dialog.dart';
 import 'services/user_document_cleanup_service.dart';
+import 'widgets/reward_notification_widget.dart';
+import 'services/health_service.dart';
+import 'services/coin_service.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -36,6 +39,9 @@ void main() async {
     try {
       await Firebase.initializeApp();
       print('Firebase initialized successfully');
+
+      // Initialize Firebase Functions
+      print('Firebase Functions initialized successfully');
 
       // Initialize cleanup service to remove unnecessary fields from existing user documents
       final cleanupService = UserDocumentCleanupService();
@@ -66,6 +72,12 @@ void main() async {
           message.data['inviterUsername'] ?? 'Someone',
           message.data['inviteId'] ?? '',
         );
+      } else if (message.data['type'] == 'daily_reward') {
+        // Show daily reward notification
+        _showDailyRewardNotification(message.data);
+      } else if (message.data['type'] == 'weekly_reward') {
+        // Show weekly reward notification
+        _showWeeklyRewardNotification(message.data);
       }
     });
 
@@ -103,6 +115,84 @@ void _showDuoChallengeInviteDialog(String inviterUsername, String inviteId) {
         inviterUsername: inviterUsername,
         inviteId: inviteId,
       ),
+    );
+  }
+}
+
+void _showDailyRewardNotification(Map<String, dynamic> data) async {
+  if (navigatorKey.currentContext != null) {
+    // Check health permissions before showing notification
+    final healthService = HealthService();
+    bool hasHealthPermissions =
+        await healthService.checkHealthConnectPermissions();
+
+    if (!hasHealthPermissions) {
+      print(
+          'Health permissions not granted, skipping daily reward notification');
+      return;
+    }
+
+    final rank = int.tryParse(data['rank'] ?? '0') ?? 0;
+    final steps = int.tryParse(data['steps'] ?? '0') ?? 0;
+    final coins = int.tryParse(data['coins'] ?? '0') ?? 0;
+
+    // Update the user's coin balance
+    final coinService = CoinService();
+    await coinService.addCoins(coins);
+
+    final rankText = rank == 1
+        ? '1st'
+        : rank == 2
+            ? '2nd'
+            : '3rd';
+
+    showRewardNotification(
+      context: navigatorKey.currentContext!,
+      title: 'Daily Winner! 🏆',
+      message:
+          'Congratulations! You finished $rankText with $steps steps and earned $coins coins!',
+      coins: coins,
+      rank: rank,
+      period: 'daily',
+    );
+  }
+}
+
+void _showWeeklyRewardNotification(Map<String, dynamic> data) async {
+  if (navigatorKey.currentContext != null) {
+    // Check health permissions before showing notification
+    final healthService = HealthService();
+    bool hasHealthPermissions =
+        await healthService.checkHealthConnectPermissions();
+
+    if (!hasHealthPermissions) {
+      print(
+          'Health permissions not granted, skipping weekly reward notification');
+      return;
+    }
+
+    final rank = int.tryParse(data['rank'] ?? '0') ?? 0;
+    final steps = int.tryParse(data['steps'] ?? '0') ?? 0;
+    final coins = int.tryParse(data['coins'] ?? '0') ?? 0;
+
+    // Update the user's coin balance
+    final coinService = CoinService();
+    await coinService.addCoins(coins);
+
+    final rankText = rank == 1
+        ? '1st'
+        : rank == 2
+            ? '2nd'
+            : '3rd';
+
+    showRewardNotification(
+      context: navigatorKey.currentContext!,
+      title: 'Weekly Winner! 🏆',
+      message:
+          'Congratulations! You finished $rankText this week with $steps steps and earned $coins coins!',
+      coins: coins,
+      rank: rank,
+      period: 'weekly',
     );
   }
 }

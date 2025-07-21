@@ -1826,7 +1826,7 @@ class HealthService {
           await userRef.set({
             'daily_steps': {today: steps},
             'weekly_steps': steps,
-            'total_coins': 0,
+            'coins': 0,
             'last_week_rewarded': null,
           }, SetOptions(merge: true));
 

@@ -203,19 +203,23 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 ),
                 GestureDetector(
                   onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FriendProfilePage(
-                          name: widget.name,
-                          avatar: widget.avatar,
-                          steps: '0', // You can pass actual steps if available
-                          color:
-                              Colors.orange, // Or use a color if you have one
-                          isOnline: widget.online,
+                    if (widget.otherUserId != null) {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FriendProfilePage(
+                            name: widget.name,
+                            avatar: widget.avatar,
+                            steps:
+                                '0', // You can pass actual steps if available
+                            color:
+                                Colors.orange, // Or use a color if you have one
+                            isOnline: widget.online,
+                            friendUserId: widget.otherUserId!,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    }
                   },
                   child: Row(
                     children: [

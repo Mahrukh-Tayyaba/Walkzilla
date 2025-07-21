@@ -182,30 +182,38 @@ class ChatService {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return;
 
-    // Check if user is participant
-    final chatDoc = await _firestore.collection('chats').doc(chatId).get();
-    if (!chatDoc.exists) return;
+    try {
+      // Check if user is participant
+      final chatDoc = await _firestore.collection('chats').doc(chatId).get();
+      if (!chatDoc.exists) return;
 
-    final participants =
-        List<String>.from(chatDoc.data()!['participants'] ?? []);
-    if (!participants.contains(currentUser.uid)) return;
+      final participants =
+          List<String>.from(chatDoc.data()!['participants'] ?? []);
+      if (!participants.contains(currentUser.uid)) return;
 
-    // Delete all messages
-    final messages = await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .get();
+      // Delete all messages in batches (Firestore batch limit is 500)
+      final messagesQuery = _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .limit(500);
 
-    final batch = _firestore.batch();
-    for (final doc in messages.docs) {
-      batch.delete(doc.reference);
+      final messages = await messagesQuery.get();
+
+      if (messages.docs.isNotEmpty) {
+        final batch = _firestore.batch();
+        for (final doc in messages.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+
+      // Delete chat document
+      await _firestore.collection('chats').doc(chatId).delete();
+    } catch (e) {
+      print('Error deleting chat: $e');
+      // Don't throw error to avoid failing the entire operation
     }
-
-    // Delete chat document
-    batch.delete(_firestore.collection('chats').doc(chatId));
-
-    await batch.commit();
   }
 
   // Get chat by participants

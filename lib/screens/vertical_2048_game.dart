@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../services/coin_service.dart';
 
 class _BlockPos {
   final int col, row;
@@ -48,6 +49,7 @@ class _Vertical2048GameState extends State<Vertical2048Game>
   static const int columns = 5;
   static const int rows = 7;
   static const Color backgroundColor = Color(0xFFF8F1E3);
+  static const int targetScore = 2048; // Target score to win
   List<List<int?>> grid =
       List.generate(columns, (_) => List.filled(rows, null));
   int score = 0;
@@ -56,7 +58,9 @@ class _Vertical2048GameState extends State<Vertical2048Game>
   int? draggingColumn;
   double dragOffset = 0;
   bool isGameOver = false;
+  bool isGameWon = false;
   final Random random = Random();
+  final CoinService _coinService = CoinService();
 
   // Animation state for falling block
   bool isDropping = false;
@@ -105,6 +109,7 @@ class _Vertical2048GameState extends State<Vertical2048Game>
           currentBlock = nextBlock;
           nextBlock = _randomBlock();
         });
+        _checkWinCondition();
         if (_isGameOver()) {
           setState(() {
             isGameOver = true;
@@ -158,9 +163,79 @@ class _Vertical2048GameState extends State<Vertical2048Game>
       nextBlock = _randomBlock();
     });
 
+    _checkWinCondition();
     if (_isGameOver()) {
       setState(() {
         isGameOver = true;
+      });
+
+      // Show game over dialog when columns are full
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && !isGameWon) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Text('Game Over!',
+                  style: TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold)),
+              content: const Text(
+                'All columns are full! You lost.',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              actions: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                        _resetGame();
+                      },
+                      child: const Text(
+                        'Play Again',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context)
+                            .popUntil((route) => route.isFirst);
+                      },
+                      child: const Text(
+                        'Go Home',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
       });
     }
   }
@@ -293,6 +368,93 @@ class _Vertical2048GameState extends State<Vertical2048Game>
     }
   }
 
+  void _resetGame() {
+    setState(() {
+      // Reset grid
+      grid = List.generate(columns, (_) => List.filled(rows, null));
+
+      // Reset game state
+      score = 0;
+      isGameOver = false;
+      isGameWon = false;
+      isDropping = false;
+      droppingCol = null;
+      droppingRow = null;
+
+      // Generate new blocks
+      currentBlock = _randomBlock();
+      nextBlock = _randomBlock();
+
+      // Clear animations
+      for (final anim in mergeAnimations) {
+        anim.controller.dispose();
+      }
+      mergeAnimations.clear();
+    });
+  }
+
+  void _checkWinCondition() {
+    if (score >= targetScore && !isGameWon) {
+      setState(() {
+        isGameWon = true;
+        isGameOver = true;
+      });
+
+      // Award 50 coins when user reaches target score
+      _coinService.addCoins(50).then((success) {
+        if (success) {
+          print('Successfully awarded 50 coins for reaching target score');
+        } else {
+          print('Failed to award coins for reaching target score');
+        }
+      });
+
+      // Show win dialog
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Text('Congratulations!',
+                  style: TextStyle(
+                      color: Colors.green, fontWeight: FontWeight.bold)),
+              content: const Text(
+                'You reached the target score and earned 50 coins!',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              actions: [
+                Center(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    child: const Text('Go to Home',
+                        style: TextStyle(fontSize: 18, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -329,9 +491,27 @@ class _Vertical2048GameState extends State<Vertical2048Game>
         child: Column(
           children: [
             const SizedBox(height: 16),
-            Text('Score: $score',
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Target: $targetScore',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      )),
+                  Text('Your Score: $score',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            score >= targetScore ? Colors.green : Colors.black,
+                      )),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             Expanded(
               child: Padding(

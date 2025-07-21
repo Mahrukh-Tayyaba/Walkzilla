@@ -39,6 +39,17 @@ class UserDocumentCleanupService {
 
       final userData = userDoc.data()!;
       final fieldsToRemove = <String>[];
+      final fieldsToUpdate = <String, dynamic>{};
+
+      // Migrate total_coins to coins if total_coins exists
+      if (userData.containsKey('total_coins') &&
+          !userData.containsKey('coins')) {
+        final totalCoins = userData['total_coins'] ?? 0;
+        fieldsToUpdate['coins'] = totalCoins;
+        fieldsToRemove.add('total_coins');
+        print(
+            '🔄 Migrating total_coins ($totalCoins) to coins for user $userId');
+      }
 
       // Check which unnecessary fields exist and need to be removed
       if (userData.containsKey('bestStreak')) fieldsToRemove.add('bestStreak');
@@ -55,9 +66,11 @@ class UserDocumentCleanupService {
       if (userData.containsKey('todaySteps')) fieldsToRemove.add('todaySteps');
       if (userData.containsKey('today_steps'))
         fieldsToRemove.add('today_steps');
+      if (userData.containsKey('total_coins'))
+        fieldsToRemove.add('total_coins');
       if (userData.containsKey('weeklyGoal')) fieldsToRemove.add('weeklyGoal');
 
-      if (fieldsToRemove.isEmpty) {
+      if (fieldsToRemove.isEmpty && fieldsToUpdate.isEmpty) {
         print(
             '✅ User $userId already has clean document (no unnecessary fields)');
         return;
@@ -69,9 +82,12 @@ class UserDocumentCleanupService {
         updateData[field] = FieldValue.delete();
       }
 
+      // Add fields to update
+      updateData.addAll(fieldsToUpdate);
+
       await _firestore.collection('users').doc(userId).update(updateData);
       print(
-          '✅ Cleaned up user $userId: removed ${fieldsToRemove.length} fields');
+          '✅ Cleaned up user $userId: removed ${fieldsToRemove.length} fields, updated ${fieldsToUpdate.length} fields');
     } catch (e) {
       print('❌ Error cleaning up user document $userId: $e');
     }

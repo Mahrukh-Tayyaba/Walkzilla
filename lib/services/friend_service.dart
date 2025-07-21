@@ -326,18 +326,17 @@ class FriendService {
       final currentUser = _auth.currentUser;
       if (currentUser == null) return false;
 
-      // Find the friendship document
+      // Create a more specific query to find the exact friendship
       final friendshipQuery = await _firestore
           .collection('friendships')
           .where('users', arrayContains: currentUser.uid)
+          .where('users', arrayContains: friendUserId)
+          .limit(1)
           .get();
 
-      for (final doc in friendshipQuery.docs) {
-        final users = List<String>.from(doc.data()['users'] ?? []);
-        if (users.contains(friendUserId)) {
-          await doc.reference.delete();
-          return true;
-        }
+      if (friendshipQuery.docs.isNotEmpty) {
+        await friendshipQuery.docs.first.reference.delete();
+        return true;
       }
 
       return false;

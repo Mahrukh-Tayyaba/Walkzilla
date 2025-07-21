@@ -938,6 +938,8 @@ class _FriendsPageState extends State<FriendsPage>
                                                     color: Colors.orange,
                                                     isOnline:
                                                         friend['isOnline'],
+                                                    friendUserId:
+                                                        friend['userId'],
                                                   ),
                                                 ),
                                               );

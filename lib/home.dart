@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:health/health.dart'; // Add this import
-import 'health_dashboard.dart'; // Import the health dashboard screen
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:health/health.dart';
+import 'health_dashboard.dart'; // Import the health dashboard screen
 import 'login_screen.dart';
 import 'services/health_service.dart';
 import 'services/character_service.dart';
@@ -10,7 +11,6 @@ import 'services/character_migration_service.dart';
 import 'services/leaderboard_migration_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
-import 'services/leaderboard_service.dart';
 import 'widgets/daily_challenge_spin.dart';
 import 'widgets/reward_notification_widget.dart';
 import 'challenges_screen.dart';
@@ -42,9 +42,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   double _calories = 0.0;
   double _heartRate = 0.0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  bool _isLoading = true;
   String _userName = 'User'; // Default name
-  String _userEmail = '';
   bool _isUserDataLoading = true; // Add loading state for user data
   int _coins = 0; // Will be loaded from coin service
   bool _isUsingRealData = false; // Track if using real health data
@@ -125,7 +123,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
           setState(() {
             _userName = username.isNotEmpty ? username : 'User';
-            _userEmail = user.email ?? '';
             _isUserDataLoading = false;
           });
 
@@ -138,7 +135,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           print("No user document found in Firestore");
           setState(() {
             _userName = 'User';
-            _userEmail = user.email ?? '';
             _isUserDataLoading = false;
           });
         }
@@ -159,8 +155,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> _fetchHealthData() async {
     if (!mounted) return;
 
-    setState(() => _isLoading = true);
-
     try {
       print("🏥 Starting full health data fetch...");
 
@@ -180,7 +174,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             _steps = 0;
             _heartRate = 0.0;
             _calories = 0.0;
-            _isLoading = false;
             _isUsingRealData = false;
           });
           return;
@@ -229,7 +222,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         _steps = stepsCount;
         _heartRate = heartRate;
         _calories = calories;
-        _isLoading = false;
         _isUsingRealData = isRealData;
       });
 
@@ -244,7 +236,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       print("❌ Error fetching health data: $e");
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
         _isUsingRealData = false;
       });
     }
@@ -668,18 +659,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       print("✅ User accepted, requesting Health Connect permissions...");
 
       // Direct permission request
-      bool granted = await _healthService.health.requestAuthorization(
-        [
-          HealthDataType.STEPS,
-          HealthDataType.HEART_RATE,
-          HealthDataType.ACTIVE_ENERGY_BURNED,
-        ],
-        permissions: [
-          HealthDataAccess.READ,
-          HealthDataAccess.READ,
-          HealthDataAccess.READ,
-        ],
-      );
+      bool granted = await _healthService.health.requestAuthorization([
+        HealthDataType.STEPS,
+        HealthDataType.HEART_RATE,
+        HealthDataType.ACTIVE_ENERGY_BURNED,
+      ]);
 
       print("🎯 Direct permission request result: $granted");
 
@@ -882,20 +866,82 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         .collection('users')
         .doc(_auth.currentUser?.uid)
         .snapshots()
-        .listen((snapshot) {
+        .listen((snapshot) async {
       if (snapshot.exists && mounted) {
         final data = snapshot.data()!;
         final lastWeekRewarded = data['last_week_rewarded'];
 
         // Check for new weekly rewards
         if (lastWeekRewarded != null) {
-          _checkAndShowRewardNotification('weekly', lastWeekRewarded);
+          // Check health permissions before showing notification
+          bool hasHealthPermissions =
+              await _healthService.checkHealthConnectPermissions();
+          if (hasHealthPermissions) {
+            _checkAndShowRewardNotification('weekly', lastWeekRewarded);
+          }
+        }
+      }
+    });
+
+    // Listen for leaderboard history to show daily reward notifications
+    _firestore
+        .collection('leaderboard_history')
+        .where('type', isEqualTo: 'daily')
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen((snapshot) async {
+      if (snapshot.docs.isNotEmpty && mounted) {
+        final latestDailyReward = snapshot.docs.first;
+        final rewardData = latestDailyReward.data();
+        final winners = rewardData['winners'] as List<dynamic>? ?? [];
+        final currentUserId = _auth.currentUser?.uid;
+
+        // Check if current user is in the winners list
+        for (final winner in winners) {
+          if (winner['userId'] == currentUserId) {
+            final rank = winner['rank'] as int;
+            final steps = winner['steps'] as int;
+            final reward = winner['reward'] as int;
+            final date = rewardData['date'] as String;
+
+            // Check health permissions before showing notification
+            bool hasHealthPermissions =
+                await _healthService.checkHealthConnectPermissions();
+            if (hasHealthPermissions) {
+              // Show notification for daily reward
+              _showDailyRewardNotification(rank, steps, reward, date);
+            }
+            break;
+          }
         }
       }
     });
   }
 
-  void _checkAndShowRewardNotification(String type, String rewardDate) {
+  void _showDailyRewardNotification(
+      int rank, int steps, int reward, String date) async {
+    final rankText = rank == 1
+        ? '1st'
+        : rank == 2
+            ? '2nd'
+            : '3rd';
+
+    // Update the user's coin balance
+    await _coinService.addCoins(reward);
+
+    showRewardNotification(
+      context: context,
+      title: 'Daily Winner! 🏆',
+      message:
+          'Congratulations! You finished $rankText with $steps steps and earned $reward coins!',
+      coins: reward,
+      rank: rank,
+      period: 'daily',
+    );
+  }
+
+  void _checkAndShowRewardNotification(String type, String rewardDate) async {
     // This is a simplified version - in production you'd want to track shown notifications
     final now = DateTime.now();
     final rewardDateTime = DateTime.parse(rewardDate);
@@ -903,13 +949,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     // Show notification if reward was given recently (within last hour)
     if (now.difference(rewardDateTime).inHours < 1) {
       final rewards = [500, 250, 100]; // Weekly rewards
+      final reward = rewards[0]; // Assuming 1st place for demo
+
+      // Update the user's coin balance
+      await _coinService.addCoins(reward);
 
       // This is a simplified example - you'd need to get actual rank from leaderboard history
       showRewardNotification(
         context: context,
         title: 'Congratulations! 🎉',
         message: 'You ranked in the top 3 for this week!',
-        coins: rewards[0], // Assuming 1st place for demo
+        coins: reward,
         rank: 1,
         period: type,
       );
@@ -921,11 +971,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     try {
       final type = data['type'];
       final rank = int.tryParse(data['rank'] ?? '0') ?? 0;
-      final steps = int.tryParse(data['steps'] ?? '0') ?? 0;
       final coins = int.tryParse(data['coins'] ?? '0') ?? 0;
 
       if (type == 'daily_reward') {
-        final date = data['date'] ?? 'today';
         final rankText = rank == 1
             ? '1st'
             : rank == 2
@@ -940,7 +988,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           period: 'daily',
         );
       } else if (type == 'weekly_reward') {
-        final weekEndDate = data['weekEndDate'] ?? 'this week';
         final rankText = rank == 1
             ? '1st'
             : rank == 2
@@ -1291,34 +1338,31 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               color: Colors.blue[50],
                             ),
                           ),
-                          // 3D ModelViewer widget with lazy loading
-                          SizedBox(
-                            height: screenSize.width * 0.9,
-                            width: screenSize.width * 0.9,
-                            child: FutureBuilder(
-                              future: Future.delayed(
-                                  const Duration(seconds: 2)), // Delay loading
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-                                return const ModelViewer(
+                          // 3D ModelViewer widget - load once and stay stable
+                          RepaintBoundary(
+                            child: SizedBox(
+                              height: screenSize.width * 0.9,
+                              width: screenSize.width * 0.9,
+                              child: AbsorbPointer(
+                                child: const ModelViewer(
                                   src: 'assets/web/MyCharacter.glb',
                                   alt: "A 3D model of MyCharacter",
                                   autoRotate: false,
-                                  cameraControls: true,
+                                  cameraControls: false,
                                   backgroundColor: Colors.transparent,
                                   cameraOrbit: "0deg 75deg 100%",
-                                  minCameraOrbit: "-180deg 75deg 100%",
-                                  maxCameraOrbit: "180deg 75deg 100%",
+                                  minCameraOrbit: "0deg 75deg 100%",
+                                  maxCameraOrbit: "0deg 75deg 100%",
                                   interactionPrompt: InteractionPrompt.none,
                                   disableTap: true,
                                   autoPlay: true,
-                                );
-                              },
+                                  disableZoom: true,
+                                  disablePan: true,
+                                  minFieldOfView: "45deg",
+                                  maxFieldOfView: "45deg",
+                                  fieldOfView: "45deg",
+                                ),
+                              ),
                             ),
                           ),
                         ],

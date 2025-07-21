@@ -24,7 +24,7 @@ Each user document in the `users` collection should have these fields:
   },
   "weekly_steps": 45000,
   "monthly_steps": 180000,
-  "total_coins": 1250,
+  "coins": 1250,
   "last_week_rewarded": "2024-01-14",
   "last_month_rewarded": "2024-01-01"
 }

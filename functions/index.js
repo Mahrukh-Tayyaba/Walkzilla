@@ -47,8 +47,7 @@ exports.sendDuoChallengeInvite = onDocumentCreated(
 );
 
 // Export leaderboard functions
-exports.updateDailyStepAggregation = leaderboardFunctions.updateDailyStepAggregation;
+exports.distributeDailyRewards = leaderboardFunctions.distributeDailyRewards;
 exports.distributeWeeklyRewards = leaderboardFunctions.distributeWeeklyRewards;
-exports.manualStepAggregation = leaderboardFunctions.manualStepAggregation;
 exports.getLeaderboardData = leaderboardFunctions.getLeaderboardData;
 exports.initializeUserLeaderboardData = leaderboardFunctions.initializeUserLeaderboardData;

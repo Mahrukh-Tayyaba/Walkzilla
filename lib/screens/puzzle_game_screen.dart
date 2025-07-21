@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
+import '../services/coin_service.dart';
 
 class PuzzleGameScreen extends StatefulWidget {
   const PuzzleGameScreen({super.key});
@@ -17,6 +18,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
   int _seconds = 0;
   Timer? _timer;
   bool _started = false;
+  final CoinService _coinService = CoinService();
 
   @override
   void initState() {
@@ -122,6 +124,16 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
         _isGameWon = true;
       });
       _timer?.cancel();
+
+      // Award 50 coins when user wins
+      _coinService.addCoins(50).then((success) {
+        if (success) {
+          print('Successfully awarded 50 coins for puzzle completion');
+        } else {
+          print('Failed to award coins for puzzle completion');
+        }
+      });
+
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           showDialog(
@@ -133,12 +145,12 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
               title: const Text('Congratulations!',
                   style: TextStyle(
                       color: Colors.green, fontWeight: FontWeight.bold)),
-              content: Text(
-                'You earned $_points points!',
+              content: const Text(
+                'You earned 50 coins!',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: _points == 10 ? Colors.orange : Colors.blueGrey,
+                  color: Colors.orange,
                 ),
                 textAlign: TextAlign.center,
               ),

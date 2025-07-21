@@ -52,7 +52,7 @@ class LeaderboardMigrationService {
       final updateData = <String, dynamic>{
         'daily_steps': userData['daily_steps'] ?? {},
         'weekly_steps': userData['weekly_steps'] ?? 0,
-        'total_coins': userData['total_coins'] ?? 0,
+        'coins': userData['coins'] ?? 0,
         'last_week_rewarded': userData['last_week_rewarded'] ?? null,
         'last_month_rewarded': userData['last_month_rewarded'] ?? null,
       };

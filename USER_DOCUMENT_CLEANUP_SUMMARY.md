@@ -80,7 +80,7 @@ After cleanup, user documents will only contain these essential fields:
     "2024-01-16": "number"
   },
   "weekly_steps": "number",
-  "total_coins": "number",
+  "coins": "number",
   "last_week_rewarded": "string",
   "last_month_rewarded": "string",
   "fcmToken": "string"
