@@ -8,14 +8,7 @@
         <description>Record your steps</description>
         <reason>To save your walking and running activity</reason>
     </permission>
-    <permission name="android.permission.health.READ_HEART_RATE">
-        <description>Read your heart rate data</description>
-        <reason>To monitor your heart rate during activities</reason>
-    </permission>
-    <permission name="android.permission.health.WRITE_HEART_RATE">
-        <description>Record your heart rate</description>
-        <reason>To save your heart rate measurements</reason>
-    </permission>
+
     <permission name="android.permission.health.READ_ACTIVE_CALORIES_BURNED">
         <description>Read calories burned during activities</description>
         <reason>To track calories burned during exercises and daily activities</reason>
@@ -23,5 +16,14 @@
     <permission name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED">
         <description>Record calories burned</description>
         <reason>To save your calorie burn data from activities</reason>
+    </permission>
+    
+    <permission name="android.permission.health.READ_DISTANCE">
+        <description>Read your distance traveled</description>
+        <reason>To track your walking and running distance for fitness goals</reason>
+    </permission>
+    <permission name="android.permission.health.WRITE_DISTANCE">
+        <description>Record your distance traveled</description>
+        <reason>To save your distance data from walking and running activities</reason>
     </permission>
 </permissions> 

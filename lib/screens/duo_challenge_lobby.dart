@@ -9,9 +9,11 @@ class DuoChallengeLobby extends StatefulWidget {
   final String inviteId;
   final String? otherUsername;
 
-  const DuoChallengeLobby(
-      {Key? key, required this.inviteId, this.otherUsername})
-      : super(key: key);
+  const DuoChallengeLobby({
+    Key? key,
+    required this.inviteId,
+    this.otherUsername,
+  }) : super(key: key);
 
   @override
   State<DuoChallengeLobby> createState() => _DuoChallengeLobbyState();
@@ -36,9 +38,13 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
     _userId = _auth.currentUser!.uid;
     _setPresence(true);
     _leftCoinsController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _rightCoinsController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
 
     // Listen for game start
     _listenForGameStart();
@@ -57,7 +63,7 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
     final docRef =
         _firestore.collection('duo_challenge_invites').doc(widget.inviteId);
     await docRef.set({
-      'lobbyPresence': {_userId: present}
+      'lobbyPresence': {_userId: present},
     }, SetOptions(merge: true));
   }
 
@@ -183,12 +189,15 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const SizedBox(height: 12),
-                            Text('VS',
-                                style: TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green[600],
-                                    letterSpacing: 2)),
+                            Text(
+                              'VS',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[600],
+                                letterSpacing: 2,
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             _buildPrizePotBox(usersPresent, _showCenterAmount),
                           ],
@@ -201,21 +210,23 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
                   // Animated coins from left
                   if (usersPresent >= 2 && !_showCenterAmount)
                     ...List.generate(
-                        _coinCount,
-                        (i) => _buildAnimatedCoin(
-                              fromLeft: true,
-                              index: i,
-                              controller: _leftCoinsController,
-                            )),
+                      _coinCount,
+                      (i) => _buildAnimatedCoin(
+                        fromLeft: true,
+                        index: i,
+                        controller: _leftCoinsController,
+                      ),
+                    ),
                   // Animated coins from right
                   if (usersPresent >= 2 && !_showCenterAmount)
                     ...List.generate(
-                        _coinCount,
-                        (i) => _buildAnimatedCoin(
-                              fromLeft: false,
-                              index: i,
-                              controller: _rightCoinsController,
-                            )),
+                      _coinCount,
+                      (i) => _buildAnimatedCoin(
+                        fromLeft: false,
+                        index: i,
+                        controller: _rightCoinsController,
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -225,10 +236,11 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
     );
   }
 
-  Widget _buildAnimatedCoin(
-      {required bool fromLeft,
-      required int index,
-      required AnimationController controller}) {
+  Widget _buildAnimatedCoin({
+    required bool fromLeft,
+    required int index,
+    required AnimationController controller,
+  }) {
     // Layout constants
     final double startX = fromLeft ? -110 : 110;
     final double endX = 0;
@@ -236,7 +248,9 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
     final double endY =
         -10.0 + Random(index).nextInt(20).toDouble(); // small vertical spread
     final curve = CurvedAnimation(
-        parent: controller, curve: Interval(0.0, 1.0, curve: Curves.easeInOut));
+      parent: controller,
+      curve: Interval(0.0, 1.0, curve: Curves.easeInOut),
+    );
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
@@ -257,8 +271,10 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
     );
   }
 
-  Widget _buildPlayerCard(Map<String, dynamic> player,
-      {required bool isCurrentUser}) {
+  Widget _buildPlayerCard(
+    Map<String, dynamic> player, {
+    required bool isCurrentUser,
+  }) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -295,8 +311,9 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
                     child: player['isLoading'] == true
                         ? const Center(
                             child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                               strokeWidth: 3,
                             ),
                           )
@@ -306,18 +323,25 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
                                   topLeft: Radius.circular(16),
                                   topRight: Radius.circular(16),
                                 ),
-                                child: Image.network(player['avatar'],
-                                    fit: BoxFit.cover),
+                                child: Image.network(
+                                  player['avatar'],
+                                  fit: BoxFit.cover,
+                                ),
                               )
-                            : Icon(Icons.person,
-                                size: 60, color: Colors.grey[400]),
+                            : Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.grey[400],
+                              ),
                   ),
                   Positioned(
                     top: 6,
                     left: 6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.yellow[700],
                         borderRadius: BorderRadius.circular(10),
@@ -332,10 +356,13 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
                         children: [
                           const Icon(Icons.star, size: 16, color: Colors.white),
                           const SizedBox(width: 2),
-                          Text('${player['level']}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
+                          Text(
+                            '${player['level']}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -356,9 +383,10 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
                   child: Text(
                     player['username'],
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.white),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -380,11 +408,14 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
             children: [
               Image.asset('assets/images/coin.png', width: 22, height: 22),
               const SizedBox(width: 6),
-              Text('${player['coins']}',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
+              Text(
+                '${player['coins']}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ],
           ),
         ),
@@ -409,7 +440,10 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
           Text(
             showAmount ? '100' : '',
             style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
           ),
         ],
       ),

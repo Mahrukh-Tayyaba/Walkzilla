@@ -40,7 +40,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   final CoinService _coinService = CoinService();
   int _steps = 0;
   double _calories = 0.0;
-  double _heartRate = 0.0;
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String _userName = 'User'; // Default name
   bool _isUserDataLoading = true; // Add loading state for user data
@@ -172,7 +172,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           if (!mounted) return;
           setState(() {
             _steps = 0;
-            _heartRate = 0.0;
+
             _calories = 0.0;
             _isUsingRealData = false;
           });
@@ -185,48 +185,37 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // Fetch hybrid real-time steps for immediate feedback + accuracy
       final stepsCount = await _healthService.fetchHybridRealTimeSteps();
 
-      // Fetch heart rate data (returns Map)
-      final heartRateData = await _healthService.fetchHeartRateData();
-      final heartRate = (heartRateData['beatsPerMinute'] as num).toDouble();
-
-      // Fetch calories data (returns Map)
+      // Fetch total calories data (returns Map)
       final caloriesData = await _healthService.fetchCaloriesData();
       final calories =
-          (caloriesData['energy']['inKilocalories'] as num).toDouble();
+          (caloriesData['energy']['totalKilocalories'] as num).toDouble();
 
       // Check if data source is Health Connect
       bool hasRealStepsData = hasPermissions;
-      final heartRateSource =
-          heartRateData['metadata']['device']['manufacturer'] as String;
       final caloriesSource =
           caloriesData['metadata']['device']['manufacturer'] as String;
 
       print(
           "🏥 Steps data source: ${hasRealStepsData ? 'Health Connect' : 'No Data'}");
-      print("💖 Heart rate data source: $heartRateSource");
       print("🔥 Calories data source: $caloriesSource");
 
       // Determine if we're using real Health Connect data
-      bool isRealData = hasRealStepsData &&
-          heartRateSource == "Health Connect" &&
-          caloriesSource == "Health Connect";
+      bool isRealData = hasRealStepsData && caloriesSource == "Health Connect";
 
       print("✅ Is real Health Connect data: $isRealData");
       print("📈 Steps count: $stepsCount");
-      print("💖 Heart rate: $heartRate bpm");
       print("🔥 Calories: $calories kcal");
 
       if (!mounted) return;
 
       setState(() {
         _steps = stepsCount;
-        _heartRate = heartRate;
         _calories = calories;
         _isUsingRealData = isRealData;
       });
 
       print(
-          "✅ Updated UI with health data: Steps: $_steps, Heart Rate: $_heartRate, Calories: $_calories");
+          "✅ Updated UI with health data: Steps: $_steps, Calories: $_calories");
 
       if (!isRealData) {
         print(
@@ -509,8 +498,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               'Walkzilla needs access to your health data to provide personalized fitness tracking and insights.\n\n'
               'We request access to:\n'
               '• Steps - To track your daily activity\n'
-              '• Heart Rate - To monitor your fitness levels\n'
-              '• Calories - To track calories burned\n\n'
+              '• Active calories - To track calories burned during activities\n'
+              '• Distance - To track your walking/running distance\n\n'
               'Your data is stored securely and is only used to provide you with better fitness insights.',
             ),
             actions: <Widget>[
@@ -584,8 +573,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // First check if Health Connect is available
       bool? isAvailable = await _healthService.health.hasPermissions([
         HealthDataType.STEPS,
-        HealthDataType.HEART_RATE,
         HealthDataType.ACTIVE_ENERGY_BURNED,
+        HealthDataType.DISTANCE_DELTA,
       ]);
 
       if (isAvailable == null) {
@@ -634,9 +623,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             'Walkzilla needs access to your health data to track your steps and provide fitness insights.\n\n'
             'When the Health Connect dialog appears, please tap "Allow" for:\n'
             '• Steps\n'
-            '• Heart Rate\n'
-            '• Calories\n\n'
-            'This will enable real-time step tracking in your app.',
+            '• Active calories burned\n'
+            '• Distance\n\n'
+            'This will enable real-time tracking of your active calories.',
           ),
           actions: [
             TextButton(
@@ -661,8 +650,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // Direct permission request
       bool granted = await _healthService.health.requestAuthorization([
         HealthDataType.STEPS,
-        HealthDataType.HEART_RATE,
         HealthDataType.ACTIVE_ENERGY_BURNED,
+        HealthDataType.DISTANCE_DELTA,
       ]);
 
       print("🎯 Direct permission request result: $granted");
@@ -675,8 +664,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
         bool? verified = await _healthService.health.hasPermissions([
           HealthDataType.STEPS,
-          HealthDataType.HEART_RATE,
           HealthDataType.ACTIVE_ENERGY_BURNED,
+          HealthDataType.DISTANCE_DELTA,
         ]);
 
         print("🎯 Verification after direct request: $verified");
@@ -861,23 +850,49 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   void _startRewardListener() {
-    // Listen for reward notifications
+    // Listen for weekly reward notifications
     _firestore
-        .collection('users')
-        .doc(_auth.currentUser?.uid)
+        .collection('leaderboard_history')
+        .where('type', isEqualTo: 'weekly')
+        .orderBy('createdAt', descending: true)
+        .limit(1)
         .snapshots()
         .listen((snapshot) async {
-      if (snapshot.exists && mounted) {
-        final data = snapshot.data()!;
-        final lastWeekRewarded = data['last_week_rewarded'];
+      if (snapshot.docs.isNotEmpty && mounted) {
+        final latestWeeklyReward = snapshot.docs.first;
+        final rewardData = latestWeeklyReward.data();
+        final winners = rewardData['winners'] as List<dynamic>? ?? [];
+        final currentUserId = _auth.currentUser?.uid;
+        final date = rewardData['date'] as String;
 
-        // Check for new weekly rewards
-        if (lastWeekRewarded != null) {
-          // Check health permissions before showing notification
-          bool hasHealthPermissions =
-              await _healthService.checkHealthConnectPermissions();
-          if (hasHealthPermissions) {
-            _checkAndShowRewardNotification('weekly', lastWeekRewarded);
+        // Check if current user is in the winners list
+        for (final winner in winners) {
+          if (winner['userId'] == currentUserId) {
+            final rank = winner['rank'] as int;
+            final steps = winner['steps'] as int;
+            final reward = winner['reward'] as int;
+
+            // Check if this reward has already been shown to the user
+            final userDoc =
+                await _firestore.collection('users').doc(currentUserId).get();
+            if (userDoc.exists) {
+              final userData = userDoc.data()!;
+              final shownRewards =
+                  userData['shown_rewards'] as Map<String, dynamic>? ?? {};
+              final rewardKey = 'weekly_$date';
+
+              // Only show notification if it hasn't been shown before
+              if (!shownRewards.containsKey(rewardKey)) {
+                // Check health permissions before showing notification
+                bool hasHealthPermissions =
+                    await _healthService.checkHealthConnectPermissions();
+                if (hasHealthPermissions) {
+                  // Show notification for weekly reward
+                  _showWeeklyRewardNotification(rank, steps, reward, date);
+                }
+              }
+            }
+            break;
           }
         }
       }
@@ -896,6 +911,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         final rewardData = latestDailyReward.data();
         final winners = rewardData['winners'] as List<dynamic>? ?? [];
         final currentUserId = _auth.currentUser?.uid;
+        final date = rewardData['date'] as String;
 
         // Check if current user is in the winners list
         for (final winner in winners) {
@@ -903,14 +919,26 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             final rank = winner['rank'] as int;
             final steps = winner['steps'] as int;
             final reward = winner['reward'] as int;
-            final date = rewardData['date'] as String;
 
-            // Check health permissions before showing notification
-            bool hasHealthPermissions =
-                await _healthService.checkHealthConnectPermissions();
-            if (hasHealthPermissions) {
-              // Show notification for daily reward
-              _showDailyRewardNotification(rank, steps, reward, date);
+            // Check if this reward has already been shown to the user
+            final userDoc =
+                await _firestore.collection('users').doc(currentUserId).get();
+            if (userDoc.exists) {
+              final userData = userDoc.data()!;
+              final shownRewards =
+                  userData['shown_rewards'] as Map<String, dynamic>? ?? {};
+              final rewardKey = 'daily_$date';
+
+              // Only show notification if it hasn't been shown before
+              if (!shownRewards.containsKey(rewardKey)) {
+                // Check health permissions before showing notification
+                bool hasHealthPermissions =
+                    await _healthService.checkHealthConnectPermissions();
+                if (hasHealthPermissions) {
+                  // Show notification for daily reward
+                  _showDailyRewardNotification(rank, steps, reward, date);
+                }
+              }
             }
             break;
           }
@@ -930,6 +958,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     // Update the user's coin balance
     await _coinService.addCoins(reward);
 
+    // Mark this reward as shown to prevent showing it again
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId != null) {
+      final rewardKey = 'daily_$date';
+      await _firestore.collection('users').doc(currentUserId).update({
+        'shown_rewards.$rewardKey': {
+          'shown_at': FieldValue.serverTimestamp(),
+          'rank': rank,
+          'steps': steps,
+          'reward': reward,
+          'date': date,
+        },
+      });
+    }
+
     showRewardNotification(
       context: context,
       title: 'Daily Winner! 🏆',
@@ -941,29 +984,41 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     );
   }
 
-  void _checkAndShowRewardNotification(String type, String rewardDate) async {
-    // This is a simplified version - in production you'd want to track shown notifications
-    final now = DateTime.now();
-    final rewardDateTime = DateTime.parse(rewardDate);
+  void _showWeeklyRewardNotification(
+      int rank, int steps, int reward, String date) async {
+    final rankText = rank == 1
+        ? '1st'
+        : rank == 2
+            ? '2nd'
+            : '3rd';
 
-    // Show notification if reward was given recently (within last hour)
-    if (now.difference(rewardDateTime).inHours < 1) {
-      final rewards = [500, 250, 100]; // Weekly rewards
-      final reward = rewards[0]; // Assuming 1st place for demo
+    // Update the user's coin balance
+    await _coinService.addCoins(reward);
 
-      // Update the user's coin balance
-      await _coinService.addCoins(reward);
-
-      // This is a simplified example - you'd need to get actual rank from leaderboard history
-      showRewardNotification(
-        context: context,
-        title: 'Congratulations! 🎉',
-        message: 'You ranked in the top 3 for this week!',
-        coins: reward,
-        rank: 1,
-        period: type,
-      );
+    // Mark this reward as shown to prevent showing it again
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId != null) {
+      final rewardKey = 'weekly_$date';
+      await _firestore.collection('users').doc(currentUserId).update({
+        'shown_rewards.$rewardKey': {
+          'shown_at': FieldValue.serverTimestamp(),
+          'rank': rank,
+          'steps': steps,
+          'reward': reward,
+          'date': date,
+        },
+      });
     }
+
+    showRewardNotification(
+      context: context,
+      title: 'Weekly Winner! 🏆',
+      message:
+          'Congratulations! You finished $rankText this week with $steps steps and earned $reward coins!',
+      coins: reward,
+      rank: rank,
+      period: 'weekly',
+    );
   }
 
   /// Handle FCM notifications for rewards
@@ -1226,6 +1281,64 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           elevation: 0,
           actions: [
+            // Quick reset button for Health Connect permissions
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.black87),
+              tooltip: 'Health Connect Options',
+              onSelected: (value) {
+                if (value == 'nuclear_reset') {
+                  _showNuclearResetDialog();
+                } else if (value == 'quick_reset') {
+                  _performQuickReset();
+                } else if (value == 'force_recognition') {
+                  _performForceRecognition();
+                } else if (value == 'request_permissions') {
+                  _requestFreshPermissions();
+                }
+              },
+              itemBuilder: (BuildContext context) => [
+                const PopupMenuItem(
+                  value: 'quick_reset',
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh, size: 20),
+                      SizedBox(width: 8),
+                      Text('Quick Reset'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'force_recognition',
+                  child: Row(
+                    children: [
+                      Icon(Icons.psychology, size: 20),
+                      SizedBox(width: 8),
+                      Text('Force Recognition'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'nuclear_reset',
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, size: 20),
+                      SizedBox(width: 8),
+                      Text('Nuclear Reset'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'request_permissions',
+                  child: Row(
+                    children: [
+                      Icon(Icons.health_and_safety, size: 20),
+                      SizedBox(width: 8),
+                      Text('Request Permissions'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             Padding(
               padding:
                   const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
@@ -1886,8 +1999,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       print("1️⃣ Checking Health Connect availability...");
       bool? isAvailable = await _healthService.health.hasPermissions([
         HealthDataType.STEPS,
-        HealthDataType.HEART_RATE,
         HealthDataType.ACTIVE_ENERGY_BURNED,
+        HealthDataType.BASAL_ENERGY_BURNED,
+        HealthDataType.DISTANCE_DELTA,
       ]);
       print("   Health Connect available: ${isAvailable != null}");
       print("   Availability result: $isAvailable");
@@ -1921,8 +2035,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         print("5️⃣ Checking permissions after request...");
         bool? afterRequest = await _healthService.health.hasPermissions([
           HealthDataType.STEPS,
-          HealthDataType.HEART_RATE,
           HealthDataType.ACTIVE_ENERGY_BURNED,
+          HealthDataType.DISTANCE_DELTA,
         ]);
         print("   Permissions after request: $afterRequest");
       }
@@ -1980,7 +2094,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // Try to get permissions to check if Health Connect is available
       bool? isAvailable = await _healthService.health.hasPermissions([
         HealthDataType.STEPS,
-        HealthDataType.HEART_RATE,
         HealthDataType.ACTIVE_ENERGY_BURNED,
       ]);
 
@@ -1995,6 +2108,386 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     } catch (e) {
       print("❌ Error checking Health Connect availability: $e");
       return false;
+    }
+  }
+
+  // Nuclear reset dialog for Health Connect permissions
+  void _showNuclearResetDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Nuclear Permission Reset'),
+          content: const Text(
+            'This will completely reset all Health Connect permissions for Walkzilla.\n\n'
+            'This is needed to force Health Connect to show the correct data types:\n'
+            '• Steps\n'
+            '• Distance\n'
+            '• Total Calories\n\n'
+            'Instead of the old cached permissions that include Heart Rate.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _performNuclearReset();
+              },
+              child: const Text('Reset Permissions'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Perform the nuclear reset
+  Future<void> _performNuclearReset() async {
+    try {
+      print("☢️ Starting nuclear reset from home screen...");
+
+      // Show loading dialog with cancel option
+      bool? shouldCancel = false;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Nuclear Reset in Progress'),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text(
+                    'Resetting Health Connect permissions...\n\nThis may take a moment.'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  shouldCancel = true;
+                  Navigator.pop(context);
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+
+      // Perform nuclear reset with timeout
+      bool success = false;
+      try {
+        success = await _healthService
+            .nuclearPermissionReset(context)
+            .timeout(const Duration(seconds: 30));
+      } catch (e) {
+        print("❌ Nuclear reset timed out or failed: $e");
+        success = false;
+      }
+
+      // Close loading dialog
+      if (context.mounted && !shouldCancel!) {
+        Navigator.pop(context);
+      }
+
+      if (success) {
+        print("✅ Nuclear reset completed successfully");
+
+        // Show success message with action button
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Reset Complete'),
+                content: const Text(
+                  'Permissions have been reset successfully!\n\n'
+                  'Now you can request fresh permissions that should show:\n'
+                  '• Steps\n'
+                  '• Distance\n'
+                  '• Total Calories\n\n'
+                  'Instead of the old heart rate permissions.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await _requestFreshPermissions();
+                    },
+                    child: const Text('Request Permissions Now'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      } else {
+        print("❌ Nuclear reset failed");
+
+        // Show error message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Reset failed. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print("❌ Error in nuclear reset: $e");
+
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Force Health Connect to recognize new data types
+  Future<void> _performForceRecognition() async {
+    try {
+      print("🧠 Starting force recognition...");
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Forcing Health Connect recognition...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Perform force recognition
+      bool success =
+          await _healthService.forceHealthConnectDataTypesRecognition(context);
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (success) {
+        print("✅ Force recognition completed successfully");
+      } else {
+        print("❌ Force recognition failed");
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Force recognition failed. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print("❌ Error in force recognition: $e");
+
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Quick reset for Health Connect permissions
+  Future<void> _performQuickReset() async {
+    try {
+      print("⚡ Starting quick reset...");
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Quick reset in progress...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Clear Firestore permission status
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'hasHealthPermissions': false});
+        print("💾 Quick reset: Cleared Firestore permission status");
+      }
+
+      // Force re-initialization
+      await _healthService.forceResetHealthConnectPermissions();
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show success message
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Quick Reset Complete'),
+              content: const Text(
+                'Permissions have been reset.\n\n'
+                'Now try requesting permissions again to see the correct data types.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _requestFreshPermissions();
+                  },
+                  child: const Text('Request Permissions'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      print("❌ Error in quick reset: $e");
+
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Quick reset failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Request fresh permissions after nuclear reset
+  Future<void> _requestFreshPermissions() async {
+    try {
+      print("🔄 Requesting fresh permissions after nuclear reset...");
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Requesting permissions...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Request permissions using the health service
+      bool success = await _healthService.requestHealthPermissions(context);
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (success) {
+        print("✅ Fresh permissions requested successfully");
+
+        // Refresh health data
+        await _fetchHealthData();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Permissions requested! Check Health Connect for the new data types.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        print("❌ Fresh permission request failed");
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Permission request failed. Try again or check Health Connect manually.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print("❌ Error requesting fresh permissions: $e");
+
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

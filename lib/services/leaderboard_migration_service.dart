@@ -55,6 +55,7 @@ class LeaderboardMigrationService {
         'coins': userData['coins'] ?? 0,
         'last_week_rewarded': userData['last_week_rewarded'] ?? null,
         'last_month_rewarded': userData['last_month_rewarded'] ?? null,
+        'shown_rewards': userData['shown_rewards'] ?? {},
       };
 
       await _firestore.collection('users').doc(userId).update(updateData);

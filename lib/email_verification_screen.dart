@@ -224,6 +224,7 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
           'idle': 'images/character_idle.json',
           'walking': 'images/character_walking.json'
         },
+        'shown_rewards': {},
       });
 
       if (mounted) {

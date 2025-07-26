@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'welcome_screen.dart';
 import 'providers/step_goal_provider.dart';
@@ -135,10 +137,28 @@ void _showDailyRewardNotification(Map<String, dynamic> data) async {
     final rank = int.tryParse(data['rank'] ?? '0') ?? 0;
     final steps = int.tryParse(data['steps'] ?? '0') ?? 0;
     final coins = int.tryParse(data['coins'] ?? '0') ?? 0;
+    final date = data['date'] ?? '';
 
     // Update the user's coin balance
     final coinService = CoinService();
     await coinService.addCoins(coins);
+
+    // Mark this reward as shown to prevent showing it again
+    final auth = FirebaseAuth.instance;
+    final firestore = FirebaseFirestore.instance;
+    final currentUserId = auth.currentUser?.uid;
+    if (currentUserId != null && date.isNotEmpty) {
+      final rewardKey = 'daily_$date';
+      await firestore.collection('users').doc(currentUserId).update({
+        'shown_rewards.$rewardKey': {
+          'shown_at': FieldValue.serverTimestamp(),
+          'rank': rank,
+          'steps': steps,
+          'reward': coins,
+          'date': date,
+        },
+      });
+    }
 
     final rankText = rank == 1
         ? '1st'
@@ -174,10 +194,28 @@ void _showWeeklyRewardNotification(Map<String, dynamic> data) async {
     final rank = int.tryParse(data['rank'] ?? '0') ?? 0;
     final steps = int.tryParse(data['steps'] ?? '0') ?? 0;
     final coins = int.tryParse(data['coins'] ?? '0') ?? 0;
+    final weekEndDate = data['weekEndDate'] ?? '';
 
     // Update the user's coin balance
     final coinService = CoinService();
     await coinService.addCoins(coins);
+
+    // Mark this reward as shown to prevent showing it again
+    final auth = FirebaseAuth.instance;
+    final firestore = FirebaseFirestore.instance;
+    final currentUserId = auth.currentUser?.uid;
+    if (currentUserId != null && weekEndDate.isNotEmpty) {
+      final rewardKey = 'weekly_$weekEndDate';
+      await firestore.collection('users').doc(currentUserId).update({
+        'shown_rewards.$rewardKey': {
+          'shown_at': FieldValue.serverTimestamp(),
+          'rank': rank,
+          'steps': steps,
+          'reward': coins,
+          'date': weekEndDate,
+        },
+      });
+    }
 
     final rankText = rank == 1
         ? '1st'

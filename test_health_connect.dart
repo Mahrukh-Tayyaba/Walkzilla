@@ -38,8 +38,8 @@ class _HealthConnectTestState extends State<HealthConnectTest> {
 
       final dataTypes = [
         HealthDataType.STEPS,
-        HealthDataType.HEART_RATE,
         HealthDataType.ACTIVE_ENERGY_BURNED,
+        HealthDataType.DISTANCE_DELTA,
       ];
 
       bool? hasPermissions = await _health.hasPermissions(dataTypes);
@@ -69,8 +69,6 @@ class _HealthConnectTestState extends State<HealthConnectTest> {
         if (kDebugMode) {
           debugPrint('Health Data Test Results:');
           debugPrint('Steps: ${healthData['steps']['count']}');
-          debugPrint(
-              'Heart Rate: ${healthData['heartRate']['beatsPerMinute']} bpm');
           debugPrint(
               'Calories: ${healthData['calories']['energy']['inKilocalories']} kcal');
           debugPrint(
@@ -199,8 +197,6 @@ class _HealthConnectTestState extends State<HealthConnectTest> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Steps: ${_healthData!['steps']['count']}'),
-                      Text(
-                          'Heart Rate: ${_healthData!['heartRate']['beatsPerMinute']} bpm'),
                       Text(
                           'Calories: ${_healthData!['calories']['energy']['inKilocalories']} kcal'),
                       const SizedBox(height: 8),

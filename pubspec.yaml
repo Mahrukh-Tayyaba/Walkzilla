@@ -57,6 +57,7 @@ dependencies:
   path_provider: ^2.0.15
   flame: ^1.29.0
   image_picker: ^1.0.7
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -108,11 +109,22 @@ flutter:
     - assets/images/dragon_wingdown.png
     - assets/images/dragon_wingup.png 
     - assets/images/dragon_wingmiddle.png
+    - assets/images/500mile.png
+    - assets/images/1000mile.png
+    - assets/images/2000mile.png
+    - assets/images/4000mile.png
+    - assets/images/6000mile.png
+    - assets/images/8000mile.png
+    - assets/images/10kMile.png
+    - assets/images/15kMile.png
+    - assets/images/20kMile.png
+    - assets/images/25kMile.png
     - assets/images/path2.png
     - assets/gifs/ground.gif
     - assets/gifs/logo.gif
     - assets/gifs/tagline.gif
     - assets/videos/splash-screen.mp4
+
 
     
   fonts:

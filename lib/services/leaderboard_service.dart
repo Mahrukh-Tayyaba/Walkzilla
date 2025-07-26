@@ -198,6 +198,59 @@ class LeaderboardService {
     }
   }
 
+  /// Check if a specific reward has been shown to the user
+  Future<bool> hasRewardBeenShown(String rewardType, String date) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      final userData = await getCurrentUserLeaderboardData();
+      if (userData == null) return false;
+
+      final shownRewards =
+          userData['shown_rewards'] as Map<String, dynamic>? ?? {};
+      final rewardKey = '${rewardType}_$date';
+
+      return shownRewards.containsKey(rewardKey);
+    } catch (e) {
+      print('Error checking if reward has been shown: $e');
+      return false;
+    }
+  }
+
+  /// Mark a reward as shown for the current user
+  Future<void> markRewardAsShown(
+    String rewardType,
+    String date, {
+    int? rank,
+    int? steps,
+    int? reward,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final rewardKey = '${rewardType}_$date';
+      final updateData = <String, dynamic>{
+        'shown_at': FieldValue.serverTimestamp(),
+        'date': date,
+      };
+
+      if (rank != null) updateData['rank'] = rank;
+      if (steps != null) updateData['steps'] = steps;
+      if (reward != null) updateData['reward'] = reward;
+
+      await _usersCollection.doc(user.uid).update({
+        'shown_rewards.$rewardKey': updateData,
+      });
+
+      print(
+          'Marked $rewardType reward for $date as shown for user ${user.uid}');
+    } catch (e) {
+      print('Error marking reward as shown: $e');
+    }
+  }
+
   /// Get leaderboard history
   Future<List<Map<String, dynamic>>> getLeaderboardHistory(String type) async {
     try {

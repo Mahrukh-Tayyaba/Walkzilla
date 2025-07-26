@@ -116,6 +116,7 @@ class LoginScreenState extends State<LoginScreen> {
             'idle': 'images/character_idle.json',
             'walking': 'images/character_walking.json'
           },
+          'shown_rewards': {},
         });
       } else {
         // Update existing user's last login and online status

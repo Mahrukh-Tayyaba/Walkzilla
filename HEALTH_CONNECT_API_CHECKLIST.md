@@ -6,7 +6,7 @@
 - ✅ Health Connect permissions declared
 - ✅ Package queries for Health Connect
 - ✅ Health permissions XML file with descriptions and reasons
-- ✅ Proper permission structure for READ_STEPS, WRITE_STEPS, READ_HEART_RATE, READ_ACTIVE_CALORIES_BURNED
+- ✅ Proper permission structure for READ_STEPS, WRITE_STEPS, READ_ACTIVE_CALORIES_BURNED, READ_DISTANCE
 
 ### 2. Health Connect Integration
 - ✅ Real Health Connect API calls implemented (replacing simulated data)
@@ -17,8 +17,8 @@
 
 ### 3. Data Types Supported
 - ✅ Steps tracking (daily aggregate)
-- ✅ Heart rate monitoring (latest reading)
 - ✅ Active calories burned (daily aggregate)
+- ✅ Distance tracking (daily aggregate)
 - ✅ Proper data formatting and metadata
 
 ### 4. User Experience
@@ -66,8 +66,8 @@ flutter build appbundle --release
 
 ### 2. Data Usage Justification
 - ✅ Steps: "To track daily activity and progress"
-- ✅ Heart Rate: "To monitor heart rate during activities"
-- ✅ Calories: "To track calories burned during activities"
+- ✅ Active Calories: "To track calories burned during activities"
+- ✅ Distance: "To track walking and running distance for fitness goals"
 
 ### 3. User Experience
 - ✅ Clear permission requests
@@ -97,7 +97,7 @@ flutter build appbundle --release
 ### 3. Application Details to Include
 - **App Name**: Walkzilla
 - **Package Name**: com.mt.walkzilla
-- **Health Data Types**: Steps, Heart Rate, Active Calories
+- **Health Data Types**: Steps, Active Calories, Distance
 - **Use Case**: Fitness tracking and gamification
 - **Data Usage**: Personal health insights and progress tracking
 
@@ -106,8 +106,8 @@ flutter build appbundle --release
 ### Before Submission, Verify:
 - [ ] App requests Health Connect permissions on first launch
 - [ ] Real step data is displayed (not simulated)
-- [ ] Heart rate data is fetched from Health Connect
-- [ ] Calories data is accurate
+- [ ] Distance data is fetched from Health Connect
+- [ ] Active calories data is accurate
 - [ ] App handles permission denial gracefully
 - [ ] Fallback to simulated data works when Health Connect unavailable
 - [ ] No crashes or errors in permission flow

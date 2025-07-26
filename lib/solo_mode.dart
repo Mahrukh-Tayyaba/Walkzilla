@@ -11,6 +11,7 @@ import 'services/character_animation_service.dart';
 // Removed unused import
 import 'services/health_service.dart';
 import 'services/step_counter_service.dart';
+import 'services/milestone_helper.dart';
 
 class SoloMode extends StatefulWidget {
   const SoloMode({super.key});
@@ -34,6 +35,9 @@ class _SoloModeState extends State<SoloMode> {
 
   // Day change detection
   DateTime? _lastKnownDate;
+
+  // Milestone tracking
+  bool _milestoneShown = false;
 
   @override
   void initState() {
@@ -112,6 +116,13 @@ class _SoloModeState extends State<SoloMode> {
         print('⚠️ No Health Connect permissions, using periodic polling');
         _startPeriodicUpdates();
       }
+
+      // Restore milestones after initialization
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          _restoreMilestones();
+        }
+      });
     } catch (e) {
       print('❌ Error initializing real-time tracking: $e');
       // Fallback to periodic polling
@@ -138,6 +149,12 @@ class _SoloModeState extends State<SoloMode> {
 
         // Check if user is walking (steps increased)
         _checkUserWalkingWithTiming(DateTime.now());
+
+        // Check for milestone achievement on every step fetch
+        _checkMilestoneAchievement();
+
+        // Restore milestones that should be visible
+        _restoreMilestones();
 
         print(
             '📱 SENSOR-OPTIMIZED: Fetched accurate steps: $stepsCount (previous: $_previousSteps)');
@@ -172,6 +189,13 @@ class _SoloModeState extends State<SoloMode> {
 
         // Check if user is walking (steps increased)
         _checkUserWalkingWithTiming(DateTime.now());
+
+        // 🎯 CRITICAL FIX: Check for milestone achievement on EVERY step update
+        print('🎯 STEP UPDATE: Checking milestone for $_steps steps');
+        _checkMilestoneAchievement();
+
+        // Restore milestones that should be visible
+        _restoreMilestones();
 
         // Sync character animation
         _syncCharacterAnimation();
@@ -261,6 +285,12 @@ class _SoloModeState extends State<SoloMode> {
         }
       }
     }
+
+    // MILESTONE CHECK: Check for milestone achievements every second
+    _checkMilestoneAchievement();
+
+    // MILESTONE RESTORATION: Restore milestones that should be visible
+    _restoreMilestones();
   }
 
   void _checkWalkingStateBackup() {
@@ -300,6 +330,9 @@ class _SoloModeState extends State<SoloMode> {
         }
       }
     }
+
+    // 🎯 BACKUP MILESTONE CHECK: Check for milestone achievements every 2 seconds
+    _checkMilestoneAchievement();
   }
 
   void _checkWalkingStateSafety() {
@@ -339,6 +372,9 @@ class _SoloModeState extends State<SoloMode> {
         }
       }
     }
+
+    // 🎯 SAFETY MILESTONE CHECK: Check for milestone achievements every 3 seconds
+    _checkMilestoneAchievement();
   }
 
   void _setWalkingState(bool walking) {
@@ -398,6 +434,9 @@ class _SoloModeState extends State<SoloMode> {
           '🎯 GRACE PERIOD: Screen not fully initialized, ignoring walking detection');
       return;
     }
+
+    // Check for milestone achievement (500 steps)
+    _checkMilestoneAchievement();
 
     // APPROACH 1: Immediate detection with multiple checks
     bool shouldBeWalking = false;
@@ -546,8 +585,111 @@ class _SoloModeState extends State<SoloMode> {
       // Force immediate refresh when day changes
       _fetchStepsFromHomeMethod();
 
+      // Reset milestone tracking for new day
+      _milestoneShown = false;
+      // Reset all milestone states for new day
+      if (_game != null) {
+        _game!.milestoneShown.clear();
+        for (final threshold in [
+          500,
+          1000,
+          2000,
+          4000,
+          6000,
+          8000,
+          10000,
+          15000,
+          20000,
+          25000
+        ]) {
+          _game!.milestoneShown[threshold] = false;
+        }
+        print('🔄 All milestone states reset for new day');
+      }
+
       // Update last known date
       _lastKnownDate = currentDate;
+    }
+  }
+
+  // Milestone display detection using MilestoneHelper
+  void _checkMilestoneAchievement() async {
+    // Debug milestone check
+    print('🔍 MILESTONE CHECK: Steps=$_steps, Game=${_game != null}');
+
+    // Check for current milestone using MilestoneHelper
+    int? currentMilestone = await MilestoneHelper.getCurrentMilestone(_steps);
+
+    if (currentMilestone != null) {
+      print('🎯 Found milestone: $currentMilestone');
+
+      // Check if this milestone has already been shown
+      bool alreadyShown = await MilestoneHelper.isShown(currentMilestone);
+
+      if (!alreadyShown) {
+        print(
+            '🏆 $currentMilestone milestone reached! Showing milestone board');
+
+        // Mark milestone as shown in SharedPreferences
+        await MilestoneHelper.markAsShown(currentMilestone);
+
+        // Add the milestone board to the game
+        if (_game?.milestoneBoards[currentMilestone] != null) {
+          _game!.add(_game!.milestoneBoards[currentMilestone]!);
+          print('✅ $currentMilestone milestone board added to game');
+
+          // Ensure character stays on top
+          if (_game?.character != null) {
+            _game!.remove(_game!.character!);
+            _game!.add(_game!.character!);
+            print('🎬 Character re-added to ensure it stays on top');
+          }
+
+          // Force a visual update
+          setState(() {});
+
+          print('🎯 MILESTONE $currentMilestone SHOULD BE VISIBLE NOW!');
+        }
+      } else {
+        print('ℹ️ $currentMilestone milestone already shown');
+      }
+    }
+
+    // Debug: Show all milestone statuses
+    await _debugMilestoneStatus();
+  }
+
+  // Debug milestone status using MilestoneHelper
+  Future<void> _debugMilestoneStatus() async {
+    print('🔍 MILESTONE STATUS (SharedPreferences):');
+    print('Current Steps: $_steps');
+
+    for (int milestone in MilestoneHelper.milestones) {
+      bool isShown = await MilestoneHelper.isShown(milestone);
+      bool isAvailable = _game?.milestoneBoards[milestone] != null;
+      bool isInGame =
+          _game?.children.contains(_game?.milestoneBoards[milestone]) ?? false;
+      bool hasReached = _steps >= milestone;
+      bool isInRange = _steps >= milestone && _steps <= milestone + 50;
+      bool readyToShow = hasReached && isInRange && !isShown;
+
+      String status = readyToShow ? '🎯 READY TO SHOW' : '⏸️ NOT READY';
+      if (isShown) status = '✅ ALREADY SHOWN';
+      if (!hasReached) status = '⏳ NOT REACHED';
+      if (hasReached && !isInRange) status = '⏭️ OUT OF RANGE';
+
+      print(
+          '  - $milestone steps: Available=$isAvailable, Shown=$isShown, InGame=$isInGame, Reached=$hasReached, InRange=$isInRange | $status');
+
+      // Additional debugging for milestone boards
+      if (isAvailable && isInGame) {
+        var milestoneBoard = _game?.milestoneBoards[milestone];
+        if (milestoneBoard != null) {
+          print(
+              '    📍 Position: ${milestoneBoard.position}, Size: ${milestoneBoard.size}');
+          print('    🎨 Priority: ${milestoneBoard.priority}');
+        }
+      }
     }
   }
 
@@ -560,6 +702,9 @@ class _SoloModeState extends State<SoloMode> {
 
         // Check for day change
         _checkForDayChange();
+
+        // Check for milestone achievements
+        _checkMilestoneAchievement();
 
         // Force check walking state if still walking but no recent steps
         if (_isUserWalking && _lastStepUpdate != null) {
@@ -651,6 +796,598 @@ class _SoloModeState extends State<SoloMode> {
     }
   }
 
+  // Debug milestone state
+  void _debugMilestoneState() {
+    print('🏆 MILESTONE STATE DEBUG:');
+    print('  - Current Steps: $_steps');
+    print('  - Game Available: ${_game != null}');
+    print('  - Screen Initialized: $_isInitialized');
+    print('');
+
+    final milestoneThresholds = [
+      500,
+      1000,
+      2000,
+      4000,
+      6000,
+      8000,
+      10000,
+      15000,
+      20000,
+      25000
+    ];
+
+    print('📊 COMPLETE MILESTONE STATUS:');
+    print('┌─────────┬──────────┬─────────┬─────────┬─────────┬─────────────┐');
+    print('│ Steps   │ Available│ Shown   │ InGame  │ Reached │ Status      │');
+    print('├─────────┼──────────┼─────────┼─────────┼─────────┼─────────────┤');
+
+    for (final threshold in milestoneThresholds) {
+      final isShown = _game?.milestoneShown[threshold] ?? false;
+      final isAvailable = _game?.milestoneBoards[threshold] != null;
+      final isInGame =
+          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
+      final hasReached = _steps >= threshold;
+
+      String status = '';
+      if (!isAvailable) {
+        status = '❌ Not Loaded';
+      } else if (hasReached && !isShown) {
+        status = '🎯 READY TO SHOW';
+      } else if (hasReached && isShown && isInGame) {
+        status = '✅ Currently Displayed';
+      } else if (hasReached && isShown && !isInGame) {
+        status = '📋 Already Shown';
+      } else if (!hasReached) {
+        status = '⏳ Not Reached Yet';
+      }
+
+      print(
+          '│ ${threshold.toString().padLeft(7)} │ ${isAvailable.toString().padLeft(8)} │ ${isShown.toString().padLeft(7)} │ ${isInGame.toString().padLeft(7)} │ ${hasReached.toString().padLeft(7)} │ ${status.padLeft(11)} │');
+    }
+    print('└─────────┴──────────┴─────────┴─────────┴─────────┴─────────────┘');
+    print('');
+
+    // Additional detailed info for milestones that should be shown
+    print('🔍 DETAILED ANALYSIS:');
+    for (final threshold in milestoneThresholds) {
+      final isShown = _game?.milestoneShown[threshold] ?? false;
+      final isAvailable = _game?.milestoneBoards[threshold] != null;
+      final isInGame =
+          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
+      final hasReached = _steps >= threshold;
+
+      if (hasReached && !isShown && isAvailable) {
+        print(
+            '  🎯 $threshold: READY TO SHOW - Steps=$_steps >= $threshold, Shown=false, Available=true');
+      } else if (hasReached && isShown && !isInGame) {
+        print(
+            '  📋 $threshold: ALREADY SHOWN - Steps=$_steps >= $threshold, Shown=true, InGame=false');
+      } else if (hasReached && isShown && isInGame) {
+        print(
+            '  ✅ $threshold: CURRENTLY DISPLAYED - Steps=$_steps >= $threshold, Shown=true, InGame=true');
+      } else if (!hasReached) {
+        print('  ⏳ $threshold: NOT REACHED - Steps=$_steps < $threshold');
+      } else if (!isAvailable) {
+        print('  ❌ $threshold: NOT AVAILABLE - Milestone board not loaded');
+      }
+
+      if (_game?.milestoneBoards[threshold] != null) {
+        print(
+            '    📍 Position: ${_game!.milestoneBoards[threshold]!.position}');
+        print('    📏 Size: ${_game!.milestoneBoards[threshold]!.size}');
+      }
+    }
+    print('');
+  }
+
+  // Reset milestone for testing
+  void _resetMilestoneForTesting() async {
+    print('🔄 RESETTING MILESTONE FOR TESTING');
+    _milestoneShown = false;
+
+    // Reset all milestone states in SharedPreferences
+    await MilestoneHelper.resetMilestones();
+    print('✅ All milestone states reset in SharedPreferences');
+
+    // Remove all milestone boards from game
+    if (_game != null) {
+      for (final milestoneBoard in _game!.milestoneBoards.values) {
+        if (_game!.children.contains(milestoneBoard)) {
+          _game!.remove(milestoneBoard);
+        }
+      }
+      print('✅ All milestone boards removed from game');
+    }
+
+    print('✅ Milestone state reset - ready for testing');
+  }
+
+  // Test milestone system by simulating step counts
+  void _testMilestoneSystem() {
+    print('🧪 TESTING MILESTONE SYSTEM');
+    print('📋 Range System: Each milestone has a 50-step range');
+
+    // Reset milestone states first
+    _resetMilestoneForTesting();
+
+    // Test with different step counts (including range testing)
+    final testSteps = [
+      500,
+      510,
+      1000,
+      1020,
+      2000,
+      2030,
+      4000,
+      4020,
+      6000,
+      6030
+    ];
+
+    for (int i = 0; i < testSteps.length; i++) {
+      final testStep = testSteps[i];
+      Future.delayed(Duration(milliseconds: i * 800), () {
+        if (mounted) {
+          print('🧪 Testing with $testStep steps (Range Test)');
+          setState(() {
+            _steps = testStep;
+          });
+          _checkMilestoneAchievement();
+          print('🧪 Test completed for $testStep steps');
+        }
+      });
+    }
+  }
+
+  // Force show a specific milestone for testing
+  void _forceShowMilestone(int threshold) async {
+    print('🔧 FORCE SHOWING MILESTONE $threshold');
+    print(
+        '📋 Range System: This milestone has range ${threshold}-${threshold + 50}');
+
+    if (_game?.milestoneBoards[threshold] != null) {
+      // Mark milestone as shown in SharedPreferences
+      await MilestoneHelper.markAsShown(threshold);
+
+      // Remove any existing milestone boards
+      for (final milestoneBoard in _game!.milestoneBoards.values) {
+        if (_game!.children.contains(milestoneBoard)) {
+          _game!.remove(milestoneBoard);
+        }
+      }
+
+      // Add the specific milestone board
+      _game!.add(_game!.milestoneBoards[threshold]!);
+
+      print(
+          '✅ Milestone $threshold forced to show (Range: ${threshold}-${threshold + 50})');
+    } else {
+      print('❌ Milestone $threshold not available');
+    }
+  }
+
+  // Force restore a specific milestone (for testing)
+  void _forceRestoreMilestone(int threshold) async {
+    print('🔄 FORCE RESTORING MILESTONE $threshold');
+    print('=======================================');
+
+    bool isShown = await MilestoneHelper.isShown(threshold);
+    bool isAvailable = _game?.milestoneBoards[threshold] != null;
+    bool isInGame =
+        _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
+
+    print('Status: Shown=$isShown, Available=$isAvailable, InGame=$isInGame');
+
+    if (isAvailable && !isInGame) {
+      // Add to game
+      _game!.add(_game!.milestoneBoards[threshold]!);
+      print('✅ $threshold milestone restored to game');
+
+      // Ensure character stays on top
+      if (_game?.character != null) {
+        _game!.remove(_game!.character!);
+        _game!.add(_game!.character!);
+      }
+
+      setState(() {});
+      print('🎯 MILESTONE $threshold SHOULD BE VISIBLE NOW!');
+    } else if (isInGame) {
+      print('ℹ️ $threshold milestone already in game');
+    } else {
+      print('❌ $threshold milestone board not available');
+    }
+  }
+
+  // Quick status check for all milestones
+  void _quickMilestoneStatus() {
+    print('🚀 QUICK MILESTONE STATUS CHECK');
+    print('Current Steps: $_steps');
+    print('Game Available: ${_game != null}');
+    print('');
+
+    final milestoneThresholds = [
+      500,
+      1000,
+      2000,
+      4000,
+      6000,
+      8000,
+      10000,
+      15000,
+      20000,
+      25000
+    ];
+
+    for (final threshold in milestoneThresholds) {
+      final isShown = _game?.milestoneShown[threshold] ?? false;
+      final isAvailable = _game?.milestoneBoards[threshold] != null;
+      final hasReached = _steps >= threshold;
+      final rangeStart = threshold;
+      final rangeEnd = threshold + 50;
+      final isInRange = _steps >= rangeStart && _steps <= rangeEnd;
+
+      String icon = '⏳';
+      if (isInRange && !isShown && isAvailable) {
+        icon = '🎯';
+      } else if (hasReached && isShown) {
+        icon = '✅';
+      } else if (!isAvailable) {
+        icon = '❌';
+      }
+
+      print(
+          '$icon $threshold: ${hasReached ? "REACHED" : "Not reached"} | Range: $rangeStart-$rangeEnd | InRange: $isInRange | Available: $isAvailable | Shown: $isShown');
+    }
+    print('');
+  }
+
+  // Complete milestone testing sequence
+  void _completeMilestoneTest() {
+    print('🧪 COMPLETE MILESTONE TESTING SEQUENCE');
+    print('=====================================');
+    print(
+        '📋 Range System: Each milestone has a 50-step range (e.g., 500-550 for 500 milestone)');
+
+    // Step 1: Show current status
+    print('\n📊 STEP 1: Current Status');
+    _quickMilestoneStatus();
+
+    // Step 2: Reset all milestones
+    print('\n🔄 STEP 2: Resetting All Milestones');
+    _resetMilestoneForTesting();
+
+    // Step 3: Show status after reset
+    print('\n📊 STEP 3: Status After Reset');
+    _quickMilestoneStatus();
+
+    // Step 4: Test with different step counts (including range testing)
+    print('\n🎯 STEP 4: Testing Milestone Display with Range System');
+    final testSteps = [
+      500,
+      510,
+      1000,
+      1020,
+      2000,
+      2030,
+      4000,
+      4020,
+      6000,
+      6030
+    ];
+
+    for (int i = 0; i < testSteps.length; i++) {
+      final testStep = testSteps[i];
+      Future.delayed(Duration(milliseconds: (i + 1) * 1500), () {
+        if (mounted) {
+          print('\n🧪 Testing with $testStep steps (Range Test)...');
+          setState(() {
+            _steps = testStep;
+          });
+
+          // Check milestone achievement
+          _checkMilestoneAchievement();
+
+          // Show status after this test
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              print('📊 Status after $testStep steps:');
+              _quickMilestoneStatus();
+            }
+          });
+        }
+      });
+    }
+
+    // Step 5: Final status check
+    Future.delayed(Duration(milliseconds: (testSteps.length + 1) * 1500), () {
+      if (mounted) {
+        print('\n📊 STEP 5: Final Status Check');
+        _debugMilestoneState();
+        print('\n✅ Complete milestone testing finished!');
+        print(
+            '📋 Range System Tested: Milestones should trigger within their 50-step ranges');
+      }
+    });
+  }
+
+  // Quick one-click milestone test
+  void _quickMilestoneTest() {
+    print('⚡ QUICK MILESTONE TEST');
+    print('======================');
+    print('📋 Range System: Testing with 500 steps (Range: 500-550)');
+
+    // Reset and test with 500 steps immediately
+    _resetMilestoneForTesting();
+
+    setState(() {
+      _steps = 500;
+    });
+
+    _checkMilestoneAchievement();
+
+    print('✅ Quick test completed - 500 milestone should be visible now!');
+    print('📊 Current status:');
+    _quickMilestoneStatus();
+  }
+
+  // Fix milestones that are marked as shown but not displayed
+  void _fixMilestoneDisplay() {
+    print('🔧 FIXING MILESTONE DISPLAY ISSUES');
+    print('==================================');
+
+    final milestoneThresholds = [
+      500,
+      1000,
+      2000,
+      4000,
+      6000,
+      8000,
+      10000,
+      15000,
+      20000,
+      25000
+    ];
+
+    for (final threshold in milestoneThresholds) {
+      final isShown = _game?.milestoneShown[threshold] ?? false;
+      final isAvailable = _game?.milestoneBoards[threshold] != null;
+      final isInGame =
+          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
+      final rangeStart = threshold;
+      final rangeEnd = threshold + 50;
+      final isInRange = _steps >= rangeStart && _steps <= rangeEnd;
+      final hasReached = _steps >= threshold;
+
+      if (hasReached && isShown && !isInGame && isAvailable) {
+        print(
+            '🔧 FIXING: $threshold milestone marked as shown but not displayed (Range: $rangeStart-$rangeEnd, InRange: $isInRange)');
+        _game!.add(_game!.milestoneBoards[threshold]!);
+        print('✅ $threshold milestone board re-added to game');
+      }
+    }
+
+    print('🔧 Milestone display fix completed');
+  }
+
+  // Handle missed milestones (reached but not shown)
+  void _handleMissedMilestones() {
+    print('🎯 HANDLING MISSED MILESTONES');
+    print('=============================');
+
+    final milestoneThresholds = [
+      500,
+      1000,
+      2000,
+      4000,
+      6000,
+      8000,
+      10000,
+      15000,
+      20000,
+      25000
+    ];
+
+    for (final threshold in milestoneThresholds) {
+      final isShown = _game?.milestoneShown[threshold] ?? false;
+      final isAvailable = _game?.milestoneBoards[threshold] != null;
+      final isInGame =
+          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
+      final hasReached = _steps >= threshold;
+      final rangeStart = threshold;
+      final rangeEnd = threshold + 50;
+      final isInRange = _steps >= rangeStart && _steps <= rangeEnd;
+
+      // If milestone is reached but not shown and not in game
+      if (hasReached && !isShown && !isInGame && isAvailable) {
+        print(
+            '🎯 MISSED MILESTONE: $threshold reached but not shown (Steps: $_steps, Range: $rangeStart-$rangeEnd)');
+        print('🎯 SHOWING MISSED MILESTONE: $threshold');
+
+        // Mark milestone as shown
+        _game!.milestoneShown[threshold] = true;
+
+        // Add the milestone board to the game
+        _game!.add(_game!.milestoneBoards[threshold]!);
+        print('✅ $threshold milestone board added to game');
+
+        // Ensure character stays on top
+        if (_game!.character != null) {
+          _game!.remove(_game!.character!);
+          _game!.add(_game!.character!);
+        }
+
+        // Force visual update
+        setState(() {});
+
+        print('🎯 MISSED MILESTONE $threshold SHOULD BE VISIBLE NOW!');
+        return; // Only show one milestone at a time
+      }
+    }
+
+    print('✅ No missed milestones found');
+  }
+
+  // Refresh step count to fix display issues
+  void _refreshStepCount() async {
+    print('🔄 REFRESHING STEP COUNT');
+    print('========================');
+    print('Current displayed steps: $_steps');
+
+    try {
+      // Fetch fresh step count
+      final freshSteps = await _healthService.fetchHybridRealTimeSteps();
+      print('Fresh step count from service: $freshSteps');
+
+      if (mounted) {
+        setState(() {
+          _previousSteps = _steps;
+          _steps = freshSteps;
+        });
+
+        print('✅ Step count refreshed: $_steps');
+        print('📊 Step difference: ${_steps - _previousSteps}');
+
+        // Check for milestones after refresh
+        _checkMilestoneAchievement();
+      }
+    } catch (e) {
+      print('❌ Error refreshing step count: $e');
+    }
+  }
+
+  // Restore milestones that should be visible based on current steps
+  void _restoreMilestones() async {
+    print('🔄 RESTORING MILESTONES');
+    print('=======================');
+    print('Current Steps: $_steps');
+
+    for (final threshold in MilestoneHelper.milestones) {
+      final isShown = await MilestoneHelper.isShown(threshold);
+      final isAvailable = _game?.milestoneBoards[threshold] != null;
+      final isInGame =
+          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
+      final hasReached = _steps >= threshold;
+
+      // If milestone should be shown (reached and marked as shown) but not in game
+      if (hasReached && isShown && !isInGame && isAvailable) {
+        print(
+            '🔄 RESTORING: $threshold milestone (reached and should be shown)');
+
+        // Add the milestone board back to the game
+        _game!.add(_game!.milestoneBoards[threshold]!);
+        print('✅ $threshold milestone board restored to game');
+      }
+    }
+
+    print('✅ Milestone restoration completed');
+  }
+
+  // Test milestone with current steps
+  void _testCurrentStepsMilestone() {
+    print('🧪 TESTING MILESTONE WITH CURRENT STEPS');
+    print('=======================================');
+    print('Current Steps: $_steps');
+    print('');
+
+    // Reset all milestones first
+    print('🔄 Resetting all milestones...');
+    _resetMilestoneForTesting();
+
+    // Check milestone achievement with current steps
+    print('🎯 Checking milestone achievement...');
+    _checkMilestoneAchievement();
+
+    // Show final status
+    print('📊 Final milestone status:');
+    _quickMilestoneStatus();
+
+    print('✅ Test completed! Check if milestone is visible on screen.');
+    print(
+        '📋 Range System: Each milestone has a 50-step range (e.g., 500-550 for 500 milestone)');
+  }
+
+  // 🧪 Simple milestone test with specific step count
+  void _testMilestoneWithSteps(int testSteps) {
+    print('🧪 SIMPLE MILESTONE TEST WITH $testSteps STEPS');
+    print('==============================================');
+    print('Current Steps: $_steps');
+    print('Test Steps: $testSteps');
+    print('');
+
+    // Reset all milestones first
+    print('🔄 Resetting all milestones...');
+    _resetMilestoneForTesting();
+
+    // Set test steps
+    setState(() {
+      _steps = testSteps;
+    });
+
+    print('📊 Steps set to: $_steps');
+
+    // Check milestone achievement
+    print('🎯 Checking milestone achievement...');
+    _checkMilestoneAchievement();
+
+    // Show final status
+    print('📊 Final milestone status:');
+    _quickMilestoneStatus();
+
+    print('✅ Test completed! Check if milestone is visible on screen.');
+    print('📋 Range System: Each milestone has a 50-step range');
+    print(
+        '🎯 Expected milestone for $testSteps steps: ${_getExpectedMilestone(testSteps)}');
+  }
+
+  // Helper method to get expected milestone for step count
+  int? _getExpectedMilestone(int steps) {
+    for (int milestone in MilestoneHelper.milestones) {
+      if (steps >= milestone && steps <= milestone + 50) {
+        return milestone;
+      }
+    }
+    return null;
+  }
+
+  // 🧪 Test milestone system with simulated step increases
+  void _testMilestoneWithStepIncreases() {
+    print('🧪 TESTING MILESTONE WITH STEP INCREASES');
+    print('=========================================');
+    print('Current Steps: $_steps');
+    print('');
+
+    // Reset all milestones first
+    print('🔄 Resetting all milestones...');
+    _resetMilestoneForTesting();
+
+    // Test step increases that should trigger milestones
+    final testStepIncreases = [3990, 4000, 4010, 4020, 4030, 4040, 4050, 4060];
+
+    for (int i = 0; i < testStepIncreases.length; i++) {
+      final testSteps = testStepIncreases[i];
+      Future.delayed(Duration(milliseconds: i * 1000), () {
+        if (mounted) {
+          print('\n🧪 Testing step increase to $testSteps...');
+
+          // Simulate step increase
+          setState(() {
+            _previousSteps = _steps;
+            _steps = testSteps;
+          });
+
+          // Check milestone achievement (this should trigger the milestone)
+          _checkMilestoneAchievement();
+
+          print('📊 Steps: $_previousSteps -> $_steps');
+          print('🎯 Expected milestone: ${_getExpectedMilestone(testSteps)}');
+        }
+      });
+    }
+
+    print('✅ Step increase test started! Watch for milestone triggers.');
+  }
+
   void _syncCharacterAnimation() {
     // APPROACH 4: Aggressive character animation sync with multiple attempts
     if (_game != null) {
@@ -692,6 +1429,10 @@ class _SoloModeState extends State<SoloMode> {
           _steps = steps;
           _isLoading = false;
         });
+
+        // IMMEDIATE MILESTONE CHECK: Check milestones right after step update
+        _checkMilestoneAchievement();
+        _restoreMilestones();
 
         // Check if user is walking (steps increased)
         _checkUserWalkingWithTiming(DateTime.now());
@@ -838,6 +1579,56 @@ class _SoloModeState extends State<SoloMode> {
                               _game!.character!.idleAnimation;
                         }
                       }
+
+                      // MILESTONE DEBUG: Check milestone state
+                      _debugMilestoneState();
+
+                      // MANUAL MILESTONE CHECK: Force check milestone achievement
+                      print('🔧 Manual milestone check triggered');
+                      _checkMilestoneAchievement();
+
+                      // QUICK MILESTONE STATUS: Show all milestone status
+                      print('📊 QUICK MILESTONE STATUS CHECK');
+                      _quickMilestoneStatus();
+
+                      // FIX MILESTONE DISPLAY: Fix milestones marked as shown but not displayed
+                      _fixMilestoneDisplay();
+
+                      // RESTORE MILESTONES: Restore milestones that should be visible
+                      _restoreMilestones();
+
+                      // FORCE RESTORE 2000 MILESTONE: Test specific milestone (uncomment to test)
+                      // _forceRestoreMilestone(2000);
+
+                      // REFRESH STEPS: Force refresh step count (uncomment to test)
+                      // _refreshStepCount();
+
+                      // TEST 500 MILESTONE: Test with current steps (uncomment to test)
+                      // _testCurrentStepsMilestone();
+
+                      // MILESTONE TEST: Reset milestone for testing (uncomment to test)
+                      // _resetMilestoneForTesting();
+
+                      // MILESTONE TEST: Test milestone system (uncomment to test)
+                      // _testMilestoneSystem();
+
+                      // MILESTONE TEST: Force show 500 milestone (uncomment to test)
+                      // _forceShowMilestone(500);
+
+                      // QUICK STATUS: Check all milestone status (uncomment to test)
+                      // _quickMilestoneStatus();
+
+                      // TEST SEQUENCE: Complete milestone testing (uncomment to test)
+                      // _completeMilestoneTest();
+
+                      // QUICK TEST: One-click milestone test (uncomment to test)
+                      // _quickMilestoneTest();
+
+                      // 🧪 SIMPLE MILESTONE TEST: Test with 4000 steps (uncomment to test)
+                      // _testMilestoneWithSteps(4000);
+
+                      // 🧪 STEP INCREASE TEST: Test milestone with step increases (uncomment to test)
+                      // _testMilestoneWithStepIncreases();
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -1003,6 +1794,9 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
   SpriteComponent? bushesB;
   SpriteComponent? pathA;
   SpriteComponent? pathB;
+  SpriteComponent? milestoneBoard; // Milestone board component
+  Map<int, SpriteComponent> milestoneBoards = {}; // All milestone boards
+  Map<int, bool> milestoneShown = {}; // Track which milestones have been shown
   final double baseWidth = 1200;
   final double baseHeight = 2400;
   final double bushesHeight = 1841;
@@ -1080,6 +1874,64 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
       add(pathA!);
       add(pathB!);
 
+      // Layer 2.2: Milestone Boards (on top of path, touching the path)
+      final double milestoneWidth = 300 * scaleX; // Adjust size as needed
+      final double milestoneHeight = 300 * scaleY; // Adjust size as needed
+
+      // Position to the right of the character
+      final double characterX = 100 * scaleX; // Character's X position
+      final double characterWidth = 800 * scaleX; // Character's width
+      final double spacing =
+          50 * scaleX; // Space between character and milestone board
+      final double milestoneX = characterX +
+          characterWidth +
+          spacing; // Position to the right of character
+      final double milestoneY = screenHeight -
+          pathH -
+          milestoneHeight; // Position exactly on top of path
+
+      // Load all milestone boards
+      final milestoneImages = {
+        500: '500mile.png',
+        1000: '1000mile.png',
+        2000: '2000mile.png',
+        4000: '4000mile.png',
+        6000: '6000mile.png',
+        8000: '8000mile.png',
+        10000: '10kMile.png',
+        15000: '15kMile.png',
+        20000: '20kMile.png',
+        25000: '25kMile.png',
+      };
+
+      for (final entry in milestoneImages.entries) {
+        final stepThreshold = entry.key;
+        final imageName = entry.value;
+
+        try {
+          final sprite = await loadSprite(imageName);
+          final milestoneBoard = SpriteComponent(
+            sprite: sprite,
+            size: Vector2(milestoneWidth, milestoneHeight),
+            position: Vector2(milestoneX, milestoneY),
+            priority: 2, // Layer 2 - behind character (layer 3)
+          );
+
+          milestoneBoards[stepThreshold] = milestoneBoard;
+          milestoneShown[stepThreshold] = false; // Initialize as not shown
+
+          print(
+              '🏆 MILESTONE: Created $stepThreshold milestone board at position ($milestoneX, $milestoneY)');
+        } catch (e) {
+          print('❌ Error loading milestone $stepThreshold: $e');
+        }
+      }
+
+      // Set the default milestone board for backward compatibility
+      milestoneBoard = milestoneBoards[500];
+      print('🏆 MILESTONE: All milestone boards created successfully');
+      // Don't add to the game initially - will be added when respective steps are reached
+
       // Layer 3: Character (on top of path)
       // Compensate for transparent pixels at the bottom of the character sprite
       final double transparentBottomPx = 140; // Adjust this value as needed
@@ -1088,6 +1940,7 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
       character!.size =
           Vector2(800 * scaleX, 800 * scaleY); // 800x800 base size
       character!.anchor = Anchor.bottomLeft;
+      character!.priority = 3; // Layer 3 - on top of milestone boards
       character!.position = Vector2(
         100 * scaleX, // X position (adjust as needed)
         screenHeight -
@@ -1149,6 +2002,13 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
         if (pathB!.x <= -size.x) {
           pathB!.x = pathA!.x + size.x;
         }
+      }
+
+      // Milestone Boards (move with the path)
+      milestoneBoard?.x -= dx;
+      // Move all milestone boards
+      for (final milestoneBoard in milestoneBoards.values) {
+        milestoneBoard.x -= dx;
       }
     } else {
       // APPROACH 4: Debug when character is not walking

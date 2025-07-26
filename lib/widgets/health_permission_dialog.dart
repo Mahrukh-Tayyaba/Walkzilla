@@ -22,7 +22,6 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
   bool allowAll = false;
   bool steps = false;
   bool distance = false;
-  bool heartRate = false;
   bool calories = false;
   final health = Health();
   final HealthService _healthService = HealthService();
@@ -32,14 +31,13 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
       allowAll = value;
       steps = value;
       distance = value;
-      heartRate = value;
       calories = value;
     });
   }
 
   void updateIndividual() {
     setState(() {
-      allowAll = steps && distance && heartRate && calories;
+      allowAll = steps && distance && calories;
     });
   }
 
@@ -106,7 +104,7 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
 
             // Subtitle
             const Text(
-              'To track your steps, distance, heart rate, and calories burnt — and power your adventure!',
+              'To track your steps, distance, and active calories — and power your adventure!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.black54,
@@ -176,19 +174,8 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
               },
             ),
             _buildPermissionItem(
-              icon: Icons.favorite_border,
-              title: 'Heart Rate',
-              value: heartRate,
-              onChanged: (val) {
-                setState(() {
-                  heartRate = val;
-                  updateIndividual();
-                });
-              },
-            ),
-            _buildPermissionItem(
               icon: Icons.local_fire_department_outlined,
-              title: 'Calories Burnt',
+              title: 'Active Calories',
               value: calories,
               onChanged: (val) {
                 setState(() {
@@ -231,16 +218,13 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: (steps || distance || heartRate || calories)
+                    onPressed: (steps || distance || calories)
                         ? () async {
                             try {
                               final types = <HealthDataType>[];
                               if (steps) types.add(HealthDataType.STEPS);
                               if (distance) {
                                 types.add(HealthDataType.DISTANCE_DELTA);
-                              }
-                              if (heartRate) {
-                                types.add(HealthDataType.HEART_RATE);
                               }
                               if (calories) {
                                 types.add(HealthDataType.ACTIVE_ENERGY_BURNED);

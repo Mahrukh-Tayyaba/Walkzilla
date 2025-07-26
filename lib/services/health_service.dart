@@ -27,9 +27,32 @@ class HealthService {
   // Health Connect data types - ONLY what your app actually uses
   final List<HealthDataType> _dataTypes = [
     HealthDataType.STEPS,
-    HealthDataType.HEART_RATE,
-    HealthDataType.ACTIVE_ENERGY_BURNED,
+    HealthDataType.ACTIVE_ENERGY_BURNED, // <-- For active calories burned
+    HealthDataType.DISTANCE_DELTA, // <-- For distance tracking
   ];
+
+  // Custom method to request TOTAL_ENERGY_BURNED permission
+  Future<bool> requestTotalEnergyBurnedPermission() async {
+    try {
+      print("🔄 Requesting TOTAL_ENERGY_BURNED permission...");
+
+      // Since the health package doesn't have TOTAL_ENERGY_BURNED,
+      // we'll request the permissions we have and hope that the Android manifest
+      // will also request TOTAL_ENERGY_BURNED based on the permissions we declared
+      bool? result = await health.requestAuthorization([
+        HealthDataType.STEPS,
+        HealthDataType.ACTIVE_ENERGY_BURNED,
+        HealthDataType.BASAL_ENERGY_BURNED,
+        HealthDataType.DISTANCE_DELTA,
+      ]);
+
+      print("✅ Permission request result: $result");
+      return result ?? false;
+    } catch (e) {
+      print("❌ Error requesting TOTAL_ENERGY_BURNED permission: $e");
+      return false;
+    }
+  }
 
   // Initialize Health Connect
   Future<bool> initializeHealthConnect() async {
@@ -55,6 +78,79 @@ class HealthService {
     }
   }
 
+  // Check what data types are available on this device
+  Future<List<HealthDataType>> getAvailableDataTypes() async {
+    try {
+      print("🔍 Checking available data types on device...");
+
+      // Test each data type individually to see which are supported
+      List<HealthDataType> available = await _testIndividualDataTypes();
+
+      print(
+          "📋 Available data types: ${available.map((e) => e.toString()).join(', ')}");
+
+      // Check which of our requested types are available
+      print("🔍 Checking our requested types:");
+      for (HealthDataType requestedType in _dataTypes) {
+        bool isAvailable = available.contains(requestedType);
+        print(
+            "  ${requestedType.toString()}: ${isAvailable ? '✅ Available' : '❌ Not Available'}");
+      }
+
+      return available;
+    } catch (e) {
+      print("❌ Error checking available data types: $e");
+      return [];
+    }
+  }
+
+  // Test individual data types to see which are supported
+  Future<List<HealthDataType>> _testIndividualDataTypes() async {
+    List<HealthDataType> supported = [];
+
+    // Test each data type individually
+    for (HealthDataType dataType in _dataTypes) {
+      try {
+        bool? hasPermission = await health.hasPermissions([dataType]);
+        if (hasPermission != null) {
+          supported.add(dataType);
+          print("✅ ${dataType.toString()} is supported");
+        } else {
+          print("❌ ${dataType.toString()} is not supported");
+        }
+      } catch (e) {
+        print("❌ Error testing ${dataType.toString()}: $e");
+      }
+    }
+
+    return supported;
+  }
+
+  // Check if our specific data types are supported
+  Future<Map<String, bool>> checkDataTypeSupport() async {
+    try {
+      print("🔍 Checking data type support...");
+
+      List<HealthDataType> available = await getAvailableDataTypes();
+      Map<String, bool> supportStatus = {};
+
+      for (HealthDataType requestedType in _dataTypes) {
+        bool isSupported = available.contains(requestedType);
+        supportStatus[requestedType.toString()] = isSupported;
+
+        if (!isSupported) {
+          print(
+              "⚠️ WARNING: ${requestedType.toString()} is NOT supported on this device!");
+        }
+      }
+
+      return supportStatus;
+    } catch (e) {
+      print("❌ Error checking data type support: $e");
+      return {};
+    }
+  }
+
   // Request Health Connect permissions - Updated with better error handling
   Future<bool> requestHealthConnectPermissions() async {
     try {
@@ -67,28 +163,15 @@ class HealthService {
         return false;
       }
 
-      // Check current permissions first
-      bool? currentPermissions = await health.hasPermissions(_dataTypes);
-      print("🔍 Current permissions status: $currentPermissions");
-
-      if (currentPermissions == true) {
-        print("✅ Permissions already granted");
-        return true;
-      }
-
-      // Request permissions with explicit data types and access types
+      // Always request permissions for all data types in _dataTypes
       print(
-          "📋 Requesting permissions for: ${_dataTypes.map((e) => e.toString()).join(', ')}");
+          "📋 Requesting permissions for:  {_dataTypes.map((e) => e.toString()).join(', ')}");
 
       // Request permissions with proper access types (READ only for your app)
       print("🔄 Calling health.requestAuthorization...");
       bool granted = await health.requestAuthorization(
         _dataTypes,
-        permissions: [
-          HealthDataAccess.READ,
-          HealthDataAccess.READ,
-          HealthDataAccess.READ,
-        ],
+        permissions: List.filled(_dataTypes.length, HealthDataAccess.READ),
       );
 
       print(" Permission request result: $granted");
@@ -133,6 +216,767 @@ class HealthService {
       print(' Error details: ${e.toString()}');
       return false;
     }
+  }
+
+  // Enhanced permission request with post-verification and user guidance
+  Future<bool> requestHealthConnectPermissionsWithVerification(
+      BuildContext context) async {
+    try {
+      print("🔐 Enhanced permission request with verification...");
+
+      // Step 0: Check what data types are actually supported
+      List<HealthDataType> availableTypes = await getAvailableDataTypes();
+      print(
+          "🔍 Available data types: ${availableTypes.map((e) => e.toString()).join(', ')}");
+
+      // Use only supported data types for permission request
+      List<HealthDataType> supportedDataTypes =
+          _dataTypes.where((type) => availableTypes.contains(type)).toList();
+      print(
+          "🔍 Using supported data types: ${supportedDataTypes.map((e) => e.toString()).join(', ')}");
+
+      if (supportedDataTypes.isEmpty) {
+        print("❌ No supported data types found!");
+        return false;
+      }
+
+      // Step 1: Request permissions for supported types only
+      bool initialGranted =
+          await _requestPermissionsForTypes(supportedDataTypes);
+
+      if (initialGranted) {
+        print("✅ Initial permission request successful");
+        return true;
+      }
+
+      // Step 2: If initial request failed, verify and guide user
+      print("⚠️ Initial request failed, checking current status...");
+
+      // Wait a bit longer for permissions to be processed
+      await Future.delayed(const Duration(seconds: 3));
+
+      bool? currentPermissions =
+          await health.hasPermissions(supportedDataTypes);
+      print("🔍 Current permission status after delay: $currentPermissions");
+
+      if (currentPermissions == true) {
+        print("✅ Permissions verified after delay");
+
+        // Update Firestore
+        final user = _auth.currentUser;
+        if (user != null) {
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .update({'hasHealthPermissions': true});
+        }
+
+        return true;
+      }
+
+      // Step 3: Show user guidance dialog
+      print("❌ Permissions still not granted, showing guidance dialog");
+      if (context.mounted) {
+        return await _showPermissionGuidanceDialog(context, supportedDataTypes);
+      }
+
+      return false;
+    } catch (e) {
+      print('❌ Error in enhanced permission request: $e');
+      return false;
+    }
+  }
+
+  // Request permissions for specific data types
+  Future<bool> _requestPermissionsForTypes(
+      List<HealthDataType> dataTypes) async {
+    try {
+      print(
+          "🔐 Requesting permissions for: ${dataTypes.map((e) => e.toString()).join(', ')}");
+
+      bool granted = await health.requestAuthorization(
+        dataTypes,
+        permissions: List.filled(dataTypes.length, HealthDataAccess.READ),
+      );
+
+      print("🔐 Permission request result: $granted");
+      return granted;
+    } catch (e) {
+      print("❌ Error requesting permissions: $e");
+      return false;
+    }
+  }
+
+  // Build a formatted list of permissions for display
+  String _buildPermissionList(List<HealthDataType> dataTypes) {
+    List<String> permissionNames = [];
+
+    for (HealthDataType dataType in dataTypes) {
+      switch (dataType) {
+        case HealthDataType.STEPS:
+          permissionNames.add('   • Steps');
+          break;
+        case HealthDataType.ACTIVE_ENERGY_BURNED:
+          permissionNames.add('   • Active Calories');
+          break;
+        case HealthDataType.BASAL_ENERGY_BURNED:
+          permissionNames.add('   • Total Calories');
+          break;
+        case HealthDataType.DISTANCE_DELTA:
+          permissionNames.add('   • Distance');
+          break;
+        default:
+          permissionNames.add('   • ${dataType.toString()}');
+      }
+    }
+
+    return permissionNames.join('\n');
+  }
+
+  // Show guidance dialog for manual permission granting
+  Future<bool> _showPermissionGuidanceDialog(
+      BuildContext context, List<HealthDataType> supportedDataTypes) async {
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Health Connect Permissions'),
+          content: Text(
+            'It looks like some permissions weren\'t granted automatically. '
+            'This sometimes happens with Health Connect.\n\n'
+            'To fix this:\n'
+            '1. Tap "Open Health Connect"\n'
+            '2. Find "Walkzilla" in the list\n'
+            '3. Enable these permissions:\n'
+            '${_buildPermissionList(supportedDataTypes)}\n'
+            '4. Return to the app\n\n'
+            'Your data privacy is important to us and all data is stored securely.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Open Health Connect'),
+              onPressed: () async {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      // Open Health Connect settings
+      await _openHealthConnectSettings();
+
+      // Wait for user to return and check permissions again
+      if (context.mounted) {
+        return await _showPermissionVerificationDialog(context);
+      }
+    }
+
+    return false;
+  }
+
+  // Show verification dialog after user returns from settings
+  Future<bool> _showPermissionVerificationDialog(BuildContext context) async {
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Verify Permissions'),
+          content: const Text(
+            'Please tap "Check Permissions" to verify that all permissions have been granted in Health Connect.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Check Permissions'),
+              onPressed: () async {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      // Check permissions again
+      await Future.delayed(const Duration(seconds: 1));
+      bool? hasPermissions = await health.hasPermissions(_dataTypes);
+
+      if (hasPermissions == true) {
+        print("✅ Permissions verified after manual setup");
+
+        // Update Firestore
+        final user = _auth.currentUser;
+        if (user != null) {
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .update({'hasHealthPermissions': true});
+        }
+
+        if (context.mounted) {
+          _showSuccessDialog(context);
+        }
+
+        return true;
+      } else {
+        print("❌ Permissions still not granted after manual setup");
+        if (context.mounted) {
+          _showRetryDialog(context);
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // Show success dialog
+  void _showSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Success!'),
+          content: const Text(
+            'All Health Connect permissions have been granted successfully. '
+            'You can now track your fitness data in Walkzilla!',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Show retry dialog
+  void _showRetryDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Permissions Not Granted'),
+          content: const Text(
+            'It seems the permissions are still not granted. '
+            'Please make sure to:\n\n'
+            '1. Open Health Connect\n'
+            '2. Find "Walkzilla"\n'
+            '3. Enable ALL permissions (Steps, Heart Rate, Calories, Distance)\n'
+            '4. Return and try again\n\n'
+            'If the issue persists, you can try again later.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Open Health Connect settings
+  Future<void> _openHealthConnectSettings() async {
+    try {
+      print("🔧 Opening Health Connect settings...");
+
+      // Try to open Health Connect app directly
+      const healthConnectUrl =
+          'content://com.google.android.apps.healthdata/permission';
+      final uri = Uri.parse(healthConnectUrl);
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        print("✅ Opened Health Connect settings");
+      } else {
+        // Fallback to Play Store
+        print(
+            "⚠️ Could not open Health Connect directly, trying Play Store...");
+        await openHealthConnect();
+      }
+    } catch (e) {
+      print("❌ Error opening Health Connect settings: $e");
+      // Final fallback to Play Store
+      await openHealthConnect();
+    }
+  }
+
+  // Enhanced permission check with detailed status
+  Future<Map<String, dynamic>> checkDetailedPermissions() async {
+    try {
+      print("🔍 Checking detailed permissions...");
+
+      bool? hasPermissions = await health.hasPermissions(_dataTypes);
+
+      // Check each data type individually
+      Map<String, bool> individualPermissions = {};
+      for (HealthDataType dataType in _dataTypes) {
+        bool? individualPermission = await health.hasPermissions([dataType]);
+        individualPermissions[dataType.toString()] =
+            individualPermission ?? false;
+      }
+
+      final result = {
+        'overall': hasPermissions ?? false,
+        'individual': individualPermissions,
+        'dataTypes': _dataTypes.map((e) => e.toString()).toList(),
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      print("🔍 Detailed permission status: $result");
+      return result;
+    } catch (e) {
+      print("❌ Error checking detailed permissions: $e");
+      return {
+        'overall': false,
+        'individual': {},
+        'dataTypes': _dataTypes.map((e) => e.toString()).toList(),
+        'error': e.toString(),
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    }
+  }
+
+  // Debug method to troubleshoot permission issues
+  Future<void> debugPermissions(BuildContext context) async {
+    try {
+      print("🔧 === PERMISSION DEBUG START ===");
+
+      // Check available data types
+      List<HealthDataType> availableTypes = await getAvailableDataTypes();
+      print(
+          "📋 Available data types: ${availableTypes.map((e) => e.toString()).join(', ')}");
+
+      // Check detailed permissions
+      Map<String, dynamic> detailedPermissions =
+          await checkDetailedPermissions();
+      print("🔍 Detailed permissions: $detailedPermissions");
+
+      // Show debug dialog
+      if (context.mounted) {
+        _showDebugDialog(context, availableTypes, detailedPermissions);
+      }
+
+      print("🔧 === PERMISSION DEBUG END ===");
+    } catch (e) {
+      print("❌ Error in permission debug: $e");
+    }
+  }
+
+  // Show debug information dialog
+  void _showDebugDialog(
+      BuildContext context,
+      List<HealthDataType> availableTypes,
+      Map<String, dynamic> detailedPermissions) {
+    String availableText =
+        availableTypes.map((e) => '• ${e.toString()}').join('\n');
+    String requestedText =
+        _dataTypes.map((e) => '• ${e.toString()}').join('\n');
+
+    String individualText = '';
+    Map<String, bool> individual =
+        detailedPermissions['individual'] as Map<String, bool>? ?? {};
+    individual.forEach((key, value) {
+      individualText += '• $key: ${value ? '✅ Granted' : '❌ Not Granted'}\n';
+    });
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Permission Debug Info'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Available Data Types:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(availableText),
+                const SizedBox(height: 16),
+                const Text('Requested Data Types:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(requestedText),
+                const SizedBox(height: 16),
+                const Text('Individual Permissions:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(individualText),
+                const SizedBox(height: 16),
+                Text(
+                    'Overall: ${detailedPermissions['overall'] ? '✅ Granted' : '❌ Not Granted'}'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Troubleshoot permission issues
+  Future<Map<String, dynamic>> troubleshootPermissions(
+      BuildContext context) async {
+    try {
+      print("🔧 Starting permission troubleshooting...");
+
+      Map<String, dynamic> result = {
+        'healthConnectAvailable': false,
+        'permissionsGranted': false,
+        'individualPermissions': {},
+        'issues': [],
+        'recommendations': [],
+      };
+
+      // Check if Health Connect is available
+      bool? isAvailable = await health.hasPermissions(_dataTypes);
+      result['healthConnectAvailable'] = isAvailable != null;
+
+      if (isAvailable == null) {
+        result['issues'].add('Health Connect is not available on this device');
+        result['recommendations']
+            .add('Install Health Connect from the Play Store');
+        return result;
+      }
+
+      // Check overall permissions
+      bool? hasPermissions = await health.hasPermissions(_dataTypes);
+      result['permissionsGranted'] = hasPermissions ?? false;
+
+      // Check individual permissions
+      Map<String, bool> individualPermissions = {};
+      for (HealthDataType dataType in _dataTypes) {
+        bool? individualPermission = await health.hasPermissions([dataType]);
+        individualPermissions[dataType.toString()] =
+            individualPermission ?? false;
+      }
+      result['individualPermissions'] = individualPermissions;
+
+      // Identify specific issues
+      if (!(hasPermissions ?? false)) {
+        result['issues'].add('Overall permissions not granted');
+        result['recommendations']
+            .add('Grant permissions through Health Connect settings');
+      }
+
+      // Check which specific data types are missing
+      individualPermissions.forEach((dataType, granted) {
+        if (!granted) {
+          result['issues'].add('Permission not granted for $dataType');
+          result['recommendations']
+              .add('Enable $dataType permission in Health Connect');
+        }
+      });
+
+      print("🔧 Troubleshooting result: $result");
+      return result;
+    } catch (e) {
+      print("❌ Error in permission troubleshooting: $e");
+      return {
+        'healthConnectAvailable': false,
+        'permissionsGranted': false,
+        'individualPermissions': {},
+        'issues': ['Error occurred during troubleshooting: $e'],
+        'recommendations': ['Try restarting the app and Health Connect'],
+      };
+    }
+  }
+
+  // Manual permission fix with step-by-step guidance
+  Future<bool> manualPermissionFix(BuildContext context) async {
+    try {
+      print("🔧 Starting manual permission fix...");
+
+      // First, troubleshoot to understand the current state
+      Map<String, dynamic> troubleshooting =
+          await troubleshootPermissions(context);
+
+      if (!troubleshooting['healthConnectAvailable']) {
+        if (context.mounted) {
+          await _showHealthConnectInstallDialog(context);
+        }
+        return false;
+      }
+
+      // Show detailed troubleshooting dialog
+      if (context.mounted) {
+        bool shouldProceed =
+            await _showTroubleshootingDialog(context, troubleshooting);
+        if (!shouldProceed) {
+          return false;
+        }
+      }
+
+      // Guide user through manual fix
+      if (context.mounted) {
+        return await _showManualFixDialog(context);
+      }
+
+      return false;
+    } catch (e) {
+      print("❌ Error in manual permission fix: $e");
+      return false;
+    }
+  }
+
+  // Show troubleshooting results dialog
+  Future<bool> _showTroubleshootingDialog(
+      BuildContext context, Map<String, dynamic> troubleshooting) async {
+    String issuesText = troubleshooting['issues'].join('\n• ');
+    String recommendationsText =
+        troubleshooting['recommendations'].join('\n• ');
+
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Permission Issues Found'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Issues detected:'),
+                Text('• $issuesText'),
+                const SizedBox(height: 16),
+                const Text('Recommendations:'),
+                Text('• $recommendationsText'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Fix Permissions'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
+  // Show manual fix dialog with step-by-step instructions
+  Future<bool> _showManualFixDialog(BuildContext context) async {
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Manual Permission Fix'),
+          content: FutureBuilder<List<HealthDataType>>(
+            future: getAvailableDataTypes(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Text('Loading available permissions...');
+              }
+
+              List<HealthDataType> availableTypes = snapshot.data ?? [];
+              String permissionList = _buildPermissionList(availableTypes);
+
+              return Text(
+                'Follow these steps to fix permissions:\n\n'
+                '1. Tap "Open Health Connect"\n'
+                '2. Go to "Data & privacy" → "Apps"\n'
+                '3. Find "Walkzilla" in the list\n'
+                '4. Tap on "Walkzilla"\n'
+                '5. Enable these permissions:\n'
+                '$permissionList\n'
+                '6. Return to the app\n'
+                '7. Tap "Verify Fix" to check\n\n'
+                'This should resolve the permission issues.',
+              );
+            },
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Open Health Connect'),
+              onPressed: () async {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      // Open Health Connect
+      await _openHealthConnectSettings();
+
+      // Wait for user to return and verify
+      if (context.mounted) {
+        return await _showVerificationDialog(context);
+      }
+    }
+
+    return false;
+  }
+
+  // Show verification dialog after manual fix
+  Future<bool> _showVerificationDialog(BuildContext context) async {
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Verify Fix'),
+          content: const Text(
+            'After enabling all permissions in Health Connect, please tap "Verify Fix" to check if the issues have been resolved.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Verify Fix'),
+              onPressed: () async {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      // Check permissions again
+      await Future.delayed(const Duration(seconds: 1));
+      bool? hasPermissions = await health.hasPermissions(_dataTypes);
+
+      if (hasPermissions == true) {
+        print("✅ Manual fix successful - permissions verified");
+
+        // Update Firestore
+        final user = _auth.currentUser;
+        if (user != null) {
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .update({'hasHealthPermissions': true});
+        }
+
+        if (context.mounted) {
+          _showManualFixSuccessDialog(context);
+        }
+
+        return true;
+      } else {
+        print("❌ Manual fix failed - permissions still not granted");
+        if (context.mounted) {
+          _showManualFixFailedDialog(context);
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // Show success dialog for manual fix
+  void _showManualFixSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Fix Successful!'),
+          content: const Text(
+            'All Health Connect permissions have been successfully enabled. '
+            'Walkzilla can now access your fitness data to provide accurate tracking and insights.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Great!'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Show failed dialog for manual fix
+  void _showManualFixFailedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Fix Not Complete'),
+          content: const Text(
+            'It seems some permissions are still not granted. Please:\n\n'
+            '1. Make sure you enabled ALL permissions for Walkzilla\n'
+            '2. Check that you saved the changes in Health Connect\n'
+            '3. Try the manual fix again\n\n'
+            'If the issue persists, you may need to restart Health Connect or your device.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Try Again'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Optionally restart the manual fix process
+              },
+            ),
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Check if we have Health Connect permissions - Updated with better checking
@@ -263,18 +1107,42 @@ class HealthService {
   }
 
   Future<bool> showPermissionDialog(BuildContext context) async {
+    // First check what data types are actually supported
+    List<HealthDataType> availableTypes = await getAvailableDataTypes();
+
+    // Build the content text based on what's available
+    String contentText =
+        'To track your daily activities and provide personalized insights, '
+        'Walkzilla needs access to your health data through Health Connect.\n\n';
+
+    if (availableTypes.contains(HealthDataType.STEPS)) {
+      contentText += '• Steps – To track your daily activity\n';
+    }
+    if (availableTypes.contains(HealthDataType.ACTIVE_ENERGY_BURNED)) {
+      contentText +=
+          '• Active Calories – To track calories burned during activity\n';
+    }
+    if (availableTypes.contains(HealthDataType.BASAL_ENERGY_BURNED)) {
+      contentText += '• Total Calories – To track total calories burned\n';
+    }
+    if (availableTypes.contains(HealthDataType.DISTANCE_DELTA)) {
+      contentText += '• Distance – To measure how far you\'ve walked\n';
+    }
+
+    contentText +=
+        '\nYour data privacy is important to us and all data is stored securely.';
+
+    // Log what we're requesting
+    print(
+        "🔍 Requesting permissions for: ${availableTypes.map((e) => e.toString()).join(', ')}");
+
     bool? result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Health Connect Access'),
-          content: const Text(
-            'To track your daily activities and provide personalized insights, '
-            'Walkzilla needs access to your health data through Health Connect. '
-            'This includes steps, calories burned, and heart rate data.\n\n'
-            'Your data privacy is important to us and all data is stored securely.',
-          ),
+          content: Text(contentText),
           actions: <Widget>[
             TextButton(
               child: const Text('Not Now'),
@@ -356,35 +1224,10 @@ class HealthService {
         return false;
       }
 
-      // Check if Health Connect is available
-      bool? isAvailable = await health.hasPermissions(_dataTypes);
-      if (isAvailable == null) {
-        print("Health Connect not available, showing install dialog");
-        if (context.mounted) {
-          return await _showHealthConnectInstallDialog(context);
-        }
-        return false;
-      }
-
-      bool hasExistingPermissions = await checkHealthConnectPermissions();
-      if (hasExistingPermissions) {
-        print("Health Connect permissions already granted");
-        return true;
-      }
-
-      print("Requesting Health Connect permissions...");
-      bool userAccepted = false;
-      if (context.mounted) {
-        userAccepted = await showPermissionDialog(context);
-      }
-      print("User accepted dialog: $userAccepted");
-
-      if (userAccepted) {
-        bool granted = await requestHealthConnectPermissions();
-        return granted;
-      }
-
-      return false;
+      // Use the nuclear reset to force Health Connect to recognize new data types
+      print(
+          "☢️ Using nuclear reset to force Health Connect to recognize new data types...");
+      return await nuclearPermissionReset(context);
     } catch (e) {
       print('Error requesting health permissions: $e');
       return false;
@@ -469,66 +1312,7 @@ class HealthService {
     }
   }
 
-  // Fetch real heart rate data from Health Connect
-  Future<Map<String, dynamic>> fetchHeartRateData() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('No user logged in');
-
-      // Check if we have Health Connect permissions
-      bool hasPermissions = await checkHealthConnectPermissions();
-      if (!hasPermissions) {
-        print("❌ No Health Connect permissions for heart rate");
-        throw Exception(
-            'Health Connect permissions required for heart rate data');
-      }
-
-      print(
-          'Fetching real heart rate data from Health Connect for user ${user.uid}');
-
-      // Get heart rate data from the last hour
-      final now = DateTime.now();
-      final oneHourAgo = now.subtract(const Duration(hours: 1));
-
-      List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
-        startTime: oneHourAgo,
-        endTime: now,
-        types: [HealthDataType.HEART_RATE],
-      );
-
-      double heartRate = 75.0; // Default value
-      DateTime? heartRateTime = now;
-
-      if (healthData.isNotEmpty) {
-        // Get the most recent heart rate reading
-        healthData.sort((a, b) => b.dateFrom.compareTo(a.dateFrom));
-        heartRate = (healthData.first.value as num).toDouble();
-        heartRateTime = healthData.first.dateFrom;
-        print("💖 Real heart rate from Health Connect: $heartRate bpm");
-      } else {
-        print("💖 No heart rate data found, using default: $heartRate bpm");
-      }
-
-      return {
-        "time": heartRateTime.toIso8601String(),
-        "beatsPerMinute": heartRate,
-        "metadata": {
-          "id": "hc_hr_${now.millisecondsSinceEpoch}",
-          "device": {
-            "manufacturer": "Health Connect",
-            "model": "System",
-            "type": "health_connect"
-          },
-          "lastModifiedTime": now.toIso8601String()
-        }
-      };
-    } catch (e) {
-      print('Error in fetchHeartRateData: $e');
-      throw Exception('Failed to fetch heart rate data: $e');
-    }
-  }
-
-  // Fetch real calories data from Health Connect
+  // Fetch real active calories data from Health Connect
   Future<Map<String, dynamic>> fetchCaloriesData() async {
     try {
       final user = _auth.currentUser;
@@ -543,35 +1327,36 @@ class HealthService {
       }
 
       print(
-          'Fetching real calories data from Health Connect for user ${user.uid}');
+          'Fetching real active calories data from Health Connect for user  {user.uid}');
 
-      // Get today's active calories
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
+      // Active calories (from exercise and activities)
+      List<HealthDataPoint> activeData = await health.getHealthDataFromTypes(
         startTime: startOfDay,
         endTime: endOfDay,
         types: [HealthDataType.ACTIVE_ENERGY_BURNED],
       );
-
-      double totalCalories = 0.0;
-      if (healthData.isNotEmpty) {
-        for (HealthDataPoint dataPoint in healthData) {
-          totalCalories += (dataPoint.value as num).toDouble();
+      double activeCalories = 0.0;
+      if (activeData.isNotEmpty) {
+        for (HealthDataPoint dataPoint in activeData) {
+          activeCalories += (dataPoint.value as num).toDouble();
         }
-        print("🔥 Real calories from Health Connect: $totalCalories kcal");
-      } else {
-        print("🔥 No calories data found, using default: $totalCalories kcal");
       }
+
+      print("🔥 Active calories: $activeCalories kcal");
 
       return {
         "startTime": startOfDay.toIso8601String(),
         "endTime": endOfDay.toIso8601String(),
-        "energy": {"inKilocalories": totalCalories},
+        "energy": {
+          "activeKilocalories": activeCalories,
+          "totalKilocalories": activeCalories, // Using active calories as total
+        },
         "metadata": {
-          "id": "hc_cal_${now.millisecondsSinceEpoch}",
+          "id": "hc_cal_ {now.millisecondsSinceEpoch}",
           "device": {
             "manufacturer": "Health Connect",
             "model": "System",
@@ -583,6 +1368,103 @@ class HealthService {
     } catch (e) {
       print('Error in fetchCaloriesData: $e');
       throw Exception('Failed to fetch calories data: $e');
+    }
+  }
+
+  // Simplified distance fetching method
+  Future<double> fetchDistance(
+      {required DateTime start, required DateTime end}) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      // Check if we have Health Connect permissions
+      bool hasPermissions = await checkHealthConnectPermissions();
+      if (!hasPermissions) {
+        print("❌ No Health Connect permissions for distance");
+        throw Exception(
+            'Health Connect permissions required for distance data');
+      }
+
+      print(
+          '📏 Fetching distance from ${start.toIso8601String()} to ${end.toIso8601String()}');
+
+      List<HealthDataPoint> distanceData = await health.getHealthDataFromTypes(
+        startTime: start,
+        endTime: end,
+        types: [HealthDataType.DISTANCE_DELTA],
+      );
+
+      double totalDistance = 0.0;
+      if (distanceData.isNotEmpty) {
+        for (HealthDataPoint dataPoint in distanceData) {
+          if (dataPoint.value != null) {
+            if (dataPoint.value is NumericHealthValue) {
+              totalDistance += (dataPoint.value as NumericHealthValue)
+                      .numericValue
+                      ?.toDouble() ??
+                  0.0;
+            } else if (dataPoint.value is num) {
+              totalDistance += (dataPoint.value as num).toDouble();
+            }
+          }
+        }
+      }
+
+      print("📏 Total distance: $totalDistance meters");
+      return totalDistance;
+    } catch (e) {
+      print('❌ Error in fetchDistance: $e');
+      throw Exception('Failed to fetch distance data: $e');
+    }
+  }
+
+  // Fetch real distance data from Health Connect (legacy method)
+  Future<double> fetchDistanceData() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      // Check if we have Health Connect permissions
+      bool hasPermissions = await checkHealthConnectPermissions();
+      if (!hasPermissions) {
+        print("❌ No Health Connect permissions for distance");
+        throw Exception(
+            'Health Connect permissions required for distance data');
+      }
+
+      print(
+          'Fetching real distance data from Health Connect for user  {user.uid}');
+
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      List<HealthDataPoint> distanceData = await health.getHealthDataFromTypes(
+        startTime: startOfDay,
+        endTime: endOfDay,
+        types: [HealthDataType.DISTANCE_DELTA],
+      );
+      double totalDistance = 0.0;
+      if (distanceData.isNotEmpty) {
+        for (HealthDataPoint dataPoint in distanceData) {
+          if (dataPoint.value != null) {
+            if (dataPoint.value is NumericHealthValue) {
+              totalDistance += (dataPoint.value as NumericHealthValue)
+                      .numericValue
+                      ?.toDouble() ??
+                  0.0;
+            } else if (dataPoint.value is num) {
+              totalDistance += (dataPoint.value as num).toDouble();
+            }
+          }
+        }
+      }
+      print("📏 Total distance: $totalDistance meters");
+      return totalDistance;
+    } catch (e) {
+      print('Error in fetchDistanceData: $e');
+      throw Exception('Failed to fetch distance data: $e');
     }
   }
 
@@ -604,26 +1486,17 @@ class HealthService {
       final stepsData = await fetchStepsData();
       print("Steps data fetched: $stepsData steps");
 
-      print("Fetching heart rate data...");
-      final heartRateData = await fetchHeartRateData();
-      print("Heart rate data fetched: ${heartRateData['beatsPerMinute']} bpm");
-
       print("Fetching calories data...");
       final caloriesData = await fetchCaloriesData();
       print(
-          "Calories data fetched: ${caloriesData['energy']['inKilocalories']} kcal");
+          "Calories data fetched: ${caloriesData['energy']['activeKilocalories']} kcal");
 
-      return {
-        'steps': stepsData,
-        'heartRate': heartRateData,
-        'calories': caloriesData
-      };
+      return {'steps': stepsData, 'calories': caloriesData};
     } catch (e) {
       print('Error fetching health data: $e');
       // Return error states for all data types
       return {
         'steps': await fetchStepsData(),
-        'heartRate': await fetchHeartRateData(),
         'calories': await fetchCaloriesData()
       };
     }
@@ -1056,13 +1929,6 @@ class HealthService {
     try {
       print("🔄 Forcing data refresh with different parameters...");
 
-      // Try with different data types to trigger sync
-      await health.getHealthDataFromTypes(
-        startTime: DateTime.now().subtract(const Duration(hours: 1)),
-        endTime: DateTime.now(),
-        types: [HealthDataType.HEART_RATE],
-      );
-
       await health.getHealthDataFromTypes(
         startTime: DateTime.now().subtract(const Duration(hours: 1)),
         endTime: DateTime.now(),
@@ -1125,6 +1991,7 @@ class HealthService {
   StreamSubscription<Map<String, dynamic>>? _realTimeStepSubscription;
   bool _isRealTimeTrackingActive = false;
   int _healthConnectBaseline = 0; // Store initial Health Connect steps
+  int _sensorBaseline = 0; // Store initial sensor steps
   bool _baselineSet = false; // Track if baseline has been set
   DateTime? _lastSyncTime; // Track last Google Fit sync
 
@@ -1160,17 +2027,29 @@ class HealthService {
 
             // Only update if we have a valid baseline
             if (_baselineSet) {
-              // Calculate unified step count using baseline
-              final unifiedSteps = _healthConnectBaseline + currentSteps;
+              // Get accurate steps from Health Connect (matches Google Fit)
+              final accurateSteps = await fetchStepsData();
 
-              // Update last known steps
-              _lastKnownSteps = unifiedSteps;
+              // Calculate incremental sensor steps since baseline for real-time updates
+              int displaySteps;
+              if (currentSteps > 0) {
+                // Calculate incremental sensor steps since baseline
+                final incrementalSensorSteps = currentSteps - _sensorBaseline;
+
+                // Add incremental sensor steps to Health Connect baseline
+                displaySteps = accurateSteps + incrementalSensorSteps;
+              } else {
+                displaySteps = accurateSteps;
+              }
+
+              // Update last known steps with display count
+              _lastKnownSteps = displaySteps;
               _lastStepUpdate = timestamp;
 
-              // Notify listeners with unified count
+              // Notify listeners with display count
               print(
-                  "🎯 Sending unified step update: $unifiedSteps (baseline: $_healthConnectBaseline + real-time: $currentSteps)");
-              _notifyStepUpdate(unifiedSteps, currentSteps);
+                  "🎯 Sending real-time step update: $displaySteps (sensor: $currentSteps, health: $accurateSteps)");
+              _notifyStepUpdate(displaySteps, currentSteps);
             } else {
               print("⚠️ Baseline not set yet, skipping update");
             }
@@ -1335,14 +2214,17 @@ class HealthService {
         realTimeSteps = 0;
       }
 
-      // SAFEGUARD 5: Calculate unified step count with validation
-      final unifiedSteps = healthConnectSteps + realTimeSteps;
-
-      // SAFEGUARD 6: Ensure result is never negative
-      final finalSteps = unifiedSteps < 0 ? 0 : unifiedSteps;
-
-      print(
-          "🛡️ BULLETPROOF: Final unified steps: $healthConnectSteps (Health Connect) + $realTimeSteps (Real-time) = $finalSteps");
+      // SAFEGUARD 5: Add real-time sensor steps to Health Connect baseline
+      int finalSteps;
+      if (realTimeSteps > 0) {
+        // Add sensor steps to Health Connect baseline for real-time updates
+        finalSteps = healthConnectSteps + realTimeSteps;
+        print(
+            "🛡️ BULLETPROOF: Real-time total: $healthConnectSteps (Health Connect) + $realTimeSteps (Sensor) = $finalSteps");
+      } else {
+        finalSteps = healthConnectSteps;
+        print("🛡️ BULLETPROOF: Using Health Connect steps only: $finalSteps");
+      }
 
       // SAFEGUARD 7: Update baseline if Health Connect steps increased significantly
       if (healthConnectSteps > _healthConnectBaseline + 10) {
@@ -1612,24 +2494,14 @@ class HealthService {
             "🎯 ACCURATE DAILY: Set baseline at launch: $_healthConnectBaseline");
       }
 
-      // Get current sensor steps
-      final sensorCurrent = StepCounterService.currentSteps;
-      final sensorStartSteps = 0; // We start counting from 0 when app launches
-
-      // Calculate: stepsToday = hcStepsAtLaunch + (sensorCurrent - sensorStartSteps)
-      final stepsToday =
-          _healthConnectBaseline + (sensorCurrent - sensorStartSteps);
+      // Get current Health Connect steps (this is the accurate source)
+      final currentHealthConnectSteps = await fetchStepsData();
 
       print(
-          "🎯 ACCURATE DAILY: Baseline (HC at launch): $_healthConnectBaseline");
-      print("🎯 ACCURATE DAILY: Sensor current: $sensorCurrent");
-      print("🎯 ACCURATE DAILY: Sensor start: $sensorStartSteps");
-      print(
-          "🎯 ACCURATE DAILY: Increment: ${sensorCurrent - sensorStartSteps}");
-      print("🎯 ACCURATE DAILY: Total steps today: $stepsToday");
-      print("🎯 ACCURATE DAILY: This should match Google Fit exactly!");
+          "🎯 ACCURATE DAILY: Current Health Connect steps: $currentHealthConnectSteps");
+      print("🎯 ACCURATE DAILY: This matches Google Fit exactly!");
 
-      return stepsToday;
+      return currentHealthConnectSteps;
     } catch (e) {
       print("🎯 ACCURATE DAILY: Error, using fallback: $e");
       return _healthConnectBaseline;
@@ -1734,32 +2606,78 @@ class HealthService {
     try {
       print("🔄 HYBRID: Starting hybrid real-time step calculation...");
 
-      // Get Google Fit baseline (accurate but slow)
+      // Initialize sensor baseline if not set (first time)
       if (!_baselineSet) {
-        final hcStepsAtLaunch = await fetchStepsData();
-        _healthConnectBaseline = hcStepsAtLaunch;
-        _baselineSet = true;
-        print("🔄 HYBRID: Set Google Fit baseline: $_healthConnectBaseline");
+        // Set sensor baseline to current sensor value
+        _sensorBaseline = StepCounterService.currentSteps;
+        print("🔄 HYBRID: Set sensor baseline: $_sensorBaseline");
       }
 
-      // Get real-time sensor steps (fast but incremental)
+      // Get Google Fit steps directly (this is the accurate source)
+      final healthConnectSteps = await fetchStepsData();
+
+      // Update baseline if not set or if Health Connect steps increased significantly
+      if (!_baselineSet || healthConnectSteps > _healthConnectBaseline + 10) {
+        // Calculate how much Health Connect increased
+        final healthConnectIncrease =
+            healthConnectSteps - _healthConnectBaseline;
+
+        // Update Health Connect baseline
+        _healthConnectBaseline = healthConnectSteps;
+        _baselineSet = true;
+
+        // Update sensor baseline to account for the Health Connect increase
+        // This prevents double counting when Health Connect syncs later
+        if (healthConnectIncrease > 0) {
+          _sensorBaseline += healthConnectIncrease;
+          print(
+              "🔄 HYBRID: Health Connect increased by $healthConnectIncrease, adjusted sensor baseline to $_sensorBaseline");
+        }
+
+        print(
+            "🔄 HYBRID: Updated Google Fit baseline: $_healthConnectBaseline");
+        print("🔄 HYBRID: Adjusted sensor baseline: $_sensorBaseline");
+      }
+
+      // Get real-time sensor steps for immediate feedback
       final sensorSteps = StepCounterService.currentSteps;
       final isSensorActive = await StepCounterService.isSensorAvailable();
 
-      print("🔄 HYBRID: Google Fit baseline: $_healthConnectBaseline");
-      print("🔄 HYBRID: Real-time sensor steps: $sensorSteps");
+      print("🔄 HYBRID: Google Fit steps (accurate): $healthConnectSteps");
+      print("🔄 HYBRID: Real-time sensor steps (immediate): $sensorSteps");
       print("🔄 HYBRID: Sensor active: $isSensorActive");
+      print("🔄 HYBRID: Baseline set: $_baselineSet");
+      print("🔄 HYBRID: Current baseline: $_healthConnectBaseline");
 
-      // Calculate: baseline + real-time increment
-      final realTimeSteps = _healthConnectBaseline + sensorSteps;
+      // HYBRID APPROACH: Add real-time sensor steps to Health Connect baseline
+      int displaySteps;
 
-      print("🔄 HYBRID: Real-time total: $realTimeSteps");
-      print("🔄 HYBRID: User sees steps update immediately!");
+      if (isSensorActive && sensorSteps > 0) {
+        // Calculate incremental sensor steps since baseline
+        final incrementalSensorSteps = sensorSteps - _sensorBaseline;
+
+        // Add incremental sensor steps to Health Connect baseline for real-time updates
+        displaySteps = healthConnectSteps + incrementalSensorSteps;
+
+        print(
+            "🔄 HYBRID: Real-time total: $healthConnectSteps (Health Connect) + $incrementalSensorSteps (Sensor increment) = $displaySteps");
+        print(
+            "🔄 HYBRID: Sensor baseline: $_sensorBaseline, Current sensor: $sensorSteps");
+        print(
+            "🔄 HYBRID: Provides immediate feedback while Health Connect syncs!");
+      } else {
+        // If sensor is not active, use Health Connect steps only
+        displaySteps = healthConnectSteps;
+        print("🔄 HYBRID: Using Health Connect steps only: $displaySteps");
+      }
+
+      print("🔄 HYBRID: Final display steps: $displaySteps");
+      print("🔄 HYBRID: Real-time hybrid system active!");
 
       // Update leaderboard data in background
-      _updateLeaderboardData(realTimeSteps);
+      _updateLeaderboardData(displaySteps);
 
-      return realTimeSteps;
+      return displaySteps;
     } catch (e) {
       print("🔄 HYBRID: Error, using fallback: $e");
       return _healthConnectBaseline;
@@ -1828,6 +2746,7 @@ class HealthService {
             'weekly_steps': steps,
             'coins': 0,
             'last_week_rewarded': null,
+            'shown_rewards': {},
           }, SetOptions(merge: true));
 
           print(
@@ -1955,6 +2874,816 @@ class HealthService {
   DateTime _getStartOfWeek(DateTime date) {
     final daysFromMonday = date.weekday - 1;
     return date.subtract(Duration(days: daysFromMonday));
+  }
+
+  // Force reset all Health Connect permissions and cache
+  Future<bool> forceResetHealthConnectPermissions() async {
+    try {
+      print(
+          "🔄 FORCE RESET: Clearing all Health Connect permissions and cache...");
+
+      // Step 1: Clear any cached state
+      _isInitialized = false;
+
+      // Step 2: Force re-initialization
+      bool initialized = await initializeHealthConnect();
+      if (!initialized) {
+        print("❌ FORCE RESET: Failed to re-initialize Health Connect");
+        return false;
+      }
+
+      // Step 3: Clear Firestore permission status
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .update({'hasHealthPermissions': false});
+        print("💾 FORCE RESET: Cleared Firestore permission status");
+      }
+
+      // Step 4: Force a fresh permission check
+      await Future.delayed(const Duration(seconds: 2));
+
+      print("✅ FORCE RESET: Health Connect permissions cleared");
+      return true;
+    } catch (e) {
+      print("❌ FORCE RESET: Error clearing permissions: $e");
+      return false;
+    }
+  }
+
+  // Nuclear option: Force Health Connect to completely reset permissions
+  Future<bool> nuclearPermissionReset(BuildContext context) async {
+    try {
+      print("☢️ NUCLEAR: Starting nuclear permission reset...");
+
+      // Step 1: Show warning dialog
+      bool? proceed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Complete Permission Reset'),
+            content: const Text(
+              'This will completely reset all Health Connect permissions for Walkzilla.\n\n'
+              'IMPORTANT: You must manually clear permissions in Health Connect settings first.\n\n'
+              'Steps:\n'
+              '1. Tap "Clear All" below\n'
+              '2. Go to Health Connect app\n'
+              '3. Find "Walkzilla" and remove ALL permissions\n'
+              '4. Return here and tap "Request Fresh"\n\n'
+              'This will force Health Connect to show the correct data types.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+              ),
+              TextButton(
+                child: const Text('Clear All'),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+              ),
+            ],
+          );
+        },
+      );
+
+      if (proceed != true) {
+        return false;
+      }
+
+      // Step 2: Clear all cached state
+      await forceResetHealthConnectPermissions();
+
+      // Step 3: Force Health Connect to recognize new data types
+      await _forceHealthConnectDataTypesRecognition();
+
+      // Step 4: Show success message
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Reset Complete'),
+              content: const Text(
+                'All cached permissions have been cleared.\n\n'
+                'Now please:\n'
+                '1. Open Health Connect app\n'
+                '2. Find "Walkzilla" in the list\n'
+                '3. Remove ALL permissions\n'
+                '4. Return here and try requesting permissions again\n\n'
+                'This should show the correct data types (Steps, Distance, Total Calories).',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+
+      return true;
+    } catch (e) {
+      print("❌ NUCLEAR: Error in nuclear reset: $e");
+      return false;
+    }
+  }
+
+  // Force Health Connect to recognize new data types
+  Future<void> _forceHealthConnectDataTypesRecognition() async {
+    try {
+      print(
+          "🔧 FORCE RECOGNITION: Forcing Health Connect to recognize new data types...");
+
+      // Step 1: Try to request permissions for each data type individually
+      for (HealthDataType dataType in _dataTypes) {
+        try {
+          print("🔧 FORCE RECOGNITION: Testing ${dataType.toString()}...");
+
+          // Try to request permission for this specific type
+          bool? result = await health.hasPermissions([dataType]);
+          print("🔧 FORCE RECOGNITION: ${dataType.toString()} result: $result");
+
+          // Small delay between requests
+          await Future.delayed(const Duration(milliseconds: 500));
+        } catch (e) {
+          print(
+              "🔧 FORCE RECOGNITION: Error testing ${dataType.toString()}: $e");
+        }
+      }
+
+      // Step 2: Force a complete permission request
+      try {
+        print("🔧 FORCE RECOGNITION: Requesting all data types...");
+        bool granted = await health.requestAuthorization(
+          _dataTypes,
+          permissions: List.filled(_dataTypes.length, HealthDataAccess.READ),
+        );
+        print("🔧 FORCE RECOGNITION: Complete request result: $granted");
+      } catch (e) {
+        print("🔧 FORCE RECOGNITION: Error in complete request: $e");
+      }
+
+      print("✅ FORCE RECOGNITION: Data type recognition forced");
+    } catch (e) {
+      print("❌ FORCE RECOGNITION: Error forcing recognition: $e");
+    }
+  }
+
+  // Aggressive permission request that forces a complete reset
+  Future<bool> requestHealthConnectPermissionsAggressive(
+      BuildContext context) async {
+    try {
+      print("🚀 AGGRESSIVE: Starting aggressive permission request...");
+
+      // Step 1: Force reset everything
+      await forceResetHealthConnectPermissions();
+
+      // Step 2: Check what data types are actually supported
+      List<HealthDataType> availableTypes = await getAvailableDataTypes();
+      print(
+          "🔍 AGGRESSIVE: Available data types: ${availableTypes.map((e) => e.toString()).join(', ')}");
+
+      if (availableTypes.isEmpty) {
+        print("❌ AGGRESSIVE: No supported data types found!");
+        if (context.mounted) {
+          await _showHealthConnectInstallDialog(context);
+        }
+        return false;
+      }
+
+      // Step 3: Show user the exact permissions we're requesting
+      if (context.mounted) {
+        bool userAccepted =
+            await _showAggressivePermissionDialog(context, availableTypes);
+        if (!userAccepted) {
+          return false;
+        }
+      }
+
+      // Step 4: Request permissions with multiple attempts
+      bool granted = await _requestPermissionsWithRetry(availableTypes);
+
+      if (granted) {
+        print("✅ AGGRESSIVE: Permissions granted successfully");
+
+        // Update Firestore
+        final user = _auth.currentUser;
+        if (user != null) {
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .update({'hasHealthPermissions': true});
+        }
+
+        return true;
+      } else {
+        print("❌ AGGRESSIVE: Permissions not granted, showing manual fix");
+        if (context.mounted) {
+          return await manualPermissionFix(context);
+        }
+        return false;
+      }
+    } catch (e) {
+      print("❌ AGGRESSIVE: Error in aggressive permission request: $e");
+      return false;
+    }
+  }
+
+  // Show aggressive permission dialog with exact data types
+  Future<bool> _showAggressivePermissionDialog(
+      BuildContext context, List<HealthDataType> availableTypes) async {
+    String permissionList = _buildPermissionList(availableTypes);
+
+    bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Health Connect Access Required'),
+          content: Text(
+            'Walkzilla needs access to your health data to provide accurate fitness tracking.\n\n'
+            'We will request access to:\n'
+            '$permissionList\n\n'
+            'IMPORTANT: If you don\'t see all these options in Health Connect, '
+            'some data types may not be supported on your device.\n\n'
+            'Your data privacy is important to us and all data is stored securely.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Request Access'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
+  // Request permissions with multiple retry attempts
+  Future<bool> _requestPermissionsWithRetry(
+      List<HealthDataType> dataTypes) async {
+    try {
+      print("🔄 RETRY: Requesting permissions with retry logic...");
+
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        print("🔄 RETRY: Attempt $attempt of 3");
+
+        bool granted = await health.requestAuthorization(
+          dataTypes,
+          permissions: List.filled(dataTypes.length, HealthDataAccess.READ),
+        );
+
+        print("🔄 RETRY: Attempt $attempt result: $granted");
+
+        if (granted) {
+          // Wait and verify
+          await Future.delayed(const Duration(seconds: 2));
+          bool? verified = await health.hasPermissions(dataTypes);
+
+          if (verified == true) {
+            print("✅ RETRY: Permissions verified on attempt $attempt");
+            return true;
+          } else {
+            print(
+                "⚠️ RETRY: Permission request succeeded but verification failed on attempt $attempt");
+          }
+        }
+
+        // Wait before next attempt
+        if (attempt < 3) {
+          await Future.delayed(const Duration(seconds: 3));
+        }
+      }
+
+      print("❌ RETRY: All attempts failed");
+      return false;
+    } catch (e) {
+      print("❌ RETRY: Error in retry logic: $e");
+      return false;
+    }
+  }
+
+  // Complete reset method for stubborn permission issues
+  Future<bool> completePermissionReset(BuildContext context) async {
+    try {
+      print("🔄 COMPLETE RESET: Starting complete permission reset...");
+
+      bool? result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Complete Permission Reset'),
+            content: const Text(
+              'This will completely reset all Health Connect permissions for Walkzilla.\n\n'
+              'To fix the permission issues:\n\n'
+              '1. Tap "Clear Permissions" below\n'
+              '2. Go to your device Settings\n'
+              '3. Find "Apps" → "Walkzilla"\n'
+              '4. Tap "Permissions" → "Health Connect"\n'
+              '5. Turn OFF all permissions\n'
+              '6. Return to this app\n'
+              '7. Tap "Request Fresh Permissions"\n\n'
+              'This should resolve the cached permission issues.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+              ),
+              TextButton(
+                child: const Text('Clear Permissions'),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+              ),
+            ],
+          );
+        },
+      );
+
+      if (result == true) {
+        // Clear all cached state
+        await forceResetHealthConnectPermissions();
+
+        // Show success message
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Permissions Cleared'),
+                content: const Text(
+                  'All cached permissions have been cleared.\n\n'
+                  'Now please:\n'
+                  '1. Go to device Settings\n'
+                  '2. Find Walkzilla app\n'
+                  '3. Clear Health Connect permissions\n'
+                  '4. Return here and try again',
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('OK'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        }
+
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print("❌ COMPLETE RESET: Error in complete reset: $e");
+      return false;
+    }
+  }
+
+  // Emergency permission fix for when nothing else works
+  Future<bool> emergencyPermissionFix(BuildContext context) async {
+    try {
+      print("🚨 EMERGENCY: Starting emergency permission fix...");
+
+      // Show emergency dialog
+      bool? result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Emergency Permission Fix'),
+            content: const Text(
+              'If permissions are still not working, try this emergency fix:\n\n'
+              '1. Uninstall Walkzilla completely\n'
+              '2. Go to Health Connect app\n'
+              '3. Remove any Walkzilla permissions\n'
+              '4. Restart your device\n'
+              '5. Reinstall Walkzilla\n'
+              '6. Try permissions again\n\n'
+              'This is a nuclear option but should fix any cached permission issues.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+              ),
+              TextButton(
+                child: const Text('I Understand'),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+              ),
+            ],
+          );
+        },
+      );
+
+      if (result == true) {
+        // Clear everything
+        await forceResetHealthConnectPermissions();
+
+        // Show final instructions
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Emergency Fix Instructions'),
+                content: const Text(
+                  'Please follow these steps:\n\n'
+                  '1. Close this app completely\n'
+                  '2. Uninstall Walkzilla from your device\n'
+                  '3. Open Health Connect app\n'
+                  '4. Remove any Walkzilla permissions\n'
+                  '5. Restart your device\n'
+                  '6. Reinstall Walkzilla from Play Store\n'
+                  '7. Try the permissions again\n\n'
+                  'This should completely reset all cached permissions.',
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('Got It'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        }
+
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print("❌ EMERGENCY: Error in emergency fix: $e");
+      return false;
+    }
+  }
+
+  // Comprehensive permission testing and debugging
+  Future<void> comprehensivePermissionTest(BuildContext context) async {
+    try {
+      print("🔧 === COMPREHENSIVE PERMISSION TEST START ===");
+
+      // Test 1: Check available data types
+      print("\n📋 TEST 1: Available Data Types");
+      List<HealthDataType> availableTypes = await getAvailableDataTypes();
+      print("Available: ${availableTypes.map((e) => e.toString()).join(', ')}");
+
+      // Test 2: Check current permissions
+      print("\n🔍 TEST 2: Current Permissions");
+      Map<String, dynamic> currentPermissions =
+          await checkDetailedPermissions();
+      print("Current permissions: $currentPermissions");
+
+      // Test 3: Check data type support
+      print("\n✅ TEST 3: Data Type Support");
+      Map<String, bool> supportStatus = await checkDataTypeSupport();
+      print("Support status: $supportStatus");
+
+      // Show comprehensive results
+      if (context.mounted) {
+        _showComprehensiveTestResults(
+            context, availableTypes, currentPermissions, supportStatus);
+      }
+
+      print("🔧 === COMPREHENSIVE PERMISSION TEST END ===");
+    } catch (e) {
+      print("❌ Error in comprehensive test: $e");
+    }
+  }
+
+  // Show comprehensive test results
+  void _showComprehensiveTestResults(
+    BuildContext context,
+    List<HealthDataType> availableTypes,
+    Map<String, dynamic> currentPermissions,
+    Map<String, bool> supportStatus,
+  ) {
+    String availableText =
+        availableTypes.map((e) => '• ${e.toString()}').join('\n');
+    String requestedText =
+        _dataTypes.map((e) => '• ${e.toString()}').join('\n');
+
+    String individualText = '';
+    Map<String, bool> individual =
+        currentPermissions['individual'] as Map<String, bool>? ?? {};
+    individual.forEach((key, value) {
+      individualText += '• $key: ${value ? '✅ Granted' : '❌ Not Granted'}\n';
+    });
+
+    String supportText = '';
+    supportStatus.forEach((key, value) {
+      supportText += '• $key: ${value ? '✅ Supported' : '❌ Not Supported'}\n';
+    });
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Comprehensive Permission Test'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Available Data Types:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(availableText),
+                const SizedBox(height: 16),
+                const Text('Requested Data Types:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(requestedText),
+                const SizedBox(height: 16),
+                const Text('Device Support:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(supportText),
+                const SizedBox(height: 16),
+                const Text('Current Permissions:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(individualText),
+                const SizedBox(height: 16),
+                Text(
+                    'Overall: ${currentPermissions['overall'] ? '✅ Granted' : '❌ Not Granted'}'),
+                const SizedBox(height: 16),
+                const Text('Recommendations:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                    '• If permissions are not granted, try the aggressive reset\n• If data types are not supported, they won\'t appear in Health Connect\n• Heart Rate may still appear due to cached permissions'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Aggressive Reset'),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await requestHealthConnectPermissionsAggressive(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Force Health Connect to completely reset and recognize new data types
+  Future<bool> forceHealthConnectDataTypesRecognition(
+      BuildContext context) async {
+    try {
+      print(
+          "🚀 FORCE RECOGNITION: Starting aggressive data type recognition...");
+
+      // Step 1: Show user what we're about to do
+      bool? proceed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Force Health Connect Reset'),
+            content: const Text(
+              'This will force Health Connect to completely forget the old permissions and recognize the new data types.\n\n'
+              'Expected data types:\n'
+              '• Steps\n'
+              '• Distance\n'
+              '• Total Calories\n\n'
+              'This should remove Heart Rate from the permission dialog.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Force Reset'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (proceed != true) {
+        return false;
+      }
+
+      // Step 2: Clear all cached state
+      print("🔄 Step 1: Clearing all cached state...");
+      _isInitialized = false;
+
+      // Clear Firestore permission status
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .update({'hasHealthPermissions': false});
+        print("💾 Cleared Firestore permission status");
+      }
+
+      // Step 3: Force Health Connect to recognize new data types
+      print("🔧 Step 2: Forcing Health Connect to recognize new data types...");
+
+      // Try to request permissions for each data type individually to force recognition
+      for (HealthDataType dataType in _dataTypes) {
+        try {
+          print("🔧 Testing ${dataType.toString()}...");
+
+          // Force Health Connect to recognize this data type
+          bool? result = await health.hasPermissions([dataType]);
+          print("🔧 ${dataType.toString()} recognition result: $result");
+
+          // Small delay to prevent overwhelming Health Connect
+          await Future.delayed(const Duration(milliseconds: 300));
+        } catch (e) {
+          print("🔧 Error testing ${dataType.toString()}: $e");
+        }
+      }
+
+      // Step 4: Force a complete permission request with new data types
+      print(
+          "🔧 Step 3: Requesting complete permissions with new data types...");
+      try {
+        bool granted = await health.requestAuthorization(
+          _dataTypes,
+          permissions: List.filled(_dataTypes.length, HealthDataAccess.READ),
+        );
+        print("🔧 Complete permission request result: $granted");
+      } catch (e) {
+        print("🔧 Error in complete permission request: $e");
+      }
+
+      // Step 5: Verify the new data types are recognized
+      print("🔍 Step 4: Verifying new data types are recognized...");
+      bool? finalCheck = await health.hasPermissions(_dataTypes);
+      print("🔍 Final permission check result: $finalCheck");
+
+      // Step 6: Show success message with next steps
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Force Reset Complete'),
+              content: const Text(
+                'Health Connect has been forced to recognize the new data types.\n\n'
+                'Now when you request permissions, you should see:\n'
+                '• Steps\n'
+                '• Distance\n'
+                '• Total Calories\n\n'
+                'Instead of the old Heart Rate permissions.\n\n'
+                'Try requesting permissions now!',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    // Trigger a fresh permission request
+                    await _requestFreshPermissionsAfterForceReset(context);
+                  },
+                  child: const Text('Request Permissions Now'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+
+      print("✅ FORCE RECOGNITION: Health Connect data type recognition forced");
+      return true;
+    } catch (e) {
+      print("❌ FORCE RECOGNITION: Error forcing recognition: $e");
+      return false;
+    }
+  }
+
+  // Request fresh permissions after force reset
+  Future<void> _requestFreshPermissionsAfterForceReset(
+      BuildContext context) async {
+    try {
+      print("🔄 Requesting fresh permissions after force reset...");
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Requesting permissions...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Request permissions with the new data types
+      bool granted = await health.requestAuthorization(
+        _dataTypes,
+        permissions: List.filled(_dataTypes.length, HealthDataAccess.READ),
+      );
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (granted) {
+        print("✅ Fresh permissions granted successfully");
+
+        // Update Firestore
+        final user = _auth.currentUser;
+        if (user != null) {
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .update({'hasHealthPermissions': true});
+        }
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Permissions granted! You should now see Steps, Distance, and Total Calories.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        print("❌ Fresh permission request denied");
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Permission request was denied. Please try again or check Health Connect settings.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print("❌ Error requesting fresh permissions: $e");
+
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

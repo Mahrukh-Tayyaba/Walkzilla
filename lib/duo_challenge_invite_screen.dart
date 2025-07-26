@@ -111,7 +111,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
               future:
                   _firestore.collection('users').doc(friend['userId']).get(),
               builder: (context, userSnapshot) {
-                if (!userSnapshot.hasData) {
+                if (!userSnapshot.hasData || userSnapshot.data == null) {
                   return const ListTile(title: Text('Loading...'));
                 }
                 final userData =
@@ -127,7 +127,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                           whereIn: [currentUser.uid, friend['userId']]).get(),
                   builder: (context, inviteSnapshot) {
                     bool hasPendingInvite = false;
-                    if (inviteSnapshot.hasData) {
+                    if (inviteSnapshot.hasData && inviteSnapshot.data != null) {
                       for (final doc in inviteSnapshot.data!.docs) {
                         final data = doc.data() as Map<String, dynamic>;
                         // Block if invite is between these two users in either direction
@@ -261,7 +261,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
               future:
                   _firestore.collection('users').doc(data['fromUserId']).get(),
               builder: (context, userSnapshot) {
-                if (!userSnapshot.hasData) {
+                if (!userSnapshot.hasData || userSnapshot.data == null) {
                   return const ListTile(title: Text('Loading...'));
                 }
                 final userData =
@@ -390,7 +390,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
               future:
                   _firestore.collection('users').doc(data['toUserId']).get(),
               builder: (context, userSnapshot) {
-                if (!userSnapshot.hasData) {
+                if (!userSnapshot.hasData || userSnapshot.data == null) {
                   return const ListTile(title: Text('Loading...'));
                 }
                 final userData =
