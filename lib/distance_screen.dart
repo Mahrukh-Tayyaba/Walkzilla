@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:health/health.dart';
 import 'services/health_service.dart';
+import 'package:provider/provider.dart';
+import 'providers/step_goal_provider.dart';
+import 'services/daily_content_service.dart';
 
 class DistanceScreen extends StatefulWidget {
   const DistanceScreen({super.key});
@@ -16,7 +19,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
   // Real data from Health Connect
   double _currentDistance = 0.0;
   double _yesterdayDistance = 0.0;
-  bool _isLoading = true;
+  bool _isLoading = false;
   bool _hasError = false;
   String _errorMessage = '';
 
@@ -33,11 +36,6 @@ class _DistanceScreenState extends State<DistanceScreen> {
     if (!mounted) return;
 
     try {
-      setState(() {
-        _isLoading = true;
-        _hasError = false;
-      });
-
       // Check Health Connect permissions
       bool hasPermissions =
           await _healthService.checkHealthConnectPermissions();
@@ -47,7 +45,6 @@ class _DistanceScreenState extends State<DistanceScreen> {
             _hasError = true;
             _errorMessage =
                 'Health Connect permissions required to view distance data';
-            _isLoading = false;
           });
         }
         return;
@@ -67,30 +64,22 @@ class _DistanceScreenState extends State<DistanceScreen> {
 
       if (mounted) {
         setState(() {
-          _currentDistance =
-              todayDistance / 1000.0; // Convert meters to kilometers
-          _yesterdayDistance =
-              yesterdayDistance / 1000.0; // Convert meters to kilometers
-          _isLoading = false;
+          _currentDistance = todayDistance; // Keep in meters
+          _yesterdayDistance = yesterdayDistance; // Keep in meters
         });
       }
 
       print(
-          '📏 Distance data loaded - Today: ${_currentDistance.toStringAsFixed(1)} km, Yesterday: ${_yesterdayDistance.toStringAsFixed(1)} km');
+          '📏 Distance data loaded - Today: ${_currentDistance.toStringAsFixed(0)} m, Yesterday: ${_yesterdayDistance.toStringAsFixed(0)} m');
     } catch (e) {
       print('❌ Error loading distance data: $e');
       if (mounted) {
         setState(() {
           _hasError = true;
           _errorMessage = 'Failed to load distance data: $e';
-          _isLoading = false;
         });
       }
     }
-  }
-
-  Future<void> _refreshData() async {
-    await _loadDistanceData();
   }
 
   @override
@@ -113,37 +102,8 @@ class _DistanceScreenState extends State<DistanceScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black87),
-            onPressed: _isLoading ? null : _refreshData,
-          ),
-        ],
       ),
-      body: _isLoading
-          ? _buildLoadingState()
-          : _hasError
-              ? _buildErrorState()
-              : _buildContent(),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(color: Colors.blue),
-          SizedBox(height: 16),
-          Text(
-            'Loading distance data...',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black54,
-            ),
-          ),
-        ],
-      ),
+      body: _hasError ? _buildErrorState() : _buildContent(),
     );
   }
 
@@ -179,7 +139,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _refreshData,
+              onPressed: _loadDistanceData,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -204,8 +164,10 @@ class _DistanceScreenState extends State<DistanceScreen> {
               child: CircularPercentIndicator(
                 radius: 85.0,
                 lineWidth: 10.0,
-                percent: (_currentDistance / 10.0)
-                    .clamp(0.0, 1.0), // Clamp to [0.0, 1.0]
+                percent: (_currentDistance /
+                        (Provider.of<StepGoalProvider>(context).goalDistance *
+                            1000))
+                    .clamp(0.0, 1.0),
                 center: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -213,7 +175,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
                         color: Colors.blue, size: 28),
                     const SizedBox(height: 4),
                     Text(
-                      _currentDistance.toStringAsFixed(1),
+                      _currentDistance.toStringAsFixed(0),
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -221,7 +183,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
                       ),
                     ),
                     const Text(
-                      'KM',
+                      'M',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.black54,
@@ -264,11 +226,11 @@ class _DistanceScreenState extends State<DistanceScreen> {
                         color: Colors.blue, size: 24),
                   ),
                   const SizedBox(width: 16),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Daily Tip',
                           style: TextStyle(
                             fontSize: 15,
@@ -276,10 +238,10 @@ class _DistanceScreenState extends State<DistanceScreen> {
                             color: Colors.black,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          'Walking 10,000 steps daily helps maintain good cardiovascular health.',
-                          style: TextStyle(
+                          DailyContentService().getDailyTip('distance'),
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Colors.black87,
                           ),
@@ -310,52 +272,101 @@ class _DistanceScreenState extends State<DistanceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE3F2FD),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.flag,
-                          color: Colors.blue,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Mini Challenge',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE3F2FD),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.flag,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Mini Challenge',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
                   Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: MediaQuery.of(context).size.width * 0.035,
-                      vertical: MediaQuery.of(context).size.width * 0.03,
-                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F6F8),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(
-                      'Walk 7,000 steps today!',
-                      style: TextStyle(
-                        fontSize: MediaQuery.of(context).size.width * 0.038,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Walk ${(Provider.of<StepGoalProvider>(context).miniChallengeDistance * 1000).toStringAsFixed(0)} m today!',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: (_currentDistance /
+                              (Provider.of<StepGoalProvider>(context)
+                                      .miniChallengeDistance *
+                                  1000))
+                          .clamp(0.0, 1.0),
+                      child: Container(
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                      softWrap: true,
                     ),
                   ),
                   const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Today: ${_currentDistance.toStringAsFixed(0)} m',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      Text(
+                        '${((Provider.of<StepGoalProvider>(context).miniChallengeDistance * 1000) - _currentDistance).clamp(0, (Provider.of<StepGoalProvider>(context).miniChallengeDistance * 1000)).toStringAsFixed(0)} m to go',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -395,7 +406,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
                               style: TextStyle(
                                   color: Colors.black54, fontSize: 13)),
                           const SizedBox(height: 0),
-                          Text('${_currentDistance.toStringAsFixed(1)} KM',
+                          Text('${_currentDistance.toStringAsFixed(0)} M',
                               style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -428,7 +439,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
                               style: TextStyle(
                                   color: Colors.black54, fontSize: 13)),
                           const SizedBox(height: 0),
-                          Text('${_yesterdayDistance.toStringAsFixed(1)} KM',
+                          Text('${_yesterdayDistance.toStringAsFixed(0)} M',
                               style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -477,7 +488,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Walking 10,000 steps burns approximately 400-500 calories!',
+                          DailyContentService().getDailyFunFact('distance'),
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[700],

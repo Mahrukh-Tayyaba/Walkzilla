@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'services/health_service.dart';
 import 'package:health/health.dart';
+import 'package:provider/provider.dart';
+import 'providers/step_goal_provider.dart';
+import 'services/daily_content_service.dart';
 
 class CaloriesScreen extends StatefulWidget {
   const CaloriesScreen({
@@ -15,12 +18,15 @@ class CaloriesScreen extends StatefulWidget {
 class _CaloriesScreenState extends State<CaloriesScreen> {
   double _currentCalories = 0.0;
   double _yesterdayCalories = 0.0;
-  bool _isLoading = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchCaloriesData();
+    // Use a microtask to avoid calling setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchCaloriesData();
+    });
   }
 
   // Convert steps to calories using the standard formula
@@ -31,8 +37,6 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
   }
 
   Future<void> _fetchCaloriesData() async {
-    setState(() => _isLoading = true);
-
     try {
       final healthService = HealthService();
       final now = DateTime.now();
@@ -93,7 +97,6 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
         setState(() {
           _currentCalories = todayCalories;
           _yesterdayCalories = yesterdayCalories;
-          _isLoading = false;
         });
       }
 
@@ -105,7 +108,6 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
         setState(() {
           _currentCalories = 0.0;
           _yesterdayCalories = 0.0;
-          _isLoading = false;
         });
       }
     }
@@ -133,211 +135,185 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black87),
-            onPressed: _fetchCaloriesData,
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         key: const Key('calories_screen_scrollview'),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 20.0),
-          child: _isLoading
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: CircularPercentIndicator(
+                  key: const Key('calories_circular_indicator'),
+                  radius: 85.0,
+                  lineWidth: 10.0,
+                  percent: _currentCalories /
+                      (Provider.of<StepGoalProvider>(context).goalCalories),
+                  center: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
+                      const Icon(
+                        Icons.local_fire_department_rounded,
+                        color: Colors.orange,
+                        size: 28,
+                      ),
+                      const SizedBox(height: 4),
                       Text(
-                        'Fetching calories data...',
+                        _currentCalories.toStringAsFixed(0),
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const Text(
+                        'kcal',
                         style: TextStyle(
+                          fontSize: 13,
                           color: Colors.grey,
-                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  progressColor: Colors.orange,
+                  backgroundColor: Colors.orange.withOpacity(0.2),
+                  circularStrokeCap: CircularStrokeCap.round,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              _buildInfoCard(
+                key: const Key('mini_challenge_card'),
+                title: 'Mini Challenge of the Day',
+                icon: Icons.flag_outlined,
+                iconColor: Colors.orange,
+                content: _currentCalories >=
+                        Provider.of<StepGoalProvider>(context)
+                            .miniChallengeCalories
+                    ? 'Challenge completed! 🎉'
+                    : 'Burn ${Provider.of<StepGoalProvider>(context).miniChallengeCalories.toStringAsFixed(0)} kcal today!',
+              ),
+              const SizedBox(height: 16),
+              _buildInfoCard(
+                key: const Key('daily_tip_card'),
+                title: 'Daily Tip',
+                icon: Icons.lightbulb,
+                iconColor: Colors.orange,
+                content: DailyContentService().getDailyTip('calories'),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                key: const Key('calories_comparison_row'),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE0E0E0)),
+                ),
+                child: Row(
                   children: [
-                    Center(
-                      child: CircularPercentIndicator(
-                        key: const Key('calories_circular_indicator'),
-                        radius: 85.0,
-                        lineWidth: 10.0,
-                        percent:
-                            _currentCalories / 500, // Default goal of 500 kcal
-                        center: Column(
-                          mainAxisSize: MainAxisSize.min,
+                    // Today
+                    Expanded(
+                      child: Container(
+                        key: const Key('today_calories_container'),
+                        margin: const EdgeInsets.only(
+                            left: 8, top: 4, bottom: 4, right: 4),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 0),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF6ED), // very light orange
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(
-                              Icons.local_fire_department_rounded,
+                              Icons.local_fire_department_outlined,
                               color: Colors.orange,
-                              size: 28,
+                              size: 18,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _currentCalories.toStringAsFixed(0),
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Today',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 13,
                               ),
                             ),
+                            const SizedBox(height: 0),
                             Text(
-                              'of 500 kcal',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
+                              '${_currentCalories.toStringAsFixed(0)} kcal',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
                               ),
                             ),
                           ],
                         ),
-                        progressColor: Colors.orange,
-                        backgroundColor: Colors.orange.withOpacity(0.2),
-                        circularStrokeCap: CircularStrokeCap.round,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    const SizedBox(height: 16),
-                    _buildInfoCard(
-                      key: const Key('mini_challenge_card'),
-                      title: 'Mini Challenge of the Day',
-                      icon: Icons.flag_outlined,
-                      iconColor: Colors.orange,
-                      content: _currentCalories >= 200
-                          ? 'Challenge completed! 🎉'
-                          : 'Burn 200 kcal today!',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildInfoCard(
-                      key: const Key('daily_tip_card'),
-                      title: 'Daily Tip',
-                      icon: Icons.lightbulb,
-                      iconColor: Colors.orange,
-                      content:
-                          'Small bursts of activity like a brisk walk or dancing can boost your calorie burn!',
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      key: const Key('calories_comparison_row'),
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                      ),
-                      child: Row(
-                        children: [
-                          // Today
-                          Expanded(
-                            child: Container(
-                              key: const Key('today_calories_container'),
-                              margin: const EdgeInsets.only(
-                                  left: 8, top: 4, bottom: 4, right: 4),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 0),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                    0xFFFFF6ED), // very light orange
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.local_fire_department_outlined,
-                                    color: Colors.orange,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'Today',
-                                    style: TextStyle(
-                                      color: Colors.black54,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 0),
-                                  Text(
-                                    '${_currentCalories.toStringAsFixed(0)} kcal',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.orange,
-                                    ),
-                                  ),
-                                ],
+                    const SizedBox(width: 8),
+                    // Yesterday
+                    Expanded(
+                      child: Container(
+                        key: const Key('yesterday_calories_container'),
+                        margin: const EdgeInsets.only(
+                            right: 8, top: 4, bottom: 4, left: 4),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 0),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2F7FF), // very light blue
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.local_fire_department_outlined,
+                              color: Colors.blue,
+                              size: 18,
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Yesterday',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 13,
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          // Yesterday
-                          Expanded(
-                            child: Container(
-                              key: const Key('yesterday_calories_container'),
-                              margin: const EdgeInsets.only(
-                                  right: 8, top: 4, bottom: 4, left: 4),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 0),
-                              decoration: BoxDecoration(
-                                color:
-                                    const Color(0xFFF2F7FF), // very light blue
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.local_fire_department_outlined,
-                                    color: Colors.blue,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'Yesterday',
-                                    style: TextStyle(
-                                      color: Colors.black54,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 0),
-                                  Text(
-                                    _yesterdayCalories > 0
-                                        ? '${_yesterdayCalories.toStringAsFixed(0)} kcal'
-                                        : 'No data',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: _yesterdayCalories > 0
-                                          ? Colors.blue
-                                          : Colors.grey,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 0),
+                            Text(
+                              _yesterdayCalories > 0
+                                  ? '${_yesterdayCalories.toStringAsFixed(0)} kcal'
+                                  : 'No data',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: _yesterdayCalories > 0
+                                    ? Colors.blue
+                                    : Colors.grey,
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildInfoCard(
-                      key: const Key('fun_fact_card'),
-                      title: 'Fun Fact',
-                      icon: Icons.star_border_rounded,
-                      iconColor: Colors.amber,
-                      content:
-                          'Did you know? Active calories are burned during exercise and daily activities!',
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 24),
+              _buildInfoCard(
+                key: const Key('fun_fact_card'),
+                title: 'Fun Fact',
+                icon: Icons.star_border_rounded,
+                iconColor: Colors.amber,
+                content: DailyContentService().getDailyFunFact('calories'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -469,12 +445,12 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
                 color: const Color(0xFFF4F6F8),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Burn 200 kcal today!',
-                    style: TextStyle(
+                    'Burn ${Provider.of<StepGoalProvider>(context).miniChallengeCalories.toStringAsFixed(0)} kcal today!',
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
@@ -492,8 +468,10 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
-                widthFactor: (_currentCalories / 200)
-                    .clamp(0.0, 1.0), // Example progress
+                widthFactor: (_currentCalories /
+                        Provider.of<StepGoalProvider>(context)
+                            .miniChallengeCalories)
+                    .clamp(0.0, 1.0),
                 child: Container(
                   height: 4,
                   decoration: BoxDecoration(
@@ -515,7 +493,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
                   ),
                 ),
                 Text(
-                  '${(200 - _currentCalories).clamp(0, 200).toStringAsFixed(0)} kcal to go',
+                  '${(Provider.of<StepGoalProvider>(context).miniChallengeCalories - _currentCalories).clamp(0, Provider.of<StepGoalProvider>(context).miniChallengeCalories).toStringAsFixed(0)} kcal to go',
                   style: const TextStyle(
                     fontSize: 13,
                     color: Colors.black54,

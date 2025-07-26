@@ -8,6 +8,7 @@ import 'services/health_service.dart';
 import 'services/username_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'main.dart' show navigatorKey;
+import 'daily_goal_selection_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
@@ -228,38 +229,16 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
       });
 
       if (mounted) {
-        // Request health permissions
-        bool permissionsGranted =
-            await _healthService.requestHealthPermissions(context);
-
-        if (permissionsGranted) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.userCredential.user!.uid)
-              .update({
-            'hasHealthPermissions': true,
-          });
-        } else {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    "Some features may be limited without health data access."),
-                duration: Duration(seconds: 5),
-              ),
-            );
-          }
-        }
-
         // Check for existing duo challenge invites
         final duoChallengeService =
             DuoChallengeService(navigatorKey: navigatorKey);
         await duoChallengeService.checkForExistingInvites();
 
-        // Navigate to home screen
+        // Navigate to daily goal selection screen
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const Home()),
+          MaterialPageRoute(
+              builder: (context) => const DailyGoalSelectionScreen()),
           (route) => false,
         );
       }

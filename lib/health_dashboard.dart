@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:health/health.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'home.dart';
 import 'dart:async';
 import 'steps_screen.dart';
@@ -31,29 +30,10 @@ class _HealthDashboardState extends State<HealthDashboard> {
   bool _isGoalEnabled = true;
   int _selectedIndex = 1;
 
-  // Real data will be fetched from Health Service
-  List<Map<String, dynamic>> _weeklyData = [];
-
-  List<Map<String, dynamic>> _caloriesData = [];
-
-  // Initialize with default data to prevent chart errors
-  void _initializeWeeklyData() {
-    final now = DateTime.now();
-    _weeklyData = List.generate(7, (index) {
-      final date = now.subtract(Duration(days: 6 - index));
-      return {
-        'date': date,
-        'steps': 0,
-        'calories': 0.0,
-      };
-    });
-  }
-
   @override
   void initState() {
     super.initState();
     print("🚀 Health Dashboard initState called");
-    _initializeWeeklyData(); // Initialize with default data first
     // Load data in background without blocking UI
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeHealth();
@@ -130,29 +110,28 @@ class _HealthDashboardState extends State<HealthDashboard> {
       print("🔄 Fetching today's distance for dashboard...");
       final now = DateTime.now();
       final startOfToday = DateTime(now.year, now.month, now.day);
-      double todayDistance = await _healthService.fetchDistance(
-        start: startOfToday,
-        end: now,
-      );
-      double distanceInKm =
-          todayDistance / 1000.0; // Convert meters to kilometers
+      double todayDistance = 0.0;
+      try {
+        todayDistance = await _healthService.fetchDistance(
+          start: startOfToday,
+          end: now,
+        );
+        print("📏 Dashboard - Distance fetch successful: $todayDistance");
+      } catch (distanceError) {
+        print("❌ Dashboard - Distance fetch failed: $distanceError");
+        todayDistance = 0.0;
+      }
 
       print("📊 Dashboard - Today's steps: $todaySteps");
       print("🔥 Dashboard - Calculated calories: $calculatedCalories kcal");
-      print("📏 Dashboard - Distance: ${distanceInKm.toStringAsFixed(1)} km");
-
-      // Update today's data in weekly data
-      if (_weeklyData.isNotEmpty) {
-        _weeklyData.last['steps'] = todaySteps;
-        _weeklyData.last['calories'] = calculatedCalories;
-        _weeklyData.last['distance'] = distanceInKm;
-      }
+      print("📏 Dashboard - Raw distance: $todayDistance");
+      print("📏 Dashboard - Distance: ${todayDistance.toStringAsFixed(0)} m");
 
       if (mounted) {
         setState(() {
           _steps = todaySteps;
           _calories = calculatedCalories;
-          _distance = distanceInKm;
+          _distance = todayDistance; // Store in meters
         });
       }
 
@@ -368,17 +347,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
     );
   }
 
-  void _updateCurrentMetrics() {
-    // Get today's data (last item in weekly data)
-    if (_weeklyData.isNotEmpty) {
-      final todayData = _weeklyData.last;
-      setState(() {
-        _steps = todayData['steps'] as int? ?? 0;
-        _calories = (todayData['calories'] as num?)?.toDouble() ?? 0.0;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -435,7 +403,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                   Expanded(
                     child: _buildMetricCard(
                       'Distance',
-                      '${_distance.toStringAsFixed(1)} KM',
+                      '${_distance.toStringAsFixed(0)} M',
                       Icons.directions_walk,
                       Colors.blue,
                     ),
@@ -636,87 +604,37 @@ class _HealthDashboardState extends State<HealthDashboard> {
               flex: 3,
               child: SizedBox(
                 height: 80,
-                child: BarChart(
-                  BarChartData(
-                    groupsSpace: 6,
-                    alignment: BarChartAlignment.spaceEvenly,
-                    maxY: 15000,
-                    minY: 0,
-                    barTouchData: BarTouchData(enabled: false),
-                    titlesData: FlTitlesData(
-                      show: true,
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (value, meta) {
-                            final now = DateTime.now();
-                            final date =
-                                now.subtract(Duration(days: 6 - value.toInt()));
-                            final dayInitial = DateFormat('E').format(date)[0];
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 5.0),
-                              child: Text(
-                                dayInitial,
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            );
-                          },
-                          reservedSize: 16,
-                        ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(7, (index) {
+                    // Generate some sample data for the bars
+                    final barHeights = [
+                      0.4,
+                      0.8,
+                      0.6,
+                      0.3,
+                      0.7,
+                      0.5,
+                      0.9
+                    ]; // Relative heights
+                    final height = 60 * barHeights[index]; // Max height 60
+
+                    return Container(
+                      width: 20,
+                      height: height,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2E7D32),
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      leftTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    gridData: const FlGridData(show: false),
-                    barGroups: List.generate(
-                      7,
-                      (index) => _generateBarGroup(
-                        index,
-                        index < _weeklyData.length
-                            ? (_weeklyData[index]['steps'] as num?)
-                                    ?.toDouble() ??
-                                0.0
-                            : 0.0,
-                      ),
-                    ),
-                  ),
+                    );
+                  }),
                 ),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  BarChartGroupData _generateBarGroup(int x, double y) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y,
-          color: const Color(0xFF2E7D32),
-          width: 18,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(3),
-            topRight: Radius.circular(3),
-          ),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: false,
-            toY: 10000,
-            color: Colors.grey[200],
-          ),
-        ),
-      ],
     );
   }
 
@@ -780,7 +698,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       ),
                     ),
                     Text(
-                      title == 'Distance' ? '0.0 KM' : value,
+                      value,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 14,

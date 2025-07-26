@@ -10,6 +10,7 @@ import 'services/username_service.dart'; // Add username service
 import 'services/duo_challenge_service.dart';
 import 'main.dart' show navigatorKey;
 import 'email_verification_screen.dart';
+import 'daily_goal_selection_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -460,40 +461,22 @@ class SignupScreenState extends State<SignupScreen> {
           DuoChallengeService(navigatorKey: navigatorKey);
       await duoChallengeService.checkForExistingInvites();
 
-      // Navigate to home screen
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const Home()),
-        (route) => false,
-      );
-
-      // After navigation, check and request health permissions if needed
-      if (mounted && isNewUser) {
-        // Small delay to ensure navigation is complete
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        bool permissionsGranted =
-            await _healthService.requestHealthPermissions(context);
-
-        if (permissionsGranted) {
-          // Update the permissions status in Firestore
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userCredential.user!.uid)
-              .update({
-            'hasHealthPermissions': true,
-          });
-        } else {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    "Some features may be limited without health data access."),
-                duration: Duration(seconds: 5),
-              ),
-            );
-          }
-        }
+      // Navigate based on whether user is new or existing
+      if (isNewUser) {
+        // Navigate to daily goal selection screen for new users
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const DailyGoalSelectionScreen()),
+          (route) => false,
+        );
+      } else {
+        // Navigate to home screen for existing users
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const Home()),
+          (route) => false,
+        );
       }
     } catch (e) {
       if (!mounted) return;

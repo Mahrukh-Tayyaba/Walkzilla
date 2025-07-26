@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'providers/step_goal_provider.dart';
 import 'services/health_service.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import 'services/daily_content_service.dart';
 
 class StepsScreen extends StatefulWidget {
   final int currentSteps;
@@ -24,16 +25,18 @@ class StepsScreen extends StatefulWidget {
 class _StepsScreenState extends State<StepsScreen> {
   int _todaySteps = 0;
   int _yesterdaySteps = 0;
-  bool _isLoading = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchStepData();
+    // Use a microtask to avoid calling setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchStepData();
+    });
   }
 
   Future<void> _fetchStepData() async {
-    setState(() => _isLoading = true);
     final healthService = HealthService();
     // Fetch today's steps
     final todaySteps = await healthService.fetchStepsData();
@@ -51,11 +54,13 @@ class _StepsScreenState extends State<StepsScreen> {
     } catch (e) {
       yesterdaySteps = 0;
     }
-    setState(() {
-      _todaySteps = todaySteps;
-      _yesterdaySteps = yesterdaySteps;
-      _isLoading = false;
-    });
+
+    if (mounted) {
+      setState(() {
+        _todaySteps = todaySteps;
+        _yesterdaySteps = yesterdaySteps;
+      });
+    }
   }
 
   String _getMonthName(int month) {
@@ -170,7 +175,7 @@ class _StepsScreenState extends State<StepsScreen> {
                               ),
                             ),
                             const Text(
-                              'of 10k steps',
+                              'steps',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.grey,
@@ -426,6 +431,9 @@ class _StepsScreenState extends State<StepsScreen> {
 
   // --- Steps Info Cards ---
   Widget _buildStepsDailyTipCard() {
+    final dailyContentService = DailyContentService();
+    final dailyTip = dailyContentService.getDailyTip('steps');
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -457,11 +465,11 @@ class _StepsScreenState extends State<StepsScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Daily Tip',
                   style: TextStyle(
                     fontSize: 15,
@@ -469,10 +477,10 @@ class _StepsScreenState extends State<StepsScreen> {
                     color: Colors.black87,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Take short walking breaks throughout the day to boost your step count!',
-                  style: TextStyle(
+                  dailyTip,
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.black87,
                   ),
@@ -581,6 +589,9 @@ class _StepsScreenState extends State<StepsScreen> {
   }
 
   Widget _buildStepsFunFactCard() {
+    final dailyContentService = DailyContentService();
+    final funFact = dailyContentService.getDailyFunFact('steps');
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -621,9 +632,9 @@ class _StepsScreenState extends State<StepsScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Did you know? Walking 10,000 steps a day can help improve your heart health and mood!',
-            style: TextStyle(
+          Text(
+            funFact,
+            style: const TextStyle(
               fontSize: 14,
               color: Colors.grey,
               height: 1.4,

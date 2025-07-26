@@ -305,11 +305,11 @@ class _StreaksScreenState extends State<StreaksScreen> {
   void _showStreakSettingsDialog(BuildContext context) {
     final provider =
         Provider.of<StreakSettingsProvider>(context, listen: false);
+    final stepGoalProvider =
+        Provider.of<StepGoalProvider>(context, listen: false);
     final settings = provider.settings;
 
-    int stepGoal = settings.stepGoal;
-    bool remindersEnabled = settings.remindersEnabled;
-    TimeOfDay reminderTime = settings.reminderTime;
+    int stepGoal = stepGoalProvider.goalSteps;
 
     showDialog(
       context: context,
@@ -463,43 +463,6 @@ class _StreaksScreenState extends State<StreaksScreen> {
                     ),
                     const SizedBox(height: 22),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.notifications_none_rounded,
-                            color: Color(0xFF2563EB), size: 18),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Enable Daily Reminders',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13.5,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                        Switch(
-                          value: remindersEnabled,
-                          onChanged: (value) {
-                            setState(() {
-                              remindersEnabled = value;
-                            });
-                          },
-                          activeColor: const Color(0xFF2563EB),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Get a gentle nudge to complete your steps every day!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFFB0B4BA),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
@@ -528,13 +491,11 @@ class _StreaksScreenState extends State<StreaksScreen> {
                               provider.updateSettings(
                                 StreakSettings(
                                   stepGoal: stepGoal,
-                                  remindersEnabled: remindersEnabled,
-                                  reminderTime: reminderTime,
+                                  remindersEnabled: settings.remindersEnabled,
+                                  reminderTime: settings.reminderTime,
                                 ),
                               );
-                              Provider.of<StepGoalProvider>(context,
-                                      listen: false)
-                                  .setGoal(stepGoal);
+                              stepGoalProvider.setGoal(stepGoal);
                               Navigator.of(context).pop();
                             },
                             style: ElevatedButton.styleFrom(
