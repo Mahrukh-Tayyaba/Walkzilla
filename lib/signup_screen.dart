@@ -946,19 +946,9 @@ class SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 12),
 
                 // Social Login Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildSocialButton(
-                      'assets/images/google-logo-icon.png',
-                      onTap: signInWithGoogle,
-                    ),
-                    const SizedBox(width: 16),
-                    _buildSocialButton(
-                      'assets/images/apple-Icon.png',
-                      onTap: null,
-                    ),
-                  ],
+                _buildSocialButton(
+                  'assets/images/google-logo-icon.png',
+                  onTap: signInWithGoogle,
                 ),
                 const SizedBox(height: 12),
 
@@ -1006,25 +996,31 @@ class SignupScreenState extends State<SignupScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 120,
+        width: double.infinity,
         height: 55,
         decoration: BoxDecoration(
           color: onTap == null ? Colors.grey[200] : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              imagePath,
+              height: 24,
+              color: onTap == null ? Colors.grey[400] : null,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Continue with Google',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: onTap == null ? Colors.grey[400] : Colors.black87,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
-        ),
-        child: Center(
-          child: Image.asset(
-            imagePath,
-            height: 24,
-            color: onTap == null ? Colors.grey[400] : null,
-          ),
         ),
       ),
     );

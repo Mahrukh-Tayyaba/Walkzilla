@@ -58,6 +58,7 @@ dependencies:
   flame: ^1.29.0
   image_picker: ^1.0.7
   shared_preferences: ^2.2.2
+  font_awesome_flutter: ^10.5.0
 
 dev_dependencies:
   flutter_test:

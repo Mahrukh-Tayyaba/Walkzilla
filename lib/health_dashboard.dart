@@ -48,8 +48,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
   Future<void> _initializeHealth() async {
     print("🔧 _initializeHealth called");
     try {
-      // Skip the redundant permission check since fetchHealthData() handles it
-      // and the individual screens are working, so permissions should be fine
       print("🔄 Proceeding directly to fetchHealthData()");
       await fetchHealthData();
     } catch (e) {

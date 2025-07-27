@@ -17,14 +17,14 @@ import 'widgets/reward_notification_widget.dart';
 import 'services/health_service.dart';
 import 'services/coin_service.dart';
 
+// Global navigator key to show dialogs from anywhere
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   // Handle background message (can be expanded later)
   print('Handling a background message: ${message.messageId}');
 }
-
-// Global navigator key to show dialogs from anywhere
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   try {

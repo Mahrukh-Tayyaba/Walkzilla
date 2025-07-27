@@ -63,6 +63,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   CharacterDisplayGame? _userGameInstance;
   CharacterDisplayGame? _opponentGameInstance;
 
+  // Animation debouncing to prevent flickering
+  DateTime? _lastUserAnimationUpdate;
+  DateTime? _lastOpponentAnimationUpdate;
+  static const Duration _animationDebounceTime = Duration(milliseconds: 100);
+
   @override
   void initState() {
     super.initState();
@@ -472,7 +477,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Case 2: Same opponent but data changed
         else if (_opponentPosition != opponentPos ||
             _opponentSteps != opponentSteps) {
-          print('📊 DUO CHALLENGE: Existing opponent data changed');
+          print(
+            '📊 DUO CHALLENGE: Existing opponent data changed - Position: $_opponentPosition -> $opponentPos, Steps: $_opponentSteps -> $opponentSteps',
+          );
           shouldUpdateOpponent = true;
         }
         // Case 3: Same opponent, same data, but not visible (safety check)
@@ -485,14 +492,26 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         }
 
         if (shouldUpdateOpponent) {
-          // Determine if opponent is walking based on step changes
+          // Determine if opponent is walking based on step changes (like Solo Mode)
           bool opponentIsWalking = false;
           if (_otherPlayerId == otherPlayerId &&
               _opponentSteps != opponentSteps) {
             opponentIsWalking = opponentSteps > _opponentSteps;
+            print(
+              '👟 DUO CHALLENGE: Opponent steps changed: $_opponentSteps -> $opponentSteps, walking: $opponentIsWalking',
+            );
           }
 
-          if (mounted) {
+          // Only update state if values actually changed to prevent unnecessary rebuilds
+          bool needsStateUpdate = false;
+          if (_opponentPosition != opponentPos ||
+              _opponentSteps != opponentSteps ||
+              _otherPlayerId != otherPlayerId ||
+              _isOpponentWalking != opponentIsWalking) {
+            needsStateUpdate = true;
+          }
+
+          if (needsStateUpdate && mounted) {
             setState(() {
               _opponentPosition = opponentPos;
               _opponentSteps = opponentSteps;
@@ -501,21 +520,24 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
             });
           }
 
-          // Update opponent character animation immediately
+          // Update opponent character animation immediately with smooth transitions
           _updateOpponentCharacterAnimation(opponentIsWalking);
 
           print(
-            '👥 DUO CHALLENGE: Opponent now visible with position: $opponentPos, steps: $opponentSteps',
+            '👥 DUO CHALLENGE: Opponent now visible with position: $opponentPos, steps: $opponentSteps, walking: $opponentIsWalking',
           );
 
-          // If opponent was walking, stop after a short delay for smooth animation
+          // If opponent was walking, stop after a short delay for smooth animation (like Solo Mode)
           if (opponentIsWalking) {
             Future.delayed(const Duration(milliseconds: 300), () {
-              if (mounted) {
+              if (mounted && _isOpponentWalking == true) {
                 setState(() {
                   _isOpponentWalking = false;
                 });
                 _updateOpponentCharacterAnimation(false);
+                print(
+                  '🎬 DUO CHALLENGE: Opponent walking animation stopped after delay',
+                );
               }
             });
           }
@@ -823,6 +845,50 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     }
   }
 
+  void _startOpponentAnimationMonitoring() {
+    // Monitor opponent character animation every 2 seconds to prevent excessive updates
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _checkOpponentAnimationSync();
+        _startOpponentAnimationMonitoring(); // Recursive call
+      }
+    });
+  }
+
+  void _checkOpponentAnimationSync() {
+    // Ensure opponent character animation matches walking state (like Solo Mode)
+    if (_opponentGameInstance?.character != null) {
+      final characterIsWalking = _opponentGameInstance!.character!.isWalking;
+      if (characterIsWalking != _isOpponentWalking) {
+        print(
+          '🎬 DUO CHALLENGE OPPONENT SYNC: Character walking ($characterIsWalking) != Opponent walking ($_isOpponentWalking) - FORCING SYNC',
+        );
+
+        // Force correct state
+        _opponentGameInstance!.character!.isWalking = _isOpponentWalking;
+        _opponentGameInstance!.character!.updateAnimation(_isOpponentWalking);
+
+        // Force animation directly if still not synced
+        if (!_isOpponentWalking &&
+            _opponentGameInstance!.character!.idleAnimation != null) {
+          print(
+            '🎬 DUO CHALLENGE OPPONENT FORCE: Directly setting opponent idle animation',
+          );
+          _opponentGameInstance!.character!.animation =
+              _opponentGameInstance!.character!.idleAnimation;
+        }
+
+        print(
+          '✅ DUO CHALLENGE OPPONENT SYNC: Opponent character animation synced',
+        );
+      } else {
+        print(
+          '🎬 DUO CHALLENGE OPPONENT SYNC: Animation already in sync, no update needed',
+        );
+      }
+    }
+  }
+
   void _startContinuousMonitoring() {
     print('🔄 DUO CHALLENGE: Starting continuous monitoring system...');
 
@@ -832,6 +898,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     _startBackupMonitoring();
     // Monitor every 3 seconds for safety
     _startSafetyMonitoring();
+    // Monitor opponent character animation every 500ms for smooth updates
+    _startOpponentAnimationMonitoring();
   }
 
   void _startFrequentMonitoring() {
@@ -1041,19 +1109,18 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         });
       }
     } else {
-      // APPROACH 28: FORCE ANIMATION EVEN IF STATE IS SAME (like Solo Mode)
-      // If state is already correct but animation might not be
-      print(
-        '🔄 DUO CHALLENGE: State already correct ($walking), but forcing animation sync',
-      );
-      walking ? _startCharacterWalking() : _stopCharacterWalking();
-
-      // Force character animation immediately
+      // Only force animation if there's a mismatch to prevent unnecessary updates
       if (mounted && _userGameInstance?.character != null) {
-        print(
-          '🎬 DUO CHALLENGE: FORCE SYNC: Forcing character animation to ${walking ? "walking" : "idle"}',
-        );
-        _userGameInstance!.character!.updateAnimation(walking);
+        final characterIsWalking = _userGameInstance!.character!.isWalking;
+        if (characterIsWalking != walking) {
+          print(
+            '🔄 DUO CHALLENGE: Animation mismatch detected, forcing sync to ${walking ? "walking" : "idle"}',
+          );
+          walking ? _startCharacterWalking() : _stopCharacterWalking();
+          _userGameInstance!.character!.updateAnimation(walking);
+        } else {
+          print('🎬 DUO CHALLENGE: Animation already correct, no force needed');
+        }
       }
     }
   }
@@ -1084,6 +1151,16 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     // Check if user reached finish line
     if (_userPosition >= finishLinePosition) {
       await _endGame(_userId);
+    }
+  }
+
+  // Add smooth opponent movement tracking
+  void _updateOpponentPosition(double newPosition) {
+    if (mounted) {
+      setState(() {
+        _opponentPosition = newPosition;
+      });
+      print('🎯 DUO CHALLENGE: Opponent position updated to: $newPosition');
     }
   }
 
@@ -1277,6 +1354,37 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     } else {
       print('⚠️ DUO CHALLENGE: Game instance not available for animation sync');
     }
+
+    // Also sync opponent character animation
+    _syncOpponentCharacterAnimation();
+  }
+
+  void _syncOpponentCharacterAnimation() {
+    // Sync opponent character animation with the same aggressive approach (like Solo Mode)
+    if (_opponentGameInstance != null) {
+      // Force update walking state
+      _opponentGameInstance!.updateWalkingState(_isOpponentWalking);
+
+      // Additional check - ensure opponent character state is correct
+      if (_opponentGameInstance!.character != null) {
+        final characterIsWalking = _opponentGameInstance!.character!.isWalking;
+        if (characterIsWalking != _isOpponentWalking) {
+          print(
+            '🔄 DUO CHALLENGE: Opponent character state mismatch: character=$characterIsWalking, should=$_isOpponentWalking',
+          );
+          // Force correct state
+          _opponentGameInstance!.updateWalkingState(_isOpponentWalking);
+        }
+      }
+
+      print(
+        '✅ DUO CHALLENGE: Opponent character animation synced (Solo Mode style): ${_isOpponentWalking ? "Walking" : "Idle"}',
+      );
+    } else {
+      print(
+        '⚠️ DUO CHALLENGE: Opponent game instance not available for animation sync',
+      );
+    }
   }
 
   void _startCharacterWalking() {
@@ -1293,18 +1401,80 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
   void _updateUserCharacterAnimation(bool walking) {
     if (_userGameInstance != null && _userGameInstance!.character != null) {
-      _userGameInstance!.updateWalkingState(walking);
-      _userGameInstance!.character!.isWalking = walking;
-      _userGameInstance!.character!.updateAnimation(walking);
+      // Debounce animation updates to prevent flickering
+      final now = DateTime.now();
+      if (_lastUserAnimationUpdate != null &&
+          now.difference(_lastUserAnimationUpdate!) < _animationDebounceTime) {
+        print(
+          '🎬 DUO CHALLENGE: User animation update debounced to prevent flickering',
+        );
+        return;
+      }
+
+      // Only update if the walking state actually changed to prevent blinking
+      if (_userGameInstance!.character!.isWalking != walking) {
+        print(
+          '🎬 DUO CHALLENGE: Updating user character animation to ${walking ? "walking" : "idle"}',
+        );
+        _userGameInstance!.updateWalkingState(walking);
+        _userGameInstance!.character!.isWalking = walking;
+        _userGameInstance!.character!.updateAnimation(walking);
+        _lastUserAnimationUpdate = now;
+        print('✅ DUO CHALLENGE: User character animation updated successfully');
+      } else {
+        print(
+          '🎬 DUO CHALLENGE: User animation state unchanged, skipping update to prevent blinking',
+        );
+      }
     }
   }
 
   void _updateOpponentCharacterAnimation(bool walking) {
     if (_opponentGameInstance != null &&
         _opponentGameInstance!.character != null) {
-      _opponentGameInstance!.updateWalkingState(walking);
-      _opponentGameInstance!.character!.isWalking = walking;
-      _opponentGameInstance!.character!.updateAnimation(walking);
+      // Debounce animation updates to prevent flickering
+      final now = DateTime.now();
+      if (_lastOpponentAnimationUpdate != null &&
+          now.difference(_lastOpponentAnimationUpdate!) <
+              _animationDebounceTime) {
+        print(
+          '🎬 DUO CHALLENGE: Opponent animation update debounced to prevent flickering',
+        );
+        return;
+      }
+
+      // Only update if the walking state actually changed to prevent blinking
+      if (_opponentGameInstance!.character!.isWalking != walking) {
+        print(
+          '🎬 DUO CHALLENGE: Updating opponent character animation to ${walking ? "walking" : "idle"}',
+        );
+
+        // Apply the same smooth animation logic as Solo Mode
+        _opponentGameInstance!.updateWalkingState(walking);
+        _opponentGameInstance!.character!.isWalking = walking;
+        _opponentGameInstance!.character!.updateAnimation(walking);
+
+        // Force animation sync like Solo Mode (but only if needed)
+        if (!walking &&
+            _opponentGameInstance!.character!.idleAnimation != null) {
+          print('🎬 DUO CHALLENGE: Force setting opponent idle animation');
+          _opponentGameInstance!.character!.animation =
+              _opponentGameInstance!.character!.idleAnimation;
+        }
+
+        _lastOpponentAnimationUpdate = now;
+        print(
+          '✅ DUO CHALLENGE: Opponent character animation updated successfully',
+        );
+      } else {
+        print(
+          '🎬 DUO CHALLENGE: Opponent animation state unchanged, skipping update to prevent blinking',
+        );
+      }
+    } else {
+      print(
+        '⚠️ DUO CHALLENGE: Opponent game instance or character not available for animation update',
+      );
     }
   }
 
@@ -1327,11 +1497,24 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
     // Store the game instance
     if (isUser) {
-      print('Setting _userGameInstance');
+      print('🎮 DUO CHALLENGE: Setting _userGameInstance for user character');
       _userGameInstance = game;
     } else {
-      print('Setting _opponentGameInstance');
+      print(
+        '🎮 DUO CHALLENGE: Setting _opponentGameInstance for opponent character',
+      );
       _opponentGameInstance = game;
+
+      // Ensure opponent character starts with correct animation state
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && _opponentGameInstance?.character != null) {
+          print(
+            '🎬 DUO CHALLENGE: Initializing opponent character animation state',
+          );
+          _opponentGameInstance!.character!.isWalking = _isOpponentWalking;
+          _opponentGameInstance!.character!.updateAnimation(_isOpponentWalking);
+        }
+      });
     }
 
     return GameWidget(game: game);
@@ -1419,21 +1602,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         backgroundColor: const Color(0xFF7C4DFF),
         automaticallyImplyLeading: false,
       ),
-      body: _isLoadingCharacters
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text(
-                    'Loading characters...',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ],
-              ),
-            )
-          : _buildRacingTrack(),
+      body: _buildRacingTrack(),
     );
   }
 
@@ -2009,8 +2178,8 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
   @override
   void update(double dt) {
     super.update(dt);
-    // APPROACH 1: Force recheck animation every frame (like Solo Mode)
-    updateAnimation(isWalking);
+    // Only update animation when walking state changes to prevent flickering
+    // The animation will be updated externally when needed
   }
 
   @override
@@ -2030,6 +2199,7 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
 
     final newAnimation = walking ? walkingAnimation : idleAnimation;
 
+    // Only switch animation if it's actually different to prevent flickering
     if (animation != newAnimation) {
       print(
         '🔄 DUO Character: Switching animation to ${walking ? "walking" : "idle"}',
@@ -2037,6 +2207,9 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
       animation = newAnimation;
       // Force animation restart by reassigning
       print('🎬 DUO Animation switched and will restart');
+    } else {
+      // Animation is already correct, no need to restart
+      print('🎬 DUO Character: Animation already correct, no restart needed');
     }
   }
 

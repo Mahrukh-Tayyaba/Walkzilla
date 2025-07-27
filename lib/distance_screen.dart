@@ -42,11 +42,13 @@ class _DistanceScreenState extends State<DistanceScreen> {
       if (!hasPermissions) {
         if (mounted) {
           setState(() {
-            _hasError = true;
-            _errorMessage =
-                'Health Connect permissions required to view distance data';
+            _currentDistance = 0.0;
+            _yesterdayDistance = 0.0;
+            _hasError = false;
+            _errorMessage = '';
           });
         }
+        print('📏 No Health Connect permissions - showing 0 distance data');
         return;
       }
 
@@ -66,6 +68,8 @@ class _DistanceScreenState extends State<DistanceScreen> {
         setState(() {
           _currentDistance = todayDistance; // Keep in meters
           _yesterdayDistance = yesterdayDistance; // Keep in meters
+          _hasError = false;
+          _errorMessage = '';
         });
       }
 
@@ -75,8 +79,10 @@ class _DistanceScreenState extends State<DistanceScreen> {
       print('❌ Error loading distance data: $e');
       if (mounted) {
         setState(() {
-          _hasError = true;
-          _errorMessage = 'Failed to load distance data: $e';
+          _currentDistance = 0.0;
+          _yesterdayDistance = 0.0;
+          _hasError = false;
+          _errorMessage = '';
         });
       }
     }
@@ -197,62 +203,6 @@ class _DistanceScreenState extends State<DistanceScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            // Distance Health Tip Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE3F2FD),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withOpacity(0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.lightbulb,
-                        color: Colors.blue, size: 24),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Daily Tip',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DailyContentService().getDailyTip('distance'),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
             // Mini Challenge Card
             Container(
               width: double.infinity,
@@ -366,6 +316,62 @@ class _DistanceScreenState extends State<DistanceScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Distance Health Tip Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.lightbulb,
+                        color: Colors.blue, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Daily Tip',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DailyContentService().getDailyTip('distance'),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
