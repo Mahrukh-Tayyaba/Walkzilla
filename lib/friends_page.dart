@@ -10,6 +10,7 @@ import 'settings_page.dart';
 import 'chat_list_page.dart';
 import 'chat_detail_page.dart';
 import 'friend_profile_page.dart';
+import 'challenges_screen.dart';
 import 'services/friend_service.dart';
 
 class Home extends StatefulWidget {
@@ -297,10 +298,16 @@ class _HomeState extends State<Home> {
                         },
                       ),
                       _buildCornerButton(
-                        icon: Icons.shopping_bag,
-                        label: 'Shop',
-                        color: Colors.purple,
-                        onTap: () => print("Shop tapped!"),
+                        icon: Icons.emoji_events,
+                        label: 'Challenges',
+                        color: Colors.orange,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const ChallengesScreen()),
+                          );
+                        },
                       ),
                     ],
                   ),

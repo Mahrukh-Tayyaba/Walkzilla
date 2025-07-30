@@ -21,6 +21,7 @@ import 'settings_page.dart';
 import 'friends_page.dart';
 import 'chat_list_page.dart';
 import 'leaderboard_page.dart';
+import 'shop_screen.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'solo_mode.dart';
 import 'main.dart';
@@ -1370,7 +1371,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 icon: Icons.shopping_bag,
                                 label: 'Shop',
                                 color: Colors.purple,
-                                onTap: () => print("Shop tapped!"),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const ShopScreen()),
+                                  );
+                                },
                                 screenSize: screenSize,
                               ),
                             ),

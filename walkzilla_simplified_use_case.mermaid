@@ -1,0 +1,48 @@
+graph TD
+    %% Actor
+    User((User))
+    
+    %% System Boundary
+    subgraph App["Walkzilla App"]
+        %% Core Use Cases
+        Login[Login]
+        SignUp[Sign Up]
+        ViewSteps[View Steps]
+        ViewCalories[View Calories]
+        ViewDistance[View Distance]
+        PlaySoloMode[Play Solo Mode]
+        JoinDuoChallenge[Join Duo Challenge]
+        ViewLeaderboard[View Leaderboard]
+        ViewShop[View Shop]
+        
+        %% Include Use Cases (Required steps)
+        ForgotPassword[Forgot Password]
+        EmailVerification[Email Verification]
+        ChallengeInvite[Challenge Invite Notification]
+        RewardNotification[Reward Notification]
+        
+        %% Extend Use Cases (Optional functionality)
+        HealthPermission[Health Permission Dialog]
+    end
+    
+    %% Actor connections
+    User --> Login
+    User --> SignUp
+    User --> ViewSteps
+    User --> ViewCalories
+    User --> ViewDistance
+    User --> PlaySoloMode
+    User --> JoinDuoChallenge
+    User --> ViewLeaderboard
+    User --> ViewShop
+    
+    %% Include relationships (Required steps - base case ALWAYS includes these)
+    Login -.->|"<<include>>"| ForgotPassword
+    SignUp -.->|"<<include>>"| EmailVerification
+    JoinDuoChallenge -.->|"<<include>>"| ChallengeInvite
+    PlaySoloMode -.->|"<<include>>"| RewardNotification
+    
+    %% Extend relationships (Optional functionality - base case can work without these)
+    ViewSteps -.->|"<<extend>>"| HealthPermission
+    ViewCalories -.->|"<<extend>>"| HealthPermission
+    ViewDistance -.->|"<<extend>>"| HealthPermission 

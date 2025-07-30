@@ -1,0 +1,18 @@
+graph LR
+    User((User))
+    
+    subgraph App["Walkzilla App"]
+        Login[Login]
+        ViewSteps[View Steps]
+        ViewFriends[View Friends]
+        PlayGame[Play Game]
+        ViewLeaderboard[View Leaderboard]
+        ViewSettings[View Settings]
+    end
+    
+    User --> Login
+    User --> ViewSteps
+    User --> ViewFriends
+    User --> PlayGame
+    User --> ViewLeaderboard
+    User --> ViewSettings 
