@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 
-class Outfit {
+class ShopItem {
   final String id;
   final String name;
   final String description;
   final int price;
-  final String image;
+  final String imagePath;
+  final String glbFilePath;
   final bool isOwned;
-  final String brand;
-  final Map<String, String> colors;
 
-  Outfit({
+  ShopItem({
     required this.id,
     required this.name,
     required this.description,
     required this.price,
-    required this.image,
+    required this.imagePath,
+    required this.glbFilePath,
     required this.isOwned,
-    required this.brand,
-    required this.colors,
   });
 }
 
@@ -30,146 +30,120 @@ class ShopScreen extends StatefulWidget {
 }
 
 class _ShopScreenState extends State<ShopScreen> {
-  Outfit? selectedOutfit;
-  Outfit? buyPreviewItem;
+  ShopItem? selectedItem;
+  ShopItem? buyPreviewItem;
   int userCoins = 15000;
+  PageController? _pageController;
+  int _currentPage = 0;
+  bool showOwnedItems = false; // Toggle between Buy and Owned
 
-  final List<Outfit> outfits = [
-    Outfit(
+  final List<ShopItem> shopItems = [
+    ShopItem(
       id: '1',
-      name: 'Neon Street Style',
-      description:
-          'Complete cyberpunk outfit with glowing hoodie, cargo pants and tech sneakers.',
-      price: 5500,
-      image: '/placeholder.svg',
-      isOwned: false,
-      brand: 'CYBER TECH',
-      colors: {
-        'top': '#00ffff',
-        'bottom': '#8fbc8f',
-        'shoes': '#ff4500',
-      },
+      name: 'My Character',
+      description: 'Your personal character with unique features and benefits.',
+      price: 1500,
+      imagePath: 'assets/images/shop_items/MyCharacter.png',
+      glbFilePath: 'assets/web/shop/MyCharacter_shop.glb',
+      isOwned: true,
     ),
-    Outfit(
+    ShopItem(
       id: '2',
-      name: 'Galaxy Explorer',
-      description:
-          'Space-themed outfit with cosmic t-shirt, dark jeans and running shoes.',
-      price: 4200,
-      image: '/placeholder.svg',
+      name: 'Blossom',
+      description: 'Beautiful blossom with premium quality and design.',
+      price: 2500,
+      imagePath: 'assets/images/shop_items/blossom.png',
+      glbFilePath: 'assets/web/shop/blossom_shop.glb',
       isOwned: true,
-      brand: 'SPACE CO',
-      colors: {
-        'top': '#4169e1',
-        'bottom': '#4682b4',
-        'shoes': '#32cd32',
-      },
     ),
-    Outfit(
+    ShopItem(
       id: '3',
-      name: 'Business Professional',
-      description:
-          'Elegant business outfit with blazer, formal trousers and oxford shoes.',
-      price: 7500,
-      image: '/placeholder.svg',
-      isOwned: false,
-      brand: 'VERSACE',
-      colors: {
-        'top': '#2c3e50',
-        'bottom': '#2f4f4f',
-        'shoes': '#000000',
-        'accessories': '#ffd700',
-      },
-    ),
-    Outfit(
-      id: '4',
-      name: 'Athletic Performance',
-      description: 'Sports outfit with jersey, shorts and high-tech sneakers.',
-      price: 6800,
-      image: '/placeholder.svg',
-      isOwned: false,
-      brand: 'NIKE',
-      colors: {
-        'top': '#e74c3c',
-        'bottom': '#ff7f50',
-        'shoes': '#ff4500',
-      },
-    ),
-    Outfit(
-      id: '5',
-      name: 'Casual Summer',
-      description:
-          'Relaxed summer outfit with t-shirt, shorts and casual sneakers.',
+      name: 'Sun',
+      description: 'Bright sun with advanced capabilities.',
       price: 3500,
-      image: '/placeholder.svg',
-      isOwned: true,
-      brand: 'UNIQLO',
-      colors: {
-        'top': '#4169e1',
-        'bottom': '#ff7f50',
-        'shoes': '#32cd32',
-        'accessories': '#dc143c',
-      },
+      imagePath: 'assets/images/shop_items/sun.png',
+      glbFilePath: 'assets/web/shop/sun_shop.glb',
+      isOwned: false,
     ),
-    Outfit(
+    ShopItem(
+      id: '4',
+      name: 'Cloud',
+      description: 'Fluffy cloud with exclusive features.',
+      price: 4500,
+      imagePath: 'assets/images/shop_items/cloud.png',
+      glbFilePath: 'assets/web/shop/cloud_shop.glb',
+      isOwned: false,
+    ),
+    ShopItem(
+      id: '5',
+      name: 'Cool',
+      description: 'Cool character with superior performance.',
+      price: 5500,
+      imagePath: 'assets/images/shop_items/cool.png',
+      glbFilePath: 'assets/web/shop/cool_shop.glb',
+      isOwned: false,
+    ),
+    ShopItem(
       id: '6',
-      name: 'Urban Explorer',
-      description:
-          'Adventure-ready outfit with hoodie, cargo pants and durable boots.',
-      price: 6200,
-      image: '/placeholder.svg',
+      name: 'Cow',
+      description: 'Friendly cow with innovative technology.',
+      price: 6500,
+      imagePath: 'assets/images/shop_items/cow.png',
+      glbFilePath: 'assets/web/shop/cow_shop.glb',
       isOwned: false,
-      brand: 'CARHARTT',
-      colors: {
-        'top': '#00ffff',
-        'bottom': '#8fbc8f',
-        'shoes': '#8b4513',
-      },
     ),
-    Outfit(
+    ShopItem(
       id: '7',
-      name: 'Royal Elegance',
-      description:
-          'Luxurious outfit with elegant blazer, formal trousers and golden crown.',
-      price: 12000,
-      image: '/placeholder.svg',
+      name: 'Monster',
+      description: 'Scary monster with premium materials.',
+      price: 7500,
+      imagePath: 'assets/images/shop_items/monster.png',
+      glbFilePath: 'assets/web/shop/monster_shop.glb',
       isOwned: false,
-      brand: 'GUCCI',
-      colors: {
-        'top': '#2c3e50',
-        'bottom': '#2f4f4f',
-        'shoes': '#000000',
-        'accessories': '#ffd700',
-      },
     ),
-    Outfit(
+    ShopItem(
       id: '8',
-      name: 'Tech Futurist',
-      description:
-          'High-tech outfit with smart accessories and futuristic styling.',
-      price: 9500,
-      image: '/placeholder.svg',
+      name: 'Blue Star',
+      description: 'Shining blue star with luxury design.',
+      price: 8500,
+      imagePath: 'assets/images/shop_items/blueStar.png',
+      glbFilePath: 'assets/web/shop/blueStar_shop.glb',
       isOwned: false,
-      brand: 'TESLA',
-      colors: {
-        'top': '#4169e1',
-        'bottom': '#2f4f4f',
-        'shoes': '#708090',
-        'accessories': '#708090',
-      },
+    ),
+    ShopItem(
+      id: '9',
+      name: 'Yellow Star',
+      description: 'Bright yellow star with ultimate features.',
+      price: 9500,
+      imagePath: 'assets/images/shop_items/yellowStar.png',
+      glbFilePath: 'assets/web/shop/yellowstar_shop.glb',
+      isOwned: false,
     ),
   ];
 
-  void handleTryOn(Outfit outfit) {
+  void handleItemSelect(ShopItem item) {
     setState(() {
-      selectedOutfit = outfit;
+      selectedItem = item;
     });
   }
 
-  void handleBuyClick(Outfit outfit) {
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(
+        initialPage: 1000); // Start in the middle for infinite scrolling
+  }
+
+  @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
+  }
+
+  void handleBuyClick(ShopItem item) {
     setState(() {
-      buyPreviewItem = outfit;
-      selectedOutfit = outfit;
+      buyPreviewItem = item;
+      selectedItem = item;
     });
   }
 
@@ -179,14 +153,13 @@ class _ShopScreenState extends State<ShopScreen> {
     });
   }
 
-  Color hexToColor(String hex) {
-    hex = hex.replaceAll('#', '');
-    return Color(int.parse('FF${hex}', radix: 16));
+  List<ShopItem> getFilteredItems() {
+    return shopItems.where((item) => item.isOwned == showOwnedItems).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayOutfit = buyPreviewItem ?? selectedOutfit;
+    final displayItem = buyPreviewItem ?? selectedItem;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -198,7 +171,7 @@ class _ShopScreenState extends State<ShopScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Character Shop',
+          'Shop',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -233,7 +206,7 @@ class _ShopScreenState extends State<ShopScreen> {
       ),
       body: Column(
         children: [
-          // Top 55% - Avatar Display
+          // Top 55% - Item Preview Display
           Expanded(
             flex: 55,
             child: Container(
@@ -256,12 +229,14 @@ class _ShopScreenState extends State<ShopScreen> {
                 ],
               ),
               child: Center(
-                child: _buildAvatar(displayOutfit),
+                child: displayItem != null
+                    ? _buildItemPreview(displayItem)
+                    : _buildDefaultPreview(),
               ),
             ),
           ),
 
-          // Bottom 45% - Outfit Carousel or Buy Preview
+          // Bottom 45% - Shop Items Carousel or Buy Preview
           Expanded(
             flex: 45,
             child: Container(
@@ -272,7 +247,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 ),
               ),
               child: buyPreviewItem == null
-                  ? _buildOutfitCarousel()
+                  ? _buildShopSection()
                   : _buildBuyPreview(),
             ),
           ),
@@ -281,387 +256,337 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
-  Widget _buildAvatar(Outfit? outfit) {
-    return SizedBox(
-      height: 240,
-      width: 200,
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          // Avatar Body
-          Column(
-            children: [
-              // Head
-              Container(
-                width: 48,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
-                  ),
-                  borderRadius: BorderRadius.circular(32),
-                ),
-                child: Stack(
-                  children: [
-                    // Hair
-                    Positioned(
-                      top: -6,
-                      left: 6,
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF92400E),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                    ),
-                    // Eyes
-                    Positioned(
-                      top: 18,
-                      left: 9,
-                      child: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 18,
-                      right: 9,
-                      child: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    // Mouth
-                    Positioned(
-                      top: 30,
-                      left: 15,
-                      child: Container(
-                        width: 12,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF472B6),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    // Accessories
-                    if (outfit?.colors['accessories'] != null)
-                      Positioned(
-                        top: -9,
-                        left: 12,
-                        child: outfit!.name.contains('Tech')
-                            ? const Icon(Icons.visibility,
-                                size: 12, color: Colors.grey)
-                            : Container(
-                                width: 36,
-                                height: 18,
-                                decoration: BoxDecoration(
-                                  color:
-                                      hexToColor(outfit.colors['accessories']!),
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(12),
-                                    topRight: Radius.circular(12),
-                                  ),
-                                ),
-                              ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
+  Widget _buildDefaultPreview() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.shopping_bag,
+          size: 80,
+          color: Colors.grey[400],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Select an item to preview',
+          style: TextStyle(
+            fontSize: 18,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
 
-              // Torso
-              Container(
-                width: 60,
-                height: 96,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Arms
-                    Positioned(
-                      top: 12,
-                      left: -12,
-                      child: Container(
-                        width: 18,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        transform: Matrix4.rotationZ(0.2),
-                      ),
-                    ),
-                    Positioned(
-                      top: 12,
-                      right: -12,
-                      child: Container(
-                        width: 18,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        transform: Matrix4.rotationZ(-0.2),
-                      ),
-                    ),
-                    // Top Clothing
-                    if (outfit != null)
-                      Container(
-                        decoration: BoxDecoration(
-                          color: hexToColor(outfit.colors['top']!),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                          ),
-                        ),
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              outfit.name.split(' ')[0],
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // Legs
-              Container(
-                width: 60,
-                height: 72,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
-                  ),
-                ),
-                child: outfit != null
-                    ? Container(
-                        decoration: BoxDecoration(
-                          color: hexToColor(outfit.colors['bottom']!),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Outfit',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      )
-                    : null,
-              ),
-
-              // Feet/Shoes
-              Container(
-                width: 72,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: outfit != null
-                      ? hexToColor(outfit.colors['shoes']!)
-                      : Colors.grey,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
-                  ),
-                ),
-                child: outfit != null
-                    ? const Center(
-                        child: Text(
-                          'Shoes',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      )
-                    : null,
-              ),
-            ],
+  Widget _buildItemPreview(ShopItem item) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: RepaintBoundary(
+          child: SizedBox(
+            width: double.infinity,
+            height: double.infinity,
+            child: AbsorbPointer(
+              child: ModelViewer(
+                key: ValueKey('preview_${item.id}'),
+                src: item.glbFilePath,
+                alt: "A 3D model of ${item.name}",
+                autoRotate: false,
+                cameraControls: false,
+                backgroundColor: Colors.transparent,
+                cameraOrbit: "0deg 75deg 100%",
+                minCameraOrbit: "0deg 75deg 100%",
+                maxCameraOrbit: "0deg 75deg 100%",
+                interactionPrompt: InteractionPrompt.none,
+                disableTap: true,
+                autoPlay: true,
+                disableZoom: true,
+                disablePan: true,
+                minFieldOfView: "45deg",
+                maxFieldOfView: "45deg",
+                fieldOfView: "45deg",
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildOutfitCarousel() {
+  Widget _buildShopSection() {
+    final filteredItems = getFilteredItems();
+
+    return Column(
+      children: [
+        // Toggle Switch - 15% of the 45% section
+        Container(
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Row(
+              children: [
+                // Buy Tab
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        showOwnedItems = false;
+                        selectedItem = null;
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color:
+                            !showOwnedItems ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: !showOwnedItems
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Buy',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: !showOwnedItems
+                                ? Colors.black
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Owned Tab
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        showOwnedItems = true;
+                        selectedItem = null;
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color:
+                            showOwnedItems ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: showOwnedItems
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Owned',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: showOwnedItems
+                                ? Colors.black
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Shop Items Carousel - 85% of the 45% section
+        Expanded(
+          child: filteredItems.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        showOwnedItems ? Icons.inventory : Icons.shopping_bag,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        showOwnedItems
+                            ? 'No owned items yet'
+                            : 'No items available',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : _buildShopItemsCarousel(filteredItems),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildShopItemsCarousel(List<ShopItem> items) {
     return Container(
       padding: const EdgeInsets.all(12),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: outfits.length,
+        itemCount: items.length,
         itemBuilder: (context, index) {
-          final outfit = outfits[index];
-          final isSelected = selectedOutfit?.id == outfit.id;
+          final item = items[index];
+          final isSelected = selectedItem?.id == item.id;
 
           return Container(
             width: 160,
+            height: 120, // Reduced height to fit in remaining space
             margin: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: () => handleTryOn(outfit),
+              onTap: () => handleItemSelect(item),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isSelected ? Colors.orange[50] : Colors.grey[50],
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? Colors.blue : Colors.transparent,
-                    width: 2,
+                    color: isSelected ? Colors.orange : Colors.grey[300]!,
+                    width: isSelected ? 2 : 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                      spreadRadius: 1,
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
-                    // Outfit Preview
+                    // Item Image
                     Expanded(
                       flex: 3,
                       child: Container(
-                        padding: const EdgeInsets.all(16),
+                        width: double.infinity,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Color(0xFFF9FAFB), Color(0xFFF3F4F6)],
                           ),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            topRight: Radius.circular(10),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Container(
-                              width: 24,
-                              height: 54,
-                              decoration: BoxDecoration(
-                                color: hexToColor(outfit.colors['top']!),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              item.imagePath,
+                              fit: BoxFit.contain,
                             ),
-                            Container(
-                              width: 24,
-                              height: 54,
-                              decoration: BoxDecoration(
-                                color: hexToColor(outfit.colors['bottom']!),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            Container(
-                              width: 24,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: hexToColor(outfit.colors['shoes']!),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
 
-                    // Outfit Info
+                    // Item Info
                     Expanded(
                       flex: 2,
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(8), // Reduced padding
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.8),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(10),
+                            bottomRight: Radius.circular(10),
+                          ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              outfit.name,
+                              item.name,
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11, // Reduced font size
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 4), // Reduced spacing
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Row(
                                   children: [
                                     const Icon(Icons.monetization_on,
-                                        size: 12, color: Colors.amber),
+                                        size: 10,
+                                        color:
+                                            Colors.amber), // Reduced icon size
                                     const SizedBox(width: 2),
                                     Text(
-                                      outfit.price.toString(),
+                                      item.price.toString(),
                                       style: const TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 10, // Reduced font size
                                         fontWeight: FontWeight.bold,
                                         color: Colors.black,
                                       ),
                                     ),
                                   ],
                                 ),
-                                GestureDetector(
-                                  onTap: () => handleBuyClick(outfit),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Text(
-                                      'Buy',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
+                                if (!showOwnedItems) // Only show Buy button for purchasable items
+                                  GestureDetector(
+                                    onTap: () => handleBuyClick(item),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2), // Reduced padding
+                                      decoration: BoxDecoration(
+                                        color: Colors.black,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'Buy',
+                                        style: TextStyle(
+                                          fontSize: 8, // Reduced font size
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
                               ],
                             ),
                           ],
@@ -682,6 +607,13 @@ class _ShopScreenState extends State<ShopScreen> {
     if (buyPreviewItem == null) return const SizedBox.shrink();
 
     return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
@@ -702,71 +634,40 @@ class _ShopScreenState extends State<ShopScreen> {
             ),
           ),
 
-          // Outfit Preview
+          // Item Preview
           Expanded(
             flex: 2,
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 16),
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFFF9FAFB), Color(0xFFF3F4F6)],
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: hexToColor(buyPreviewItem!.colors['top']!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    buyPreviewItem!.imagePath,
+                    fit: BoxFit.contain,
                   ),
-                  Container(
-                    width: 40,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: hexToColor(buyPreviewItem!.colors['bottom']!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  Container(
-                    width: 40,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: hexToColor(buyPreviewItem!.colors['shoes']!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
 
-          // Outfit Details
-          Column(
-            children: [
-              Text(
-                buyPreviewItem!.name,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const Text(
-                'in Premium Colors',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
+          // Item Details
+          Text(
+            buyPreviewItem!.name,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
           ),
 
           const SizedBox(height: 16),
@@ -797,45 +698,45 @@ class _ShopScreenState extends State<ShopScreen> {
                     ),
                   )
                 : Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
                     decoration: BoxDecoration(
                       color: userCoins >= buyPreviewItem!.price
                           ? Colors.black
                           : Colors.grey[200],
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Column(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           userCoins >= buyPreviewItem!.price
                               ? 'Buy'
                               : 'Not enough coins',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: userCoins >= buyPreviewItem!.price
                                 ? Colors.white
                                 : Colors.grey[500],
                           ),
                         ),
-                        if (userCoins >= buyPreviewItem!.price) ...[
-                          const SizedBox(height: 4),
+                        if (userCoins >= buyPreviewItem!.price)
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(Icons.monetization_on,
                                   size: 14, color: Colors.amber),
                               const SizedBox(width: 4),
                               Text(
-                                '${buyPreviewItem!.price} Coins',
+                                '${buyPreviewItem!.price}',
                                 style: const TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
                             ],
                           ),
-                        ],
                       ],
                     ),
                   ),

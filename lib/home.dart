@@ -11,8 +11,10 @@ import 'services/character_migration_service.dart';
 import 'services/leaderboard_migration_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
+import 'services/network_service.dart';
 import 'widgets/daily_challenge_spin.dart';
 import 'widgets/reward_notification_widget.dart';
+import 'widgets/connection_status_widget.dart';
 import 'challenges_screen.dart';
 import 'notification_page.dart';
 
@@ -39,6 +41,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   final HealthService _healthService = HealthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final CoinService _coinService = CoinService();
+  final NetworkService _networkService = NetworkService();
   int _steps = 0;
   double _calories = 0.0;
 
@@ -47,9 +50,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   bool _isUserDataLoading = true; // Add loading state for user data
   int _coins = 0; // Will be loaded from coin service
   bool _isUsingRealData = false; // Track if using real health data
+  bool _isOnline = true; // Track network status
   DuoChallengeService? _duoChallengeService;
   StreamSubscription<QuerySnapshot>? _acceptedInviteListener;
   StreamSubscription<QuerySnapshot>? _declinedInviteListener;
+  Timer? _connectionStatusTimer;
 
   @override
   void initState() {
@@ -70,6 +75,51 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _listenForDeclinedInvitesAsSender();
     _startCoinListener();
     _startRewardListener();
+    _startConnectionStatusMonitoring();
+  }
+
+  /// Start monitoring connection status
+  void _startConnectionStatusMonitoring() {
+    _connectionStatusTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      final isOnline = _networkService.isOnline;
+      if (isOnline != _isOnline) {
+        setState(() {
+          _isOnline = isOnline;
+        });
+        
+        if (isOnline) {
+          print('✅ Connection restored - refreshing data');
+          _refreshDataOnReconnection();
+        } else {
+          print('❌ Connection lost');
+          _showConnectionWarning();
+        }
+      }
+    });
+  }
+
+  /// Refresh data when connection is restored
+  void _refreshDataOnReconnection() {
+    _fetchHealthData();
+    _loadUserData();
+    _showSuccessMessage('Connection restored');
+  }
+
+  /// Show connection warning
+  void _showConnectionWarning() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Connection lost. Trying to reconnect...'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _networkService.forceReconnect(),
+          ),
+        ),
+      );
+    }
   }
 
   void _initializeDuoChallengeService() {
@@ -1229,6 +1279,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _declinedInviteListener?.cancel();
     _duoChallengeService?.stopListeningForInvites();
     _healthService.stopRealTimeStepMonitoring();
+    _connectionStatusTimer?.cancel();
+    
+    // Clean up all listeners and subscriptions
+    _acceptedInviteListener = null;
+    _declinedInviteListener = null;
+    _duoChallengeService = null;
+    
+    print('🧹 Home screen disposed - all connections cleaned up');
     super.dispose();
   }
 
@@ -1282,6 +1340,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           elevation: 0,
           actions: [
+            // Connection status indicator
+            Container(
+              margin: const EdgeInsets.only(right: 8.0, top: 8.0, bottom: 8.0),
+              child: ConnectionStatusWidget(
+                onRetry: () {
+                  _refreshDataOnReconnection();
+                },
+              ),
+            ),
             Padding(
               padding:
                   const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
@@ -1408,7 +1475,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               width: screenSize.width * 0.9,
                               child: AbsorbPointer(
                                 child: const ModelViewer(
-                                  src: 'assets/web/MyCharacter.glb',
+                                  src: 'assets/web/home/MyCharacter_home.glb',
                                   alt: "A 3D model of MyCharacter",
                                   autoRotate: false,
                                   cameraControls: false,

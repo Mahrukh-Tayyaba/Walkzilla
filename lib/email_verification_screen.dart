@@ -223,7 +223,8 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
         'lastActive': FieldValue.serverTimestamp(),
         'characterSpriteSheets': {
           'idle': 'images/character_idle.json',
-          'walking': 'images/character_walking.json'
+          'walking': 'images/character_walking.json',
+          'glb': 'web/home/MyCharacter_home.glb'
         },
         'shown_rewards': {},
       });

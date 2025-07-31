@@ -5,29 +5,76 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/loaders/GLTFLoader.js"></script>
     <style>
-      body { margin: 0; overflow: hidden; }
-      canvas { display: block; }
+      body { 
+        margin: 0; 
+        overflow: hidden; 
+        background: transparent;
+      }
+      canvas { 
+        display: block; 
+        background: transparent;
+      }
+      #error {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #666;
+        text-align: center;
+        font-family: Arial, sans-serif;
+      }
     </style>
   </head>
   <body>
+    <div id="error">Failed to load 3D model</div>
     <script>
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      const renderer = new THREE.WebGLRenderer({ 
+        antialias: true,
+        alpha: true 
+      });
       renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x000000, 0);
       document.body.appendChild(renderer.domElement);
 
       const light = new THREE.DirectionalLight(0xffffff, 1);
       light.position.set(1, 1, 1);
       scene.add(light);
 
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+      scene.add(ambientLight);
+
       const urlParams = new URLSearchParams(window.location.search);
       const glbPath = urlParams.get('model') || 'MyCharacter.glb';
       const loader = new THREE.GLTFLoader();
-      loader.load(glbPath, function(gltf) {
-        scene.add(gltf.scene);
-        gltf.scene.rotation.y = Math.PI; // Optional: rotate model
-      });
+      
+      loader.load(
+        glbPath, 
+        function(gltf) {
+          scene.add(gltf.scene);
+          gltf.scene.rotation.y = Math.PI;
+          
+          // Center the model
+          const box = new THREE.Box3().setFromObject(gltf.scene);
+          const center = box.getCenter(new THREE.Vector3());
+          gltf.scene.position.sub(center);
+          
+          // Scale to fit
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const scale = 2 / maxDim;
+          gltf.scene.scale.setScalar(scale);
+        },
+        function(progress) {
+          // Loading progress
+        },
+        function(error) {
+          console.error('Error loading GLB:', error);
+          document.getElementById('error').style.display = 'block';
+        }
+      );
 
       camera.position.z = 3;
 
@@ -36,6 +83,13 @@
         renderer.render(scene, camera);
       }
       animate();
+      
+      // Handle window resize
+      window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
     </script>
   </body>
 </html> 

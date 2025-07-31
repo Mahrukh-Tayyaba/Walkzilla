@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'dart:async'; // Added for Timer and StreamSubscription
 import 'step_counter_service.dart';
 import 'leaderboard_service.dart';
+import 'network_service.dart';
 
 class HealthService {
   static final HealthService _instance = HealthService._internal();
@@ -19,6 +20,7 @@ class HealthService {
   final Health health = Health();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NetworkService _networkService = NetworkService();
   bool _isInitialized = false;
 
   // Firestore collection names
@@ -2692,66 +2694,68 @@ class HealthService {
         // Update both daily steps and leaderboard totals
         final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-        // Get current user data
-        final userRef = _firestore.collection('users').doc(user.uid);
-        final userDoc = await userRef.get();
+        await _networkService.executeWithRetry(() async {
+          // Get current user data
+          final userRef = _firestore.collection('users').doc(user.uid);
+          final userDoc = await userRef.get();
 
-        if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>;
-          final dailySteps =
-              userData['daily_steps'] as Map<String, dynamic>? ?? {};
-          final currentDailySteps = dailySteps[today] ?? 0;
+          if (userDoc.exists) {
+            final userData = userDoc.data() as Map<String, dynamic>;
+            final dailySteps =
+                userData['daily_steps'] as Map<String, dynamic>? ?? {};
+            final currentDailySteps = dailySteps[today] ?? 0;
 
-          // Only update if steps have increased
-          if (steps > currentDailySteps) {
-            final stepIncrease = steps - currentDailySteps;
+            // Only update if steps have increased
+            if (steps > currentDailySteps) {
+              final stepIncrease = steps - currentDailySteps;
 
-            // Update daily steps first
-            await userRef.update({
-              'daily_steps.$today': steps,
-            });
+              // Update daily steps first
+              await userRef.update({
+                'daily_steps.$today': steps,
+              });
 
-            // Calculate weekly total correctly (Monday to Sunday)
-            final startOfWeek = _getStartOfWeek(DateTime.now());
-            int weeklyTotal = 0;
+              // Calculate weekly total correctly (Monday to Sunday)
+              final startOfWeek = _getStartOfWeek(DateTime.now());
+              int weeklyTotal = 0;
 
-            // Sum all daily steps from this week (Monday to Sunday)
-            for (int i = 0; i < 7; i++) {
-              final date = startOfWeek.add(Duration(days: i));
-              final dateKey = DateFormat('yyyy-MM-dd').format(date);
+              // Sum all daily steps from this week (Monday to Sunday)
+              for (int i = 0; i < 7; i++) {
+                final date = startOfWeek.add(Duration(days: i));
+                final dateKey = DateFormat('yyyy-MM-dd').format(date);
 
-              // Use today's new steps if it's today, otherwise use stored daily steps
-              if (dateKey == today) {
-                weeklyTotal += steps;
-              } else {
-                final daySteps = (dailySteps[dateKey] ?? 0) as int;
-                weeklyTotal += daySteps;
+                // Use today's new steps if it's today, otherwise use stored daily steps
+                if (dateKey == today) {
+                  weeklyTotal += steps;
+                } else {
+                  final daySteps = (dailySteps[dateKey] ?? 0) as int;
+                  weeklyTotal += daySteps;
+                }
               }
-            }
 
-            // Update weekly_steps field
-            await userRef.update({
-              'weekly_steps': weeklyTotal,
-            });
+              // Update weekly_steps field
+              await userRef.update({
+                'weekly_steps': weeklyTotal,
+              });
+
+              print(
+                  "📊 LEADERBOARD: Updated daily steps: $currentDailySteps → $steps (+$stepIncrease)");
+              print("📊 LEADERBOARD: Updated weekly total: $weeklyTotal");
+              print("📊 LEADERBOARD: Updated leaderboard data for ${user.uid}");
+            }
+          } else {
+            // Initialize user data if it doesn't exist
+            await userRef.set({
+              'daily_steps': {today: steps},
+              'weekly_steps': steps,
+              'coins': 0,
+              'last_week_rewarded': null,
+              'shown_rewards': {},
+            }, SetOptions(merge: true));
 
             print(
-                "📊 LEADERBOARD: Updated daily steps: $currentDailySteps → $steps (+$stepIncrease)");
-            print("📊 LEADERBOARD: Updated weekly total: $weeklyTotal");
-            print("📊 LEADERBOARD: Updated leaderboard data for ${user.uid}");
+                "📊 LEADERBOARD: Initialized user data for ${user.uid} with $steps steps");
           }
-        } else {
-          // Initialize user data if it doesn't exist
-          await userRef.set({
-            'daily_steps': {today: steps},
-            'weekly_steps': steps,
-            'coins': 0,
-            'last_week_rewarded': null,
-            'shown_rewards': {},
-          }, SetOptions(merge: true));
-
-          print(
-              "📊 LEADERBOARD: Initialized user data for ${user.uid} with $steps steps");
-        }
+        });
       }
     } catch (e) {
       print("📊 LEADERBOARD: Error updating leaderboard data: $e");

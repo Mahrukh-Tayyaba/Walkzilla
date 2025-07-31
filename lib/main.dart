@@ -16,6 +16,7 @@ import 'services/user_document_cleanup_service.dart';
 import 'widgets/reward_notification_widget.dart';
 import 'services/health_service.dart';
 import 'services/coin_service.dart';
+import 'services/network_service.dart';
 
 // Global navigator key to show dialogs from anywhere
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -53,6 +54,11 @@ void main() async {
       print('Error initializing Firebase: $e');
       // Continue without Firebase for now
     }
+
+    // Initialize and start network connectivity monitoring
+    final networkService = NetworkService();
+    networkService.startConnectivityMonitoring();
+    print('Network connectivity monitoring started');
 
     // FCM setup
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

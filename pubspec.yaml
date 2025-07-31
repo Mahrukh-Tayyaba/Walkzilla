@@ -84,10 +84,31 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/shop_items/
+    - assets/images/shop_items/MyCharacter.png
+    - assets/images/shop_items/blossom.png
+    - assets/images/shop_items/sun.png
+    - assets/images/shop_items/cloud.png
+    - assets/images/shop_items/cool.png
+    - assets/images/shop_items/cow.png
+    - assets/images/shop_items/monster.png
+    - assets/images/shop_items/blueStar.png
+    - assets/images/shop_items/yellowStar.png
     - assets/gifs/
     - assets/videos/
     - assets/web/
-    - assets/web/MyCharacter.glb
+    - assets/web/home/
+    - assets/web/shop/
+    - assets/web/home/MyCharacter_home.glb
+    - assets/web/shop/MyCharacter_shop.glb
+    - assets/web/shop/blossom_shop.glb
+    - assets/web/shop/sun_shop.glb
+    - assets/web/shop/cloud_shop.glb
+    - assets/web/shop/cool_shop.glb
+    - assets/web/shop/cow_shop.glb
+    - assets/web/shop/monster_shop.glb
+    - assets/web/shop/blueStar_shop.glb
+    - assets/web/shop/yellowstar_shop.glb
     - assets/web/viewer.html
     - assets/images/logo2.png
     - assets/images/dino.png
