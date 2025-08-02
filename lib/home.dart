@@ -12,6 +12,7 @@ import 'services/leaderboard_migration_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
 import 'services/network_service.dart';
+import 'services/character_data_service.dart';
 import 'widgets/daily_challenge_spin.dart';
 import 'widgets/reward_notification_widget.dart';
 import 'widgets/connection_status_widget.dart';
@@ -42,6 +43,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final CoinService _coinService = CoinService();
   final NetworkService _networkService = NetworkService();
+  final CharacterDataService _characterDataService = CharacterDataService();
   int _steps = 0;
   double _calories = 0.0;
 
@@ -51,31 +53,66 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   int _coins = 0; // Will be loaded from coin service
   bool _isUsingRealData = false; // Track if using real health data
   bool _isOnline = true; // Track network status
+  String _currentGlbPath =
+      'assets/web/home/MyCharacter_home.glb'; // Dynamic GLB path
+  StreamSubscription<DocumentSnapshot>?
+      _userDataListener; // Listen for user data changes
   DuoChallengeService? _duoChallengeService;
   StreamSubscription<QuerySnapshot>? _acceptedInviteListener;
   StreamSubscription<QuerySnapshot>? _declinedInviteListener;
   Timer? _connectionStatusTimer;
+  bool _userDataListenerStarted = false; // Prevent multiple listeners
+  String _lastProcessedGlbPath = ''; // Cache last processed GLB path
+  Timer? _glbUpdateTimer; // Debounce GLB updates
+
+  /// Validate if the GLB path is safe to use
+  bool _isValidGlbPath(String path) {
+    if (path.isEmpty) return false;
+    if (!path.startsWith('assets/')) return false;
+    if (!path.endsWith('.glb')) return false;
+
+    // Check for common valid character paths
+    final validPaths = [
+      'assets/web/home/MyCharacter_home.glb',
+      'assets/web/home/blossom_home.glb',
+      'assets/web/home/sun_home.glb',
+      'assets/web/home/cloud_home.glb',
+      'assets/web/home/cool_home.glb',
+      'assets/web/home/cow_home.glb',
+      'assets/web/home/monster_home.glb',
+      'assets/web/home/blueStar_home.glb',
+      'assets/web/home/yellowstar_home.glb',
+    ];
+
+    return validPaths.contains(path);
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkHealthConnectPermissions(); // This should be called first
-    _fetchHealthData();
-    _startHealthDataRefresh();
-    _startHybridStepMonitoring(); // Use hybrid monitoring instead
-    _healthService
-        .startContinuousStepUpdates(); // Start continuous Firestore updates
-    _loadUserData();
-    _startCharacterPreloading();
-    _migrateCurrentUserCharacter();
-    _initializeLeaderboardData();
-    _initializeDuoChallengeService();
-    _listenForAcceptedInvitesAsSender();
-    _listenForDeclinedInvitesAsSender();
-    _startCoinListener();
-    _startRewardListener();
-    _startConnectionStatusMonitoring();
+
+    // Add a small delay to prevent rapid initialization issues
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _checkHealthConnectPermissions(); // This should be called first
+        _fetchHealthData();
+        _startHealthDataRefresh();
+        _startHybridStepMonitoring(); // Use hybrid monitoring instead
+        _healthService
+            .startContinuousStepUpdates(); // Start continuous Firestore updates
+        _loadUserData();
+        _startCharacterPreloading();
+        _migrateCurrentUserCharacter();
+        _initializeLeaderboardData();
+        _initializeDuoChallengeService();
+        _listenForAcceptedInvitesAsSender();
+        _listenForDeclinedInvitesAsSender();
+        _startCoinListener();
+        _startRewardListener();
+        _startConnectionStatusMonitoring();
+      }
+    });
   }
 
   /// Start monitoring connection status
@@ -153,6 +190,70 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
+  /// Start listening for user data changes (including GLB path updates)
+  void _startUserDataListener() {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // Prevent multiple listeners
+    if (_userDataListenerStarted) {
+      print("🎯 User data listener already started, skipping...");
+      return;
+    }
+
+    print("🎯 Starting user data listener for GLB path updates...");
+    _userDataListener?.cancel();
+
+    try {
+      _userDataListener = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+        try {
+          if (snapshot.exists && mounted) {
+            final userData = snapshot.data()!;
+            final homeGlbPath = userData['homeGlbPath'] ??
+                'assets/web/home/MyCharacter_home.glb';
+
+            // Only update if the GLB path has actually changed and is different from last processed
+            if (homeGlbPath != _currentGlbPath &&
+                homeGlbPath != _lastProcessedGlbPath) {
+              print(
+                  "🔄 GLB path update detected: $_currentGlbPath -> $homeGlbPath");
+
+              // Cancel any pending update
+              _glbUpdateTimer?.cancel();
+
+              // Debounce the update to prevent rapid changes
+              _glbUpdateTimer = Timer(const Duration(milliseconds: 500), () {
+                if (mounted && homeGlbPath != _currentGlbPath) {
+                  print("✅ Applying GLB path update: $homeGlbPath");
+                  setState(() {
+                    _currentGlbPath = homeGlbPath;
+                    _lastProcessedGlbPath = homeGlbPath;
+                    print("📁 State updated - new GLB path: $homeGlbPath");
+                  });
+                  print("✅ ModelViewer will now display: $homeGlbPath");
+                }
+              });
+            }
+          }
+        } catch (e) {
+          print("❌ Error in user data listener callback: $e");
+        }
+      }, onError: (error) {
+        print("❌ Error in user data listener: $error");
+        _userDataListenerStarted = false; // Reset flag on error
+      });
+
+      _userDataListenerStarted = true;
+    } catch (e) {
+      print("❌ Error setting up user data listener: $e");
+      _userDataListenerStarted = false;
+    }
+  }
+
   Future<void> _loadUserData() async {
     try {
       setState(() {
@@ -171,10 +272,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         if (userDoc.exists) {
           final userData = userDoc.data()!;
           final username = userData['username'] ?? '';
+          final homeGlbPath =
+              userData['homeGlbPath'] ?? 'assets/web/home/MyCharacter_home.glb';
           print("Username from Firestore: $username");
+          print("Home GLB path from Firestore: $homeGlbPath");
 
           setState(() {
             _userName = username.isNotEmpty ? username : 'User';
+            _currentGlbPath = homeGlbPath;
+            _lastProcessedGlbPath =
+                homeGlbPath; // Initialize last processed path
             _isUserDataLoading = false;
           });
 
@@ -183,10 +290,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           setState(() {
             _coins = userCoins;
           });
+
+          // Start listening for user data changes (including GLB path updates)
+          _startUserDataListener();
         } else {
           print("No user document found in Firestore");
           setState(() {
             _userName = 'User';
+            _currentGlbPath = 'assets/web/home/MyCharacter_home.glb';
+            _lastProcessedGlbPath =
+                'assets/web/home/MyCharacter_home.glb'; // Initialize last processed path
             _isUserDataLoading = false;
           });
         }
@@ -367,6 +480,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       }
     });
 
+    // Step consistency check every 2 minutes
+    Timer.periodic(const Duration(minutes: 2), (timer) {
+      if (mounted) {
+        _healthService.testStepConsistency(); // Check for inconsistencies
+      } else {
+        timer.cancel();
+      }
+    });
+
     // Full health data every 3 minutes (reduced from 5 minutes)
     Timer.periodic(const Duration(minutes: 3), (timer) {
       if (mounted) {
@@ -482,6 +604,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         });
         return;
       }
+
+      // Test step consistency first
+      await _healthService.testStepConsistency();
 
       // Fetch Google Fit sync steps data to ensure accuracy
       int stepsCount = await _healthService.fetchHybridRealTimeSteps();
@@ -1280,6 +1405,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _acceptedInviteListener?.cancel();
     _declinedInviteListener?.cancel();
+    _userDataListener?.cancel();
+    _glbUpdateTimer?.cancel(); // Cancel GLB update timer
     _duoChallengeService?.stopListeningForInvites();
     _healthService.stopRealTimeStepMonitoring();
     _connectionStatusTimer?.cancel();
@@ -1287,7 +1414,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     // Clean up all listeners and subscriptions
     _acceptedInviteListener = null;
     _declinedInviteListener = null;
+    _userDataListener = null;
+    _glbUpdateTimer = null; // Clear GLB update timer
     _duoChallengeService = null;
+    _userDataListenerStarted = false; // Reset listener flag
 
     print('🧹 Home screen disposed - all connections cleaned up');
     super.dispose();
@@ -1471,32 +1601,97 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               color: Colors.blue[50],
                             ),
                           ),
-                          // 3D ModelViewer widget - load once and stay stable
-                          RepaintBoundary(
-                            child: SizedBox(
-                              height: screenSize.width * 0.9,
-                              width: screenSize.width * 0.9,
-                              child: AbsorbPointer(
-                                child: const ModelViewer(
-                                  src: 'assets/web/home/MyCharacter_home.glb',
-                                  alt: "A 3D model of MyCharacter",
-                                  autoRotate: false,
-                                  cameraControls: false,
-                                  backgroundColor: Colors.transparent,
-                                  cameraOrbit: "0deg 75deg 100%",
-                                  minCameraOrbit: "0deg 75deg 100%",
-                                  maxCameraOrbit: "0deg 75deg 100%",
-                                  interactionPrompt: InteractionPrompt.none,
-                                  disableTap: true,
-                                  autoPlay: true,
-                                  disableZoom: true,
-                                  disablePan: true,
-                                  minFieldOfView: "45deg",
-                                  maxFieldOfView: "45deg",
-                                  fieldOfView: "45deg",
+                          // 3D ModelViewer widget - dynamically loads based on user's character
+                          Builder(
+                            builder: (context) {
+                              // Only rebuild if the path has actually changed
+                              if (_currentGlbPath == _lastProcessedGlbPath &&
+                                  _currentGlbPath.isNotEmpty) {
+                                print(
+                                    "🎨 Using cached ModelViewer for path: $_currentGlbPath");
+                              } else {
+                                print(
+                                    "🎨 Building new ModelViewer with path: $_currentGlbPath");
+                              }
+
+                              return RepaintBoundary(
+                                child: SizedBox(
+                                  height: screenSize.width * 0.9,
+                                  width: screenSize.width * 0.9,
+                                  child: AbsorbPointer(
+                                    child: _isValidGlbPath(_currentGlbPath)
+                                        ? Builder(
+                                            builder: (context) {
+                                              try {
+                                                return ModelViewer(
+                                                  key: ValueKey(
+                                                      _currentGlbPath), // Force rebuild when path changes
+                                                  src: _currentGlbPath,
+                                                  alt:
+                                                      "A 3D model of the user's character",
+                                                  autoRotate: false,
+                                                  cameraControls: false,
+                                                  backgroundColor:
+                                                      Colors.transparent,
+                                                  cameraOrbit:
+                                                      "0deg 75deg 100%",
+                                                  minCameraOrbit:
+                                                      "0deg 75deg 100%",
+                                                  maxCameraOrbit:
+                                                      "0deg 75deg 100%",
+                                                  interactionPrompt:
+                                                      InteractionPrompt.none,
+                                                  disableTap: true,
+                                                  autoPlay: true,
+                                                  disableZoom: true,
+                                                  disablePan: true,
+                                                  minFieldOfView: "45deg",
+                                                  maxFieldOfView: "45deg",
+                                                  fieldOfView: "45deg",
+                                                );
+                                              } catch (e) {
+                                                print(
+                                                    "❌ Error creating ModelViewer: $e");
+                                                return Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[200],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: const Center(
+                                                    child: Text(
+                                                      'Error loading character',
+                                                      style: TextStyle(
+                                                        color: Colors.red,
+                                                        fontSize: 16,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                          )
+                                        : Container(
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[200],
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: const Center(
+                                              child: Text(
+                                                'Loading character...',
+                                                style: TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -2128,6 +2323,114 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     } catch (e) {
       print("❌ Error checking Health Connect availability: $e");
       return false;
+    }
+  }
+
+  /// Test GLB functionality and debug the issue
+  Future<void> _testGlbFunctionality() async {
+    try {
+      print("🔍 === GLB FUNCTIONALITY DEBUG ===");
+
+      final user = _auth.currentUser;
+      if (user == null) {
+        print("❌ No user logged in");
+        _showDebugMessage("No user logged in");
+        return;
+      }
+
+      print("👤 User: ${user.email} (${user.uid})");
+      print("📁 Current GLB path in state: $_currentGlbPath");
+
+      // 1. Check raw Firestore data
+      print("\n1️⃣ Checking raw Firestore data...");
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) {
+        print("❌ User document not found");
+        _showDebugMessage("User document not found");
+        return;
+      }
+
+      final userData = userDoc.data()!;
+      final firestoreGlbPath = userData['homeGlbPath'] ?? 'not_set';
+      final currentCharacter = userData['currentCharacter'] ?? 'not_set';
+
+      print("   Firestore homeGlbPath: $firestoreGlbPath");
+      print("   Firestore currentCharacter: $currentCharacter");
+      print("   State _currentGlbPath: $_currentGlbPath");
+
+      // 2. Check if paths match
+      if (firestoreGlbPath == _currentGlbPath) {
+        print("✅ Firestore and state paths match");
+      } else {
+        print("❌ Path mismatch!");
+        print("   Firestore: $firestoreGlbPath");
+        print("   State: $_currentGlbPath");
+      }
+
+      // 3. Check CharacterDataService
+      print("\n2️⃣ Checking CharacterDataService...");
+      final characterData =
+          await _characterDataService.getCurrentUserCharacterData();
+      final serviceGlbPath = characterData['homeGlbPath'] as String;
+      final serviceCharacter = characterData['currentCharacter'] as String;
+
+      print("   Service homeGlbPath: $serviceGlbPath");
+      print("   Service currentCharacter: $serviceCharacter");
+
+      // 4. Check expected path
+      final expectedPath =
+          CharacterDataService.characterHomeGlbPaths[currentCharacter];
+      print("   Expected path for '$currentCharacter': $expectedPath");
+
+      // 5. Test listener functionality
+      print("\n3️⃣ Testing listener functionality...");
+      bool listenerWorking = false;
+      StreamSubscription<DocumentSnapshot>? testListener;
+
+      testListener = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+        if (snapshot.exists) {
+          final data = snapshot.data()!;
+          final listenerGlbPath = data['homeGlbPath'] ?? 'not_set';
+          print("   📡 Listener triggered - homeGlbPath: $listenerGlbPath");
+          listenerWorking = true;
+        }
+      });
+
+      await Future.delayed(const Duration(seconds: 1));
+      testListener?.cancel();
+
+      if (listenerWorking) {
+        print("✅ Real-time listener is working");
+      } else {
+        print("❌ Real-time listener not working");
+      }
+
+      // 6. Summary
+      print("\n📊 === SUMMARY ===");
+      String summary = "GLB Debug Summary:\n";
+      summary += "Firestore: $firestoreGlbPath\n";
+      summary += "State: $_currentGlbPath\n";
+      summary += "Service: $serviceGlbPath\n";
+      summary += "Expected: $expectedPath\n";
+      summary += "Listener: ${listenerWorking ? 'Working' : 'Not Working'}";
+
+      if (firestoreGlbPath != _currentGlbPath) {
+        summary += "\n\n❌ ISSUE: State not synced with Firestore!";
+        print("❌ ISSUE: State not synced with Firestore!");
+      } else {
+        summary += "\n\n✅ State is synced with Firestore";
+        print("✅ State is synced with Firestore");
+      }
+
+      _showDebugMessage(summary);
+      print("🔍 === END GLB DEBUG ===");
+    } catch (e) {
+      print("❌ Error in GLB debug: $e");
+      _showDebugMessage("GLB Debug Error: $e");
     }
   }
 }

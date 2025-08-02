@@ -679,26 +679,6 @@
 				"w": 1024,
 				"h": 1024
 			}
-		},
-		"35.png": {
-			"frame": {
-				"x": 4105,
-				"y": 5131,
-				"w": 1024,
-				"h": 1024
-			},
-			"rotated": false,
-			"trimmed": false,
-			"spriteSourceSize": {
-				"x": 0,
-				"y": 0,
-				"w": 1024,
-				"h": 1024
-			},
-			"sourceSize": {
-				"w": 1024,
-				"h": 1024
-			}
 		}
 	},
 	"meta": {

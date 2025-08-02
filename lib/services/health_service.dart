@@ -2603,6 +2603,65 @@ class HealthService {
     }
   }
 
+  /// Get pure Health Connect steps for debugging and comparison
+  Future<int> getPureHealthConnectSteps() async {
+    try {
+      return await fetchStepsData();
+    } catch (e) {
+      print("❌ Error getting pure Health Connect steps: $e");
+      return 0;
+    }
+  }
+
+  /// Reset hybrid system baselines to resolve inconsistencies
+  Future<void> resetHybridSystem() async {
+    try {
+      print("🔄 Resetting hybrid system baselines...");
+
+      // Reset baselines
+      _baselineSet = false;
+      _healthConnectBaseline = 0;
+      _sensorBaseline = 0;
+
+      // Get fresh Health Connect steps
+      final freshSteps = await fetchStepsData();
+      _healthConnectBaseline = freshSteps;
+      _sensorBaseline = StepCounterService.currentSteps;
+      _baselineSet = true;
+
+      print("🔄 Hybrid system reset complete:");
+      print("  - Health Connect baseline: $_healthConnectBaseline");
+      print("  - Sensor baseline: $_sensorBaseline");
+    } catch (e) {
+      print("❌ Error resetting hybrid system: $e");
+    }
+  }
+
+  /// Test step consistency between Health Connect and hybrid system
+  Future<void> testStepConsistency() async {
+    try {
+      print("🧪 Testing step consistency...");
+
+      final pureSteps = await getPureHealthConnectSteps();
+      final hybridSteps = await fetchHybridRealTimeSteps();
+
+      print("🧪 CONSISTENCY TEST RESULTS:");
+      print("  - Pure Health Connect steps: $pureSteps");
+      print("  - Hybrid steps: $hybridSteps");
+      print("  - Difference: ${hybridSteps - pureSteps}");
+
+      if (hybridSteps < pureSteps) {
+        print(
+            "❌ INCONSISTENCY DETECTED: Hybrid steps less than Health Connect steps");
+        await resetHybridSystem();
+      } else {
+        print("✅ Step consistency test passed");
+      }
+    } catch (e) {
+      print("❌ Error testing step consistency: $e");
+    }
+  }
+
   /// HYBRID REAL-TIME STEPS - Shows immediate feedback + Google Fit accuracy
   Future<int> fetchHybridRealTimeSteps() async {
     try {
@@ -2628,17 +2687,17 @@ class HealthService {
         _healthConnectBaseline = healthConnectSteps;
         _baselineSet = true;
 
-        // Update sensor baseline to account for the Health Connect increase
-        // This prevents double counting when Health Connect syncs later
-        if (healthConnectIncrease > 0) {
-          _sensorBaseline += healthConnectIncrease;
+        // Only adjust sensor baseline if this is the first time setting it
+        // This prevents incorrect adjustments that could cause negative increments
+        if (!_baselineSet || _sensorBaseline == 0) {
+          _sensorBaseline = StepCounterService.currentSteps;
           print(
-              "🔄 HYBRID: Health Connect increased by $healthConnectIncrease, adjusted sensor baseline to $_sensorBaseline");
+              "🔄 HYBRID: First time setup - set sensor baseline to current sensor value: $_sensorBaseline");
         }
 
         print(
             "🔄 HYBRID: Updated Google Fit baseline: $_healthConnectBaseline");
-        print("🔄 HYBRID: Adjusted sensor baseline: $_sensorBaseline");
+        print("🔄 HYBRID: Current sensor baseline: $_sensorBaseline");
       }
 
       // Get real-time sensor steps for immediate feedback
@@ -2651,18 +2710,25 @@ class HealthService {
       print("🔄 HYBRID: Baseline set: $_baselineSet");
       print("🔄 HYBRID: Current baseline: $_healthConnectBaseline");
 
-      // HYBRID APPROACH: Add real-time sensor steps to Health Connect baseline
+      // HYBRID APPROACH: Use Health Connect as primary source, sensor for real-time updates
       int displaySteps;
 
       if (isSensorActive && sensorSteps > 0) {
         // Calculate incremental sensor steps since baseline
         final incrementalSensorSteps = sensorSteps - _sensorBaseline;
 
-        // Add incremental sensor steps to Health Connect baseline for real-time updates
-        displaySteps = healthConnectSteps + incrementalSensorSteps;
+        // Only add positive sensor increments to avoid reducing Health Connect steps
+        if (incrementalSensorSteps > 0) {
+          displaySteps = healthConnectSteps + incrementalSensorSteps;
+          print(
+              "🔄 HYBRID: Real-time total: $healthConnectSteps (Health Connect) + $incrementalSensorSteps (Sensor increment) = $displaySteps");
+        } else {
+          // If sensor increment is negative or zero, use Health Connect steps only
+          displaySteps = healthConnectSteps;
+          print(
+              "🔄 HYBRID: Using Health Connect steps only (sensor increment: $incrementalSensorSteps): $displaySteps");
+        }
 
-        print(
-            "🔄 HYBRID: Real-time total: $healthConnectSteps (Health Connect) + $incrementalSensorSteps (Sensor increment) = $displaySteps");
         print(
             "🔄 HYBRID: Sensor baseline: $_sensorBaseline, Current sensor: $sensorSteps");
         print(
@@ -2676,8 +2742,30 @@ class HealthService {
       print("🔄 HYBRID: Final display steps: $displaySteps");
       print("🔄 HYBRID: Real-time hybrid system active!");
 
+      // Ensure we never return less than Health Connect steps
+      if (displaySteps < healthConnectSteps) {
+        print(
+            "🔄 HYBRID: WARNING - Display steps ($displaySteps) less than Health Connect steps ($healthConnectSteps), using Health Connect steps");
+        displaySteps = healthConnectSteps;
+
+        // If there's a significant inconsistency, reset the hybrid system
+        if (healthConnectSteps - displaySteps > 10) {
+          print(
+              "🔄 HYBRID: Significant inconsistency detected, resetting hybrid system...");
+          await resetHybridSystem();
+        }
+      }
+
       // Update leaderboard data in background
       _updateLeaderboardData(displaySteps);
+
+      // Debug logging for step consistency
+      print("🔍 STEP CONSISTENCY DEBUG:");
+      print("  - Pure Health Connect steps: $healthConnectSteps");
+      print("  - Hybrid display steps: $displaySteps");
+      print("  - Sensor steps: $sensorSteps");
+      print("  - Sensor baseline: $_sensorBaseline");
+      print("  - Health Connect baseline: $_healthConnectBaseline");
 
       return displaySteps;
     } catch (e) {
