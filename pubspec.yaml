@@ -100,6 +100,14 @@ flutter:
     - assets/web/home/
     - assets/web/shop/
     - assets/web/home/MyCharacter_home.glb
+    - assets/web/home/blossom_home.glb
+    - assets/web/home/sun_home.glb
+    - assets/web/home/cloud_home.glb
+    - assets/web/home/cool_home.glb
+    - assets/web/home/cow_home.glb
+    - assets/web/home/monster_home.glb
+    - assets/web/home/blueStar_home.glb
+    - assets/web/home/yellowstar_home.glb
     - assets/web/shop/MyCharacter_shop.glb
     - assets/web/shop/blossom_shop.glb
     - assets/web/shop/sun_shop.glb
@@ -124,10 +132,42 @@ flutter:
     - assets/images/road-race.png
     - assets/images/sky-race.png
     - assets/images/buildings-race.png
-    - assets/images/character_idle.json
-    - assets/images/character_idle.png
-    - assets/images/character_walking.json
-    - assets/images/character_walking.png
+    - assets/images/sprite_sheets/MyCharacter_idle.json
+    - assets/images/sprite_sheets/MyCharacter_idle.png
+    - assets/images/sprite_sheets/MyCharacter_walking.json
+    - assets/images/sprite_sheets/MyCharacter_walking.png
+    - assets/images/sprite_sheets/blossom_idle.json
+    - assets/images/sprite_sheets/blossom_idle.png
+    - assets/images/sprite_sheets/blossom_walking.json
+    - assets/images/sprite_sheets/blossom_walking.png
+    - assets/images/sprite_sheets/blueStar_idle.json
+    - assets/images/sprite_sheets/blueStar_idle.png
+    - assets/images/sprite_sheets/blueStar_walking.json
+    - assets/images/sprite_sheets/blueStar_walking.png
+    - assets/images/sprite_sheets/cloud_idle.json
+    - assets/images/sprite_sheets/cloud_idle.png
+    - assets/images/sprite_sheets/cloud_walking.json
+    - assets/images/sprite_sheets/cloud_walking.png
+    - assets/images/sprite_sheets/cool_idle.json
+    - assets/images/sprite_sheets/cool_idle.png
+    - assets/images/sprite_sheets/cool_walking.json
+    - assets/images/sprite_sheets/cool_walking.png
+    - assets/images/sprite_sheets/cow_idle.json
+    - assets/images/sprite_sheets/cow_idle.png
+    - assets/images/sprite_sheets/cow_walking.json
+    - assets/images/sprite_sheets/cow_walking.png
+    - assets/images/sprite_sheets/monster_idle.json
+    - assets/images/sprite_sheets/monster_idle.png
+    - assets/images/sprite_sheets/monster_walking.json
+    - assets/images/sprite_sheets/monster_walking.png
+    - assets/images/sprite_sheets/sun_idle.json
+    - assets/images/sprite_sheets/sun_idle.png
+    - assets/images/sprite_sheets/sun_walking.json
+    - assets/images/sprite_sheets/sun_walking.png
+    - assets/images/sprite_sheets/yellowStar_idle.json
+    - assets/images/sprite_sheets/yellowStar_idle.png
+    - assets/images/sprite_sheets/yellowStar_walking.json
+    - assets/images/sprite_sheets/yellowStar_walking.png
     - assets/images/dragon_wingdown.png
     - assets/images/dragon_wingup.png 
     - assets/images/dragon_wingmiddle.png

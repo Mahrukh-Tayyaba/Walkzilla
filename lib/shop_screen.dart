@@ -1,26 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:model_viewer_plus/model_viewer_plus.dart';
-
-class ShopItem {
-  final String id;
-  final String name;
-  final String description;
-  final int price;
-  final String imagePath;
-  final String glbFilePath;
-  final bool isOwned;
-
-  ShopItem({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.price,
-    required this.imagePath,
-    required this.glbFilePath,
-    required this.isOwned,
-  });
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'services/shop_service.dart';
+import 'services/coin_service.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -32,94 +16,106 @@ class ShopScreen extends StatefulWidget {
 class _ShopScreenState extends State<ShopScreen> {
   ShopItem? selectedItem;
   ShopItem? buyPreviewItem;
-  int userCoins = 15000;
-  PageController? _pageController;
-  int _currentPage = 0;
+  int userCoins = 0;
   bool showOwnedItems = false; // Toggle between Buy and Owned
+  bool isLoading = true;
+  String currentWornItem = 'MyCharacter';
+  List<ShopItem> shopItems = [];
 
-  final List<ShopItem> shopItems = [
-    ShopItem(
-      id: '1',
-      name: 'My Character',
-      description: 'Your personal character with unique features and benefits.',
-      price: 1500,
-      imagePath: 'assets/images/shop_items/MyCharacter.png',
-      glbFilePath: 'assets/web/shop/MyCharacter_shop.glb',
-      isOwned: true,
-    ),
-    ShopItem(
-      id: '2',
-      name: 'Blossom',
-      description: 'Beautiful blossom with premium quality and design.',
-      price: 2500,
-      imagePath: 'assets/images/shop_items/blossom.png',
-      glbFilePath: 'assets/web/shop/blossom_shop.glb',
-      isOwned: true,
-    ),
-    ShopItem(
-      id: '3',
-      name: 'Sun',
-      description: 'Bright sun with advanced capabilities.',
-      price: 3500,
-      imagePath: 'assets/images/shop_items/sun.png',
-      glbFilePath: 'assets/web/shop/sun_shop.glb',
-      isOwned: false,
-    ),
-    ShopItem(
-      id: '4',
-      name: 'Cloud',
-      description: 'Fluffy cloud with exclusive features.',
-      price: 4500,
-      imagePath: 'assets/images/shop_items/cloud.png',
-      glbFilePath: 'assets/web/shop/cloud_shop.glb',
-      isOwned: false,
-    ),
-    ShopItem(
-      id: '5',
-      name: 'Cool',
-      description: 'Cool character with superior performance.',
-      price: 5500,
-      imagePath: 'assets/images/shop_items/cool.png',
-      glbFilePath: 'assets/web/shop/cool_shop.glb',
-      isOwned: false,
-    ),
-    ShopItem(
-      id: '6',
-      name: 'Cow',
-      description: 'Friendly cow with innovative technology.',
-      price: 6500,
-      imagePath: 'assets/images/shop_items/cow.png',
-      glbFilePath: 'assets/web/shop/cow_shop.glb',
-      isOwned: false,
-    ),
-    ShopItem(
-      id: '7',
-      name: 'Monster',
-      description: 'Scary monster with premium materials.',
-      price: 7500,
-      imagePath: 'assets/images/shop_items/monster.png',
-      glbFilePath: 'assets/web/shop/monster_shop.glb',
-      isOwned: false,
-    ),
-    ShopItem(
-      id: '8',
-      name: 'Blue Star',
-      description: 'Shining blue star with luxury design.',
-      price: 8500,
-      imagePath: 'assets/images/shop_items/blueStar.png',
-      glbFilePath: 'assets/web/shop/blueStar_shop.glb',
-      isOwned: false,
-    ),
-    ShopItem(
-      id: '9',
-      name: 'Yellow Star',
-      description: 'Bright yellow star with ultimate features.',
-      price: 9500,
-      imagePath: 'assets/images/shop_items/yellowStar.png',
-      glbFilePath: 'assets/web/shop/yellowstar_shop.glb',
-      isOwned: false,
-    ),
-  ];
+  final ShopService _shopService = ShopService();
+  final CoinService _coinService = CoinService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeShop();
+  }
+
+  Future<void> _initializeShop() async {
+    try {
+      // Initialize user shop data if needed
+      await _shopService.initializeUserShopData();
+
+      // Load shop items and user data
+      await _loadShopData();
+
+      // Start listening to coin changes
+      _startCoinListener();
+
+      // Start listening to shop data changes
+      _startShopDataListener();
+
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error initializing shop: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadShopData() async {
+    try {
+      // Load shop items with ownership status
+      final items = await _shopService.getShopItems();
+
+      // Load current coin balance
+      final coins = await _coinService.getCurrentUserCoins();
+
+      // Load current worn item
+      final wornItem = await _shopService.getCurrentWornItem();
+
+      setState(() {
+        shopItems = items;
+        userCoins = coins;
+        currentWornItem = wornItem;
+
+        // Set the current worn item as selected by default
+        selectedItem = items.firstWhere(
+          (item) => item.id == wornItem,
+          orElse: () => items.first,
+        );
+      });
+    } catch (e) {
+      print('❌ Error loading shop data: $e');
+    }
+  }
+
+  void _startCoinListener() {
+    _coinService.getCurrentUserCoinsStream().listen((coins) {
+      if (mounted) {
+        setState(() {
+          userCoins = coins;
+        });
+      }
+    });
+  }
+
+  void _startShopDataListener() {
+    _shopService.getShopDataStream().listen((shopData) async {
+      if (mounted) {
+        // Reload shop items to reflect ownership changes
+        final items = await _shopService.getShopItems();
+        final wornItem = shopData['currentCharacter'] as String;
+
+        setState(() {
+          shopItems = items;
+          currentWornItem = wornItem;
+
+          // Update selected item if it's the worn item
+          if (selectedItem?.id != wornItem) {
+            selectedItem = items.firstWhere(
+              (item) => item.id == wornItem,
+              orElse: () => items.first,
+            );
+          }
+        });
+      }
+    });
+  }
 
   void handleItemSelect(ShopItem item) {
     setState(() {
@@ -127,24 +123,105 @@ class _ShopScreenState extends State<ShopScreen> {
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(
-        initialPage: 1000); // Start in the middle for infinite scrolling
+  Future<void> handleBuyClick(ShopItem item) async {
+    if (item.isOwned) {
+      // If already owned, wear it instead
+      await _wearItem(item);
+    } else {
+      // Show buy preview
+      setState(() {
+        buyPreviewItem = item;
+        selectedItem = item;
+      });
+    }
   }
 
-  @override
-  void dispose() {
-    _pageController?.dispose();
-    super.dispose();
+  Future<void> _buyItem(ShopItem item) async {
+    try {
+      final success = await _shopService.buyItem(item.id);
+
+      if (success) {
+        // Close buy preview
+        closeBuyPreview();
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Successfully bought ${item.name}!'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Reload shop data to reflect changes
+        await _loadShopData();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Failed to buy item. Check your coins!'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error buying item: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
-  void handleBuyClick(ShopItem item) {
-    setState(() {
-      buyPreviewItem = item;
-      selectedItem = item;
-    });
+  Future<void> _wearItem(ShopItem item) async {
+    try {
+      final success = await _shopService.wearItem(item.id);
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Now wearing ${item.name}!'),
+              backgroundColor: Colors.blue,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Reload shop data to reflect changes
+        await _loadShopData();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Failed to wear item!'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error wearing item: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   void closeBuyPreview() {
@@ -159,7 +236,22 @@ class _ShopScreenState extends State<ShopScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayItem = buyPreviewItem ?? selectedItem;
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // Always show the current worn item in preview, regardless of selection
+    final displayItem = buyPreviewItem ??
+        selectedItem ??
+        shopItems.firstWhere(
+          (item) => item.id == currentWornItem,
+          orElse: () => shopItems.first,
+        );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -180,23 +272,45 @@ class _ShopScreenState extends State<ShopScreen> {
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.orange[50],
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.orange[200]!),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+              border: Border.all(color: const Color(0xFFF5E9B9), width: 1),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Icon(Icons.monetization_on,
-                    size: 16, color: Colors.orange),
-                const SizedBox(width: 4),
+                // Coin image
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/coin.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Text(
                   userCoins.toString(),
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
+                    color: Color(0xFF222222),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ],
@@ -229,9 +343,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 ],
               ),
               child: Center(
-                child: displayItem != null
-                    ? _buildItemPreview(displayItem)
-                    : _buildDefaultPreview(),
+                child: _buildItemPreview(displayItem),
               ),
             ),
           ),
@@ -253,28 +365,6 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDefaultPreview() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.shopping_bag,
-          size: 80,
-          color: Colors.grey[400],
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Select an item to preview',
-          style: TextStyle(
-            fontSize: 18,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 
@@ -466,10 +556,11 @@ class _ShopScreenState extends State<ShopScreen> {
         itemBuilder: (context, index) {
           final item = items[index];
           final isSelected = selectedItem?.id == item.id;
+          final isWorn = item.isWorn;
 
           return Container(
             width: 160,
-            height: 120, // Reduced height to fit in remaining space
+            height: 120,
             margin: const EdgeInsets.only(right: 12),
             child: GestureDetector(
               onTap: () => handleItemSelect(item),
@@ -478,8 +569,12 @@ class _ShopScreenState extends State<ShopScreen> {
                   color: isSelected ? Colors.orange[50] : Colors.grey[50],
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? Colors.orange : Colors.grey[300]!,
-                    width: isSelected ? 2 : 1,
+                    color: isWorn
+                        ? Colors.green
+                        : isSelected
+                            ? Colors.orange
+                            : Colors.grey[300]!,
+                    width: isWorn || isSelected ? 2 : 1,
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -507,15 +602,39 @@ class _ShopScreenState extends State<ShopScreen> {
                             top: Radius.circular(12),
                           ),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
-                              item.imagePath,
-                              fit: BoxFit.contain,
+                        child: Stack(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Center(
+                                  child: Image.asset(
+                                    item.imagePath,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                            // Worn indicator
+                            if (isWorn)
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -524,7 +643,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     Expanded(
                       flex: 2,
                       child: Container(
-                        padding: const EdgeInsets.all(8), // Reduced padding
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.8),
                           borderRadius: const BorderRadius.only(
@@ -538,55 +657,54 @@ class _ShopScreenState extends State<ShopScreen> {
                             Text(
                               item.name,
                               style: const TextStyle(
-                                fontSize: 11, // Reduced font size
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4), // Reduced spacing
+                            const SizedBox(height: 4),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.monetization_on,
-                                        size: 10,
-                                        color:
-                                            Colors.amber), // Reduced icon size
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      item.price.toString(),
-                                      style: const TextStyle(
-                                        fontSize: 10, // Reduced font size
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (!showOwnedItems) // Only show Buy button for purchasable items
-                                  GestureDetector(
-                                    onTap: () => handleBuyClick(item),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2), // Reduced padding
-                                      decoration: BoxDecoration(
-                                        color: Colors.black,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Text(
-                                        'Buy',
-                                        style: TextStyle(
-                                          fontSize: 8, // Reduced font size
-                                          color: Colors.white,
+                                if (!showOwnedItems) // Only show price for purchasable items
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.monetization_on,
+                                          size: 10, color: Colors.amber),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        item.price.toString(),
+                                        style: const TextStyle(
+                                          fontSize: 10,
                                           fontWeight: FontWeight.bold,
+                                          color: Colors.black,
                                         ),
+                                      ),
+                                    ],
+                                  ),
+                                GestureDetector(
+                                  onTap: () => handleBuyClick(item),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: item.isOwned
+                                          ? Colors.green
+                                          : Colors.black,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      item.isOwned ? 'Wear' : 'Buy',
+                                      style: const TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ),
+                                ),
                               ],
                             ),
                           ],
@@ -670,76 +788,68 @@ class _ShopScreenState extends State<ShopScreen> {
             ),
           ),
 
+          const SizedBox(height: 8),
+
+          Text(
+            buyPreviewItem!.description,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+
           const SizedBox(height: 16),
 
           // Buy Button
           SizedBox(
             width: double.infinity,
-            child: buyPreviewItem!.isOwned
-                ? Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(12),
+            child: GestureDetector(
+              onTap: () => _buyItem(buyPreviewItem!),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: userCoins >= buyPreviewItem!.price
+                      ? Colors.black
+                      : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      userCoins >= buyPreviewItem!.price
+                          ? 'Buy'
+                          : 'Not enough coins',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: userCoins >= buyPreviewItem!.price
+                            ? Colors.white
+                            : Colors.grey[500],
+                      ),
                     ),
-                    child: const Column(
-                      children: [
-                        Icon(Icons.check, color: Colors.white, size: 20),
-                        SizedBox(height: 4),
-                        Text(
-                          'Owned',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                    if (userCoins >= buyPreviewItem!.price)
+                      Row(
+                        children: [
+                          const Icon(Icons.monetization_on,
+                              size: 14, color: Colors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${buyPreviewItem!.price}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: userCoins >= buyPreviewItem!.price
-                          ? Colors.black
-                          : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          userCoins >= buyPreviewItem!.price
-                              ? 'Buy'
-                              : 'Not enough coins',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: userCoins >= buyPreviewItem!.price
-                                ? Colors.white
-                                : Colors.grey[500],
-                          ),
-                        ),
-                        if (userCoins >= buyPreviewItem!.price)
-                          Row(
-                            children: [
-                              const Icon(Icons.monetization_on,
-                                  size: 14, color: Colors.amber),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${buyPreviewItem!.price}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),

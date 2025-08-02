@@ -7,6 +7,7 @@ import 'home.dart';
 import 'services/health_service.dart';
 import 'services/username_service.dart';
 import 'services/duo_challenge_service.dart';
+import 'services/user_login_service.dart';
 import 'main.dart' show navigatorKey;
 import 'daily_goal_selection_screen.dart';
 
@@ -31,6 +32,7 @@ class EmailVerificationScreen extends StatefulWidget {
 class EmailVerificationScreenState extends State<EmailVerificationScreen> {
   final HealthService _healthService = HealthService();
   final UsernameService _usernameService = UsernameService();
+  final UserLoginService _userLoginService = UserLoginService();
   bool _isVerifying = false;
   bool _isResending = false;
   int _resendCountdown = 60;
@@ -221,10 +223,12 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
         'coins': 100,
         'isOnline': false,
         'lastActive': FieldValue.serverTimestamp(),
-        'characterSpriteSheets': {
-          'idle': 'images/character_idle.json',
-          'walking': 'images/character_walking.json',
-          'glb': 'web/home/MyCharacter_home.glb'
+        'owned_items': ['MyCharacter'],
+        'currentCharacter': 'MyCharacter',
+        'homeGlbPath': 'assets/web/home/MyCharacter_home.glb',
+        'spriteSheets': {
+          'idle': 'images/sprite_sheets/MyCharacter_idle.json',
+          'walking': 'images/sprite_sheets/MyCharacter_walking.json',
         },
         'shown_rewards': {},
       });
@@ -234,6 +238,9 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
         final duoChallengeService =
             DuoChallengeService(navigatorKey: navigatorKey);
         await duoChallengeService.checkForExistingInvites();
+
+        // Initialize character animations for the new user
+        await _userLoginService.onUserLogin();
 
         // Navigate to daily goal selection screen
         Navigator.pushAndRemoveUntil(

@@ -8,6 +8,7 @@ import 'login_screen.dart';
 import 'services/health_service.dart'; // Add this import
 import 'services/username_service.dart'; // Add username service
 import 'services/duo_challenge_service.dart';
+import 'services/user_login_service.dart';
 import 'main.dart' show navigatorKey;
 import 'email_verification_screen.dart';
 import 'daily_goal_selection_screen.dart';
@@ -28,6 +29,7 @@ class SignupScreenState extends State<SignupScreen> {
   final HealthService _healthService = HealthService(); // Add this
   final UsernameService _usernameService =
       UsernameService(); // Add username service
+  final UserLoginService _userLoginService = UserLoginService();
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isCheckingUsername = false;
@@ -436,10 +438,12 @@ class SignupScreenState extends State<SignupScreen> {
           'coins': 100, // Initial coins for new users
           'isOnline': false,
           'lastActive': FieldValue.serverTimestamp(),
-          'characterSpriteSheets': {
-            'idle': 'images/character_idle.json',
-            'walking': 'images/character_walking.json',
-            'glb': 'web/home/MyCharacter_home.glb'
+          'owned_items': ['MyCharacter'],
+          'currentCharacter': 'MyCharacter',
+          'homeGlbPath': 'assets/web/home/MyCharacter_home.glb',
+          'spriteSheets': {
+            'idle': 'images/sprite_sheets/MyCharacter_idle.json',
+            'walking': 'images/sprite_sheets/MyCharacter_walking.json',
           },
           'shown_rewards': {},
         });
@@ -461,6 +465,9 @@ class SignupScreenState extends State<SignupScreen> {
       final duoChallengeService =
           DuoChallengeService(navigatorKey: navigatorKey);
       await duoChallengeService.checkForExistingInvites();
+
+      // Initialize character animations for the user
+      await _userLoginService.onUserLogin();
 
       // Navigate based on whether user is new or existing
       if (isNewUser) {

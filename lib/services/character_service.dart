@@ -4,6 +4,7 @@ import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
 import 'dart:convert';
 import 'dart:ui' as ui;
+import 'character_data_service.dart';
 
 class CharacterService {
   static final CharacterService _instance = CharacterService._internal();
@@ -12,6 +13,7 @@ class CharacterService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final CharacterDataService _characterDataService = CharacterDataService();
 
   // Cache for loaded character animations
   final Map<String, Map<String, SpriteAnimation>> _characterAnimations = {};
@@ -21,22 +23,7 @@ class CharacterService {
   /// Get the current user's character sprite sheets
   Future<Map<String, String>> getCurrentUserSpriteSheets() async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) return _getDefaultSpriteSheets();
-
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        final spriteSheets =
-            userData['characterSpriteSheets'] as Map<String, dynamic>?;
-        if (spriteSheets != null) {
-          return {
-            'idle': spriteSheets['idle'] as String,
-            'walking': spriteSheets['walking'] as String,
-          };
-        }
-      }
-      return _getDefaultSpriteSheets();
+      return await _characterDataService.getCurrentSpriteSheets();
     } catch (e) {
       print('Error getting user sprite sheets: $e');
       return _getDefaultSpriteSheets();
@@ -46,19 +33,9 @@ class CharacterService {
   /// Get a specific user's character sprite sheets
   Future<Map<String, String>> getUserSpriteSheets(String userId) async {
     try {
-      final userDoc = await _firestore.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        final spriteSheets =
-            userData['characterSpriteSheets'] as Map<String, dynamic>?;
-        if (spriteSheets != null) {
-          return {
-            'idle': spriteSheets['idle'] as String,
-            'walking': spriteSheets['walking'] as String,
-          };
-        }
-      }
-      return _getDefaultSpriteSheets();
+      final characterData =
+          await _characterDataService.getUserCharacterData(userId);
+      return Map<String, String>.from(characterData['spriteSheets'] as Map);
     } catch (e) {
       print('Error getting user sprite sheets: $e');
       return _getDefaultSpriteSheets();
@@ -72,7 +49,7 @@ class CharacterService {
       if (user == null) return false;
 
       await _firestore.collection('users').doc(user.uid).update({
-        'characterSpriteSheets': spriteSheets,
+        'spriteSheets': spriteSheets,
       });
 
       // Clear cache for this user to force reload
@@ -88,8 +65,8 @@ class CharacterService {
   /// Get default sprite sheets (fallback)
   Map<String, String> _getDefaultSpriteSheets() {
     return {
-      'idle': 'images/character_idle.json',
-      'walking': 'images/character_walking.json',
+      'idle': 'images/sprite_sheets/MyCharacter_idle.json',
+      'walking': 'images/sprite_sheets/MyCharacter_walking.json',
     };
   }
 

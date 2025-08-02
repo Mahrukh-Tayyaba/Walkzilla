@@ -11,6 +11,7 @@ import 'services/health_service.dart';
 import 'services/username_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
+import 'services/user_login_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'main.dart' show navigatorKey;
 
@@ -29,6 +30,7 @@ class LoginScreenState extends State<LoginScreen> {
   final HealthService _healthService = HealthService();
   final UsernameService _usernameService = UsernameService();
   final CoinService _coinService = CoinService();
+  final UserLoginService _userLoginService = UserLoginService();
 
   bool _isPasswordVisible = false; // Toggle password visibility
   bool _isLoading = false; // Show loading indicator
@@ -112,10 +114,12 @@ class LoginScreenState extends State<LoginScreen> {
           'coins': 100, // Initial coins for new users
           'isOnline': false,
           'lastActive': FieldValue.serverTimestamp(),
-          'characterSpriteSheets': {
-            'idle': 'images/character_idle.json',
-            'walking': 'images/character_walking.json',
-            'glb': 'web/home/MyCharacter_home.glb'
+          'owned_items': ['MyCharacter'],
+          'currentCharacter': 'MyCharacter',
+          'homeGlbPath': 'assets/web/home/MyCharacter_home.glb',
+          'spriteSheets': {
+            'idle': 'images/sprite_sheets/MyCharacter_idle.json',
+            'walking': 'images/sprite_sheets/MyCharacter_walking.json',
           },
           'shown_rewards': {},
         });
@@ -182,6 +186,9 @@ class LoginScreenState extends State<LoginScreen> {
       final duoChallengeService =
           DuoChallengeService(navigatorKey: navigatorKey);
       await duoChallengeService.checkForExistingInvites();
+
+      // Initialize character animations for the logged-in user
+      await _userLoginService.onUserLogin();
 
       // Navigate to home screen after permissions are handled
       if (mounted) {

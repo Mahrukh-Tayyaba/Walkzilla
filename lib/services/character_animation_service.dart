@@ -2,12 +2,17 @@ import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
 import 'dart:convert';
 import 'dart:ui' as ui;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'character_data_service.dart';
 
 class CharacterAnimationService {
   static final CharacterAnimationService _instance =
       CharacterAnimationService._internal();
   factory CharacterAnimationService() => _instance;
   CharacterAnimationService._internal();
+
+  final CharacterDataService _characterDataService = CharacterDataService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Cache for loaded animations
   SpriteAnimation? _cachedIdleAnimation;
@@ -17,6 +22,7 @@ class CharacterAnimationService {
   bool _isLoading = false;
   bool _isLoaded = false;
   DateTime? _lastLoadTime;
+  String? _lastLoadedCharacterId;
 
   // Getters
   SpriteAnimation? get idleAnimation => _cachedIdleAnimation;
@@ -24,32 +30,114 @@ class CharacterAnimationService {
   bool get isLoading => _isLoading;
   bool get isLoaded => _isLoaded;
   DateTime? get lastLoadTime => _lastLoadTime;
+  String? get lastLoadedCharacterId => _lastLoadedCharacterId;
 
-  /// Preload character animations in the background with optimized loading
+  /// Preload character animations for the current user's character
   Future<void> preloadAnimations() async {
-    if (_isLoaded || _isLoading) return;
+    if (_isLoading) return;
 
     _isLoading = true;
-    print('CharacterAnimationService: Starting optimized preload...');
+    print('CharacterAnimationService: Starting dynamic preload...');
 
     try {
-      // Load animations sequentially to reduce memory pressure
+      // Get current user's sprite sheet paths
+      final spriteSheets = await _characterDataService.getCurrentSpriteSheets();
+      final currentCharacter =
+          await _characterDataService.getCurrentCharacter();
+
+      print(
+          'CharacterAnimationService: Loading animations for character: $currentCharacter');
+      print('CharacterAnimationService: Sprite sheets: $spriteSheets');
+
+      // Load animations using dynamic paths
       _cachedIdleAnimation =
-          await _loadTexturePackerAnimation('images/character_idle.json', 0.08);
-      _cachedWalkingAnimation = await _loadTexturePackerAnimation(
-          'images/character_walking.json', 0.06);
+          await _loadTexturePackerAnimation(spriteSheets['idle']!, 0.08);
+      _cachedWalkingAnimation =
+          await _loadTexturePackerAnimation(spriteSheets['walking']!, 0.06);
 
       _isLoaded = true;
       _isLoading = false;
       _lastLoadTime = DateTime.now();
+      _lastLoadedCharacterId = currentCharacter;
 
       print(
-          'CharacterAnimationService: Optimized preload completed successfully');
+          'CharacterAnimationService: Dynamic preload completed successfully for $currentCharacter');
     } catch (e, st) {
       _isLoading = false;
-      print('CharacterAnimationService: Preload failed: $e');
+      print('CharacterAnimationService: Dynamic preload failed: $e');
       print('Stack trace: $st');
       rethrow;
+    }
+  }
+
+  /// Preload animations for a specific character (useful for testing or preview)
+  Future<void> preloadAnimationsForCharacter(String characterId) async {
+    if (_isLoading) return;
+
+    _isLoading = true;
+    print(
+        'CharacterAnimationService: Starting preload for character: $characterId');
+
+    try {
+      // Get sprite sheet paths for the specific character
+      final spriteSheets =
+          _characterDataService.getSpriteSheetsForCharacter(characterId);
+
+      print(
+          'CharacterAnimationService: Sprite sheets for $characterId: $spriteSheets');
+
+      // Load animations using the character's paths
+      _cachedIdleAnimation =
+          await _loadTexturePackerAnimation(spriteSheets['idle']!, 0.08);
+      _cachedWalkingAnimation =
+          await _loadTexturePackerAnimation(spriteSheets['walking']!, 0.06);
+
+      _isLoaded = true;
+      _isLoading = false;
+      _lastLoadTime = DateTime.now();
+      _lastLoadedCharacterId = characterId;
+
+      print(
+          'CharacterAnimationService: Preload completed successfully for $characterId');
+    } catch (e, st) {
+      _isLoading = false;
+      print('CharacterAnimationService: Preload failed for $characterId: $e');
+      print('Stack trace: $st');
+      rethrow;
+    }
+  }
+
+  /// Reload animations when character changes
+  Future<void> reloadAnimationsForCurrentCharacter() async {
+    print(
+        'CharacterAnimationService: Reloading animations for current character...');
+
+    // Clear existing cache
+    clearCache();
+
+    // Load new animations
+    await preloadAnimations();
+  }
+
+  /// Check if animations need to be reloaded (character changed)
+  Future<bool> needsReload() async {
+    if (!_isLoaded) return true;
+
+    try {
+      final currentCharacter =
+          await _characterDataService.getCurrentCharacter();
+      return _lastLoadedCharacterId != currentCharacter;
+    } catch (e) {
+      print('CharacterAnimationService: Error checking if reload needed: $e');
+      return true;
+    }
+  }
+
+  /// Auto-reload if character changed
+  Future<void> autoReloadIfNeeded() async {
+    if (await needsReload()) {
+      print('CharacterAnimationService: Character changed, auto-reloading...');
+      await reloadAnimationsForCurrentCharacter();
     }
   }
 
@@ -107,8 +195,15 @@ class CharacterAnimationService {
     }
   }
 
-  /// Get animations - returns cached versions if available
+  /// Get animations - returns cached versions if available, auto-reloads if character changed
   Future<Map<String, SpriteAnimation>> getAnimations() async {
+    // Check if we need to reload due to character change
+    if (await needsReload()) {
+      print(
+          'CharacterAnimationService: Character changed, reloading animations...');
+      await reloadAnimationsForCurrentCharacter();
+    }
+
     if (_isLoaded) {
       return {
         'idle': _cachedIdleAnimation!,
@@ -126,6 +221,14 @@ class CharacterAnimationService {
 
   /// Wait for animations to be loaded (useful for UI)
   Future<void> waitForLoad() async {
+    // Check if we need to reload due to character change
+    if (await needsReload()) {
+      print(
+          'CharacterAnimationService: Character changed during wait, reloading...');
+      await reloadAnimationsForCurrentCharacter();
+      return;
+    }
+
     if (_isLoaded) return;
 
     while (_isLoading) {
@@ -154,6 +257,7 @@ class CharacterAnimationService {
     _isLoaded = false;
     _isLoading = false;
     _lastLoadTime = null;
+    _lastLoadedCharacterId = null;
 
     // Force garbage collection
     print('CharacterAnimationService: Cache cleared and disposed');
@@ -200,5 +304,23 @@ class CharacterAnimationService {
         clearCache();
       }
     }
+  }
+
+  /// Handle character change event (called when user wears a different character)
+  Future<void> onCharacterChanged(String newCharacterId) async {
+    print('CharacterAnimationService: Character changed to: $newCharacterId');
+
+    // Clear cache and reload animations for the new character
+    await reloadAnimationsForCurrentCharacter();
+  }
+
+  /// Get current character ID that animations are loaded for
+  String? getCurrentLoadedCharacterId() {
+    return _lastLoadedCharacterId;
+  }
+
+  /// Check if animations are loaded for a specific character
+  bool isLoadedForCharacter(String characterId) {
+    return _isLoaded && _lastLoadedCharacterId == characterId;
   }
 }

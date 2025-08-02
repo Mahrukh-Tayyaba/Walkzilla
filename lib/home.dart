@@ -80,13 +80,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   /// Start monitoring connection status
   void _startConnectionStatusMonitoring() {
-    _connectionStatusTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    _connectionStatusTimer =
+        Timer.periodic(const Duration(seconds: 10), (timer) {
       final isOnline = _networkService.isOnline;
       if (isOnline != _isOnline) {
         setState(() {
           _isOnline = isOnline;
         });
-        
+
         if (isOnline) {
           print('✅ Connection restored - refreshing data');
           _refreshDataOnReconnection();
@@ -1142,7 +1143,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   /// Migrate current user's character data if needed
   void _migrateCurrentUserCharacter() {
-    CharacterMigrationService().migrateCurrentUser().catchError((error) {
+    CharacterMigrationService()
+        .migrateCurrentUserCharacterData()
+        .catchError((error) {
       print('Failed to migrate character data: $error');
     });
   }
@@ -1280,12 +1283,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _duoChallengeService?.stopListeningForInvites();
     _healthService.stopRealTimeStepMonitoring();
     _connectionStatusTimer?.cancel();
-    
+
     // Clean up all listeners and subscriptions
     _acceptedInviteListener = null;
     _declinedInviteListener = null;
     _duoChallengeService = null;
-    
+
     print('🧹 Home screen disposed - all connections cleaned up');
     super.dispose();
   }
