@@ -170,7 +170,10 @@ class DuoChallengeService {
         .listen((doc) {
       if (!doc.exists) return;
       final data = doc.data() as Map<String, dynamic>;
-      if (data['status'] == 'accepted') {
+      if (data['status'] == 'accepted' && data['senderNotified'] != true) {
+        // Mark as notified immediately to prevent duplicate popups
+        doc.reference.update({'senderNotified': true});
+
         // Show dialog to sender
         if (navigatorKey.currentContext != null) {
           showDialog(

@@ -12,6 +12,7 @@ import 'package:flame/events.dart';
 import '../services/character_animation_service.dart';
 import '../services/health_service.dart';
 import '../services/step_counter_service.dart';
+import '../services/coin_service.dart';
 
 class DuoChallengeGameScreen extends StatefulWidget {
   final String inviteId;
@@ -32,9 +33,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   final _auth = FirebaseAuth.instance;
   final HealthService _healthService = HealthService();
   late String _userId;
-  String? _winner;
   bool _gameEnded = false;
-  bool _isLoadingCharacters = true;
   String? _otherPlayerId;
 
   // Step-based racing system variables
@@ -44,7 +43,6 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   bool _isOpponentWalking = false;
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<DocumentSnapshot>? _gameStateSubscription;
-  static const double trackWidth = 5000.0;
   static const double finishLinePosition = 5000.0;
 
   // Step tracking variables (similar to Solo Mode)
@@ -56,15 +54,24 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   DateTime? _initializationTime;
   StreamSubscription<Map<String, dynamic>>? _stepSubscription;
 
-  // Opponent state (no waiting - immediate display)
-  bool _waitingForOpponent = false;
+  // NEW: Firestore-based step tracking variables
+  int? _userInitialStepCount;
+  int? _opponentInitialStepCount;
+  int _userRawSteps = 0;
+  int _opponentRawSteps = 0;
+
+  // NEW: Game state variables
+  bool _matchStarted = false;
+  bool _showingWinnerDialog = false;
+  bool _showingQuitDialog = false;
+  static const int _stepGoal = 2000; // Updated step goal to 2000
+  bool _showingMatchStartDialog = false;
 
   // Callback functions to update character animations
   CharacterDisplayGame? _userGameInstance;
   CharacterDisplayGame? _opponentGameInstance;
 
   // Animation debouncing to prevent flickering
-  DateTime? _lastUserAnimationUpdate;
   DateTime? _lastOpponentAnimationUpdate;
   static const Duration _animationDebounceTime = Duration(milliseconds: 100);
 
@@ -79,6 +86,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
     // Initialize with walking state as false
     _isUserWalking = false;
+
+    // IMMEDIATE CHARACTER VISIBILITY: Characters are immediately visible
 
     _initializeGame();
     _preloadCharacters();
@@ -123,13 +132,20 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         return;
       }
 
-      final positions =
-          (data['positions'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final positions = (data['positions'] as Map<String, dynamic>?) ?? {};
       final gameStarted = data['gameStarted'] ?? false;
+      final matchStarted = data['matchStarted'] ?? false;
+      final initialSteps =
+          (data['initialSteps'] as Map<String, dynamic>?) ?? {};
+      final rawSteps = (data['rawSteps'] as Map<String, dynamic>?) ?? {};
 
       // If game hasn't started yet, this is the first player
       if (!gameStarted) {
         print('🏁 DUO CHALLENGE: First player joining - initializing game');
+
+        // Get current device step count for baseline
+        final currentDeviceSteps = StepCounterService.currentSteps;
+
         await _firestore
             .collection('duo_challenge_invites')
             .doc(widget.inviteId)
@@ -139,29 +155,99 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           'positions.$_userId': 200.0, // Start in visible area
           'steps.$_userId': 0,
           'scores.$_userId': 0,
+          'initialSteps.$_userId':
+              currentDeviceSteps, // Store initial step count
+          'rawSteps.$_userId': currentDeviceSteps, // Store current raw steps
         });
+
+        // Set user's initial step count locally
+        _userInitialStepCount = currentDeviceSteps;
+        _userRawSteps = currentDeviceSteps;
 
         // For first player, create a placeholder opponent immediately
         setState(() {
           _otherPlayerId = 'waiting_for_opponent';
           _opponentPosition = 200.0;
-          _opponentSteps = 0;
+          _opponentSteps = 0; // Initialize to zero
           _isOpponentWalking = false;
+          _steps = 0; // Ensure user steps start at zero
+          _previousSteps = 0; // Ensure previous steps start at zero
         });
         print('👥 DUO CHALLENGE: First player - created placeholder opponent');
+        print(
+          '👥 DUO CHALLENGE: First player steps reset to 0 for challenge start',
+        );
+        print(
+          '📊 DUO CHALLENGE: First player initial step count: $currentDeviceSteps',
+        );
       } else {
         // Game already started, this is the second player joining
         print(
           '🏁 DUO CHALLENGE: Second player joining - adding to existing game',
         );
+
+        // Get current device step count for baseline
+        final currentDeviceSteps = await StepCounterService.currentSteps;
+
         await _firestore
             .collection('duo_challenge_invites')
             .doc(widget.inviteId)
             .update({
           'positions.$_userId': 200.0, // Start in visible area
-          'steps.$_userId': 0,
+          'steps.$_userId': 0, // Reset to 0 for challenge start
           'scores.$_userId': 0,
+          'initialSteps.$_userId':
+              currentDeviceSteps, // Store initial step count
+          'rawSteps.$_userId': currentDeviceSteps, // Store current raw steps
         });
+
+        // Set user's initial step count locally
+        _userInitialStepCount = currentDeviceSteps;
+        _userRawSteps = currentDeviceSteps;
+
+        // Ensure steps are initialized to zero for the challenge
+        if (mounted) {
+          setState(() {
+            _steps = 0; // Ensure user steps start at zero
+            _previousSteps = 0; // Ensure previous steps start at zero
+          });
+        }
+
+        print(
+          '👥 DUO CHALLENGE: Second player steps reset to 0 for challenge start',
+        );
+        print(
+          '📊 DUO CHALLENGE: Second player initial step count: $currentDeviceSteps',
+        );
+
+        // Check if both players are ready to start the match
+        final allPlayers = positions.keys.toList();
+        if (allPlayers.length >= 2 && !matchStarted) {
+          print('🎮 DUO CHALLENGE: Both players ready - starting match!');
+          await _startMatch();
+        }
+      }
+
+      // If match is already started, join the ongoing match
+      if (matchStarted) {
+        print('🎮 DUO CHALLENGE: Joining ongoing match');
+        setState(() {
+          _matchStarted = true;
+        });
+      }
+
+      // Load opponent's initial step count if available
+      final otherPlayerId =
+          positions.keys.where((key) => key != _userId).firstOrNull;
+      if (otherPlayerId != null && initialSteps.containsKey(otherPlayerId)) {
+        _opponentInitialStepCount = (initialSteps[otherPlayerId] ?? 0) as int;
+        _opponentRawSteps = (rawSteps[otherPlayerId] ?? 0) as int;
+        print(
+          '📊 DUO CHALLENGE: Loaded opponent initial step count: $_opponentInitialStepCount',
+        );
+        print(
+          '📊 DUO CHALLENGE: Loaded opponent raw steps: $_opponentRawSteps',
+        );
       }
     }
 
@@ -177,10 +263,26 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Ensure both characters are rendered immediately
         if (_otherPlayerId == null) {
           _otherPlayerId = 'waiting_for_opponent';
-          _opponentPosition = 200.0;
-          _opponentSteps = 0;
-          _isOpponentWalking = false;
         }
+
+        // Force immediate character visibility with proper positioning
+        _userPosition = 200.0;
+        _opponentPosition = 200.0;
+        _opponentSteps = 0;
+        _isOpponentWalking = false;
+
+        // Ensure steps start at zero for sensor-only tracking
+        _steps = 0;
+        _previousSteps = 0;
+
+        print(
+          '👥 DUO CHALLENGE: Both characters forced to be visible immediately',
+        );
+        print(
+          '👥 DUO CHALLENGE: User position: $_userPosition, Opponent position: $_opponentPosition',
+        );
+        print('👥 DUO CHALLENGE: Other player ID: $_otherPlayerId');
+        print('👥 DUO CHALLENGE: Steps reset to zero for sensor-only tracking');
       });
     }
 
@@ -195,6 +297,246 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
         _aggressiveVisibilityCheck();
+      }
+    });
+  }
+
+  // NEW: Start the match when both players are ready
+  Future<void> _startMatch() async {
+    print('🎮 DUO CHALLENGE: Starting match with both players!');
+
+    await _firestore
+        .collection('duo_challenge_invites')
+        .doc(widget.inviteId)
+        .update({
+      'matchStarted': true,
+      'matchStartTime': FieldValue.serverTimestamp(),
+      'stepGoal': _stepGoal,
+    });
+
+    if (mounted) {
+      setState(() {
+        _matchStarted = true;
+      });
+    }
+
+    // Show match start dialog with 5-second countdown
+    _showMatchStartDialog();
+  }
+
+  // NEW: Show match start dialog with automatic countdown
+  void _showMatchStartDialog() {
+    if (_showingMatchStartDialog) return;
+
+    setState(() {
+      _showingMatchStartDialog = true;
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '🏁 Match Starting...',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF7C4DFF),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Both players are ready!',
+                style: TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C4DFF).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF7C4DFF)),
+                ),
+                child: Text(
+                  '🎯 Goal: $_stepGoal Steps',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF7C4DFF),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Game will start automatically in 5 seconds...',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    // Show "Match Starting..." popup for 5 seconds, then start countdown
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close the "Match Starting..." dialog
+        _startCountdown(); // Start the 3-2-1 countdown
+      }
+    });
+  }
+
+  // NEW: Start countdown and automatically begin game
+  void _startCountdown() {
+    int countdown = 3;
+
+    void updateCountdown() {
+      if (countdown > 0) {
+        // Show countdown dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: Colors.transparent,
+              content: Center(
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(75),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      countdown.toString(),
+                      style: const TextStyle(
+                        fontSize: 72,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF7C4DFF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+
+        countdown--;
+        Future.delayed(const Duration(seconds: 1), updateCountdown);
+      } else {
+        // Start the game - show "GO!" and then begin
+        Navigator.of(context).pop();
+        _showGoMessage();
+      }
+    }
+
+    // Start countdown immediately
+    updateCountdown();
+  }
+
+  // NEW: Begin the actual game
+  void _beginGame() {
+    print('🎮 DUO CHALLENGE: Game officially started!');
+
+    setState(() {
+      _showingMatchStartDialog = false;
+    });
+
+    // Game is now active - both characters should be visible and step tracking enabled
+    print(
+      '🎮 DUO CHALLENGE: Game is now active - step tracking and character movement enabled!',
+    );
+
+    // Ensure step tracking is fully enabled
+    _enableStepTracking();
+  }
+
+  // NEW: Enable step tracking when game officially starts
+  void _enableStepTracking() {
+    print('🎯 DUO CHALLENGE: Step tracking officially enabled!');
+
+    // Ensure both characters are visible and ready
+    if (mounted) {
+      setState(() {
+        // Force both characters to be visible and in correct state
+        _isUserWalking = false;
+        _isOpponentWalking = false;
+      });
+    }
+
+    // Sync character animations to ensure they're in idle state
+    _syncCharacterAnimation();
+    _syncOpponentCharacterAnimation();
+
+    print('🎯 DUO CHALLENGE: Both characters ready for step tracking!');
+  }
+
+  // NEW: Show "GO!" message
+  void _showGoMessage() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.transparent,
+          content: Center(
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(90),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text(
+                  'GO!',
+                  style: TextStyle(
+                    fontSize: 64,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    // Close after 1 second and start the game
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        Navigator.of(context).pop();
+        _beginGame(); // Start the game after "GO!" message
       }
     });
   }
@@ -216,29 +558,27 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         return;
       }
 
-      final positions =
-          (data['positions'] as Map<String, dynamic>?) ?? <String, dynamic>{};
-      final steps =
-          (data['steps'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final positions = (data['positions'] as Map<String, dynamic>?) ?? {};
 
       print('📊 DUO CHALLENGE: Current positions: $positions');
-      print('📊 DUO CHALLENGE: Current steps: $steps');
       print('📊 DUO CHALLENGE: Current user ID: $_userId');
 
-      // Load current user's data first
+      // Load current user's data first (position only, not steps)
       if (positions.containsKey(_userId)) {
-        final userPos = (positions[_userId] ?? 200.0).toDouble();
-        final userSteps = (steps[_userId] ?? 0) as int;
+        final userPos = (positions[_userId] ?? 200.0);
+        // Don't load steps from Firestore - keep sensor-only tracking
+        // final userSteps = (steps[_userId] ?? 0) as int;
 
         if (mounted) {
           setState(() {
             _userPosition = userPos;
-            _steps = userSteps;
+            // Keep steps at zero for sensor-only tracking
+            // _steps = userSteps;
           });
         }
 
         print(
-          '📊 DUO CHALLENGE: Loaded user data - Position: $userPos, Steps: $userSteps',
+          '📊 DUO CHALLENGE: Loaded user data - Position: $userPos, Steps: $_steps (sensor-only)',
         );
       }
 
@@ -249,28 +589,31 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       print('📊 DUO CHALLENGE: Found other player ID: $otherPlayerId');
 
       if (otherPlayerId != null) {
-        final opponentPos = (positions[otherPlayerId] ?? 200.0).toDouble();
-        final opponentSteps = (steps[otherPlayerId] ?? 0) as int;
+        final opponentPos = (positions[otherPlayerId] ?? 200.0);
+        // Don't load opponent steps from Firestore - they should start at 0 for challenge
+        // final opponentSteps = (steps[otherPlayerId] ?? 0) as int;
 
         print(
-          '📊 DUO CHALLENGE: Found opponent data - Position: $opponentPos, Steps: $opponentSteps',
+          '📊 DUO CHALLENGE: Found opponent data - Position: $opponentPos, Steps: 0 (challenge start)',
         );
 
         if (mounted) {
           setState(() {
             _opponentPosition = opponentPos;
-            _opponentSteps = opponentSteps;
+            _opponentSteps = 0; // Always start at 0 for challenge
             _otherPlayerId = otherPlayerId;
             _isOpponentWalking = false; // Start in idle state
           });
         }
 
         print(
-          '📊 DUO CHALLENGE: Set opponent data - _otherPlayerId: $_otherPlayerId, _opponentPosition: $_opponentPosition',
+          '📊 DUO CHALLENGE: Set opponent data - _otherPlayerId: $_otherPlayerId, _opponentPosition: $_opponentPosition, _opponentSteps: $_opponentSteps',
         );
 
         // IMMEDIATE VISIBILITY: Ensure opponent character is immediately visible
-        print('👥 DUO CHALLENGE: Opponent immediately visible on game start!');
+        print(
+          '👥 DUO CHALLENGE: Opponent immediately visible on game start with 0 steps!',
+        );
       } else {
         // If no real opponent found but we have a placeholder, keep it
         if (_otherPlayerId == 'waiting_for_opponent') {
@@ -294,6 +637,17 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       }
     } else {
       print('📊 DUO CHALLENGE: Document does not exist');
+
+      // Fallback: Ensure opponent character is visible even if document doesn't exist
+      if (mounted) {
+        setState(() {
+          _otherPlayerId = 'waiting_for_opponent';
+          _opponentPosition = 200.0;
+          _opponentSteps = 0;
+          _isOpponentWalking = false;
+        });
+        print('📊 DUO CHALLENGE: Fallback - Created placeholder opponent');
+      }
     }
   }
 
@@ -315,25 +669,24 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         return;
       }
 
-      final positions =
-          (data['positions'] as Map<String, dynamic>?) ?? <String, dynamic>{};
-      final steps =
-          (data['steps'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final positions = (data['positions'] as Map<String, dynamic>?) ?? {};
 
-      // Ensure current user data is set
+      // Ensure current user data is set (position only, not steps)
       if (positions.containsKey(_userId)) {
-        final userPos = (positions[_userId] ?? 200.0).toDouble();
-        final userSteps = (steps[_userId] ?? 0) as int;
+        final userPos = (positions[_userId] ?? 200.0);
+        // Don't load steps from Firestore - keep sensor-only tracking
+        // final userSteps = (steps[_userId] ?? 0) as int;
 
         if (mounted) {
           setState(() {
             _userPosition = userPos;
-            _steps = userSteps;
+            // Keep steps at current sensor value - don't overwrite
+            // _steps = userSteps;
           });
         }
 
         print(
-          '👥 DUO CHALLENGE: User data confirmed - Position: $userPos, Steps: $userSteps',
+          '👥 DUO CHALLENGE: User data confirmed - Position: $userPos, Steps: $_steps (sensor-only)',
         );
       }
 
@@ -341,20 +694,21 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       final otherPlayerId =
           positions.keys.where((key) => key != _userId).firstOrNull;
       if (otherPlayerId != null) {
-        final opponentPos = (positions[otherPlayerId] ?? 200.0).toDouble();
-        final opponentSteps = (steps[otherPlayerId] ?? 0) as int;
+        final opponentPos = (positions[otherPlayerId] ?? 200.0);
+        // Don't load opponent steps from Firestore - they should start at 0 for challenge
+        // final opponentSteps = (steps[otherPlayerId] ?? 0) as int;
 
         if (mounted) {
           setState(() {
             _opponentPosition = opponentPos;
-            _opponentSteps = opponentSteps;
+            _opponentSteps = 0; // Always start at 0 for challenge
             _otherPlayerId = otherPlayerId;
             _isOpponentWalking = false;
           });
         }
 
         print(
-          '👥 DUO CHALLENGE: Opponent data confirmed - Position: $opponentPos, Steps: $opponentSteps',
+          '👥 DUO CHALLENGE: Opponent data confirmed - Position: $opponentPos, Steps: 0 (challenge start)',
         );
         print('👥 DUO CHALLENGE: BOTH PLAYERS NOW VISIBLE!');
       } else {
@@ -441,12 +795,52 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         return;
       }
 
-      final positions =
-          (data['positions'] as Map<String, dynamic>?) ?? <String, dynamic>{};
-      final steps =
-          (data['steps'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final positions = (data['positions'] as Map<String, dynamic>?) ?? {};
+      final initialSteps =
+          (data['initialSteps'] as Map<String, dynamic>?) ?? {};
+      final rawSteps = (data['rawSteps'] as Map<String, dynamic>?) ?? {};
       final gameEnded = data['gameEnded'] ?? false;
       final winner = data['winner'] as String?;
+      final matchStarted = data['matchStarted'] ?? false;
+
+      // NEW: Check if both players are ready and start match automatically
+      if (!matchStarted && !_matchStarted) {
+        final allPlayers = positions.keys.toList();
+        if (allPlayers.length >= 2) {
+          print(
+            '🎮 DUO CHALLENGE: Both players detected - starting match automatically!',
+          );
+          print('🎮 DUO CHALLENGE: Player count: ${allPlayers.length}');
+          print('🎮 DUO CHALLENGE: Players: $allPlayers');
+          _startMatch();
+          return;
+        }
+      }
+
+      // NEW: Check for opponent win condition
+      if (_matchStarted && !_gameEnded && !_showingWinnerDialog) {
+        final otherPlayerId =
+            positions.keys.where((key) => key != _userId).firstOrNull;
+        if (otherPlayerId != null) {
+          // Calculate opponent's challenge steps based on Firestore baseline
+          int calculatedOpponentSteps = 0;
+          if (initialSteps.containsKey(otherPlayerId) &&
+              rawSteps.containsKey(otherPlayerId)) {
+            final opponentInitialSteps =
+                (initialSteps[otherPlayerId] ?? 0) as int;
+            final opponentRawSteps = (rawSteps[otherPlayerId] ?? 0) as int;
+            calculatedOpponentSteps = opponentRawSteps - opponentInitialSteps;
+
+            if (calculatedOpponentSteps >= _stepGoal) {
+              print(
+                '😢 DUO CHALLENGE: Opponent reached step goal! Opponent wins!',
+              );
+              _handleOpponentWin();
+              return;
+            }
+          }
+        }
+      }
 
       // IMMEDIATE VISIBILITY: Always check for opponent and make them visible
       final otherPlayerId =
@@ -457,11 +851,36 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       );
 
       if (otherPlayerId != null) {
-        final opponentPos = (positions[otherPlayerId] ?? 200.0).toDouble();
-        final opponentSteps = (steps[otherPlayerId] ?? 0) as int;
+        final opponentPos = (positions[otherPlayerId] ?? 200.0);
+        final opponentRawSteps = (rawSteps[otherPlayerId] ?? 0) as int;
+
+        // Calculate opponent's challenge steps based on Firestore baseline
+        int calculatedOpponentSteps = 0;
+        if (initialSteps.containsKey(otherPlayerId)) {
+          final opponentInitialSteps =
+              (initialSteps[otherPlayerId] ?? 0) as int;
+          calculatedOpponentSteps = opponentRawSteps - opponentInitialSteps;
+
+          // Update opponent's initial step count if not set locally
+          if (_opponentInitialStepCount == null) {
+            _opponentInitialStepCount = opponentInitialSteps;
+            print(
+              '📊 DUO CHALLENGE: Set opponent initial step count: $_opponentInitialStepCount',
+            );
+          }
+        }
+
+        // Update opponent's raw steps
+        _opponentRawSteps = opponentRawSteps;
 
         print(
-          '📊 DUO CHALLENGE: Real-time update - Opponent ID: $otherPlayerId, Position: $opponentPos, Steps: $opponentSteps',
+          '📊 DUO CHALLENGE: Real-time update - Opponent ID: $otherPlayerId, Position: $opponentPos',
+        );
+        print(
+          '📊 DUO CHALLENGE: Opponent raw steps: $opponentRawSteps, initial steps: ${initialSteps[otherPlayerId] ?? 0}',
+        );
+        print(
+          '📊 DUO CHALLENGE: Calculated opponent challenge steps: $calculatedOpponentSteps',
         );
 
         // CRITICAL FIX: Always ensure opponent is visible, regardless of state changes
@@ -476,9 +895,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         }
         // Case 2: Same opponent but data changed
         else if (_opponentPosition != opponentPos ||
-            _opponentSteps != opponentSteps) {
+            _opponentSteps != calculatedOpponentSteps) {
           print(
-            '📊 DUO CHALLENGE: Existing opponent data changed - Position: $_opponentPosition -> $opponentPos, Steps: $_opponentSteps -> $opponentSteps',
+            '📊 DUO CHALLENGE: Existing opponent data changed - Position: $_opponentPosition -> $opponentPos, Steps: $_opponentSteps -> $calculatedOpponentSteps',
           );
           shouldUpdateOpponent = true;
         }
@@ -495,17 +914,17 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           // Determine if opponent is walking based on step changes (like Solo Mode)
           bool opponentIsWalking = false;
           if (_otherPlayerId == otherPlayerId &&
-              _opponentSteps != opponentSteps) {
-            opponentIsWalking = opponentSteps > _opponentSteps;
+              _opponentSteps != calculatedOpponentSteps) {
+            opponentIsWalking = calculatedOpponentSteps > _opponentSteps;
             print(
-              '👟 DUO CHALLENGE: Opponent steps changed: $_opponentSteps -> $opponentSteps, walking: $opponentIsWalking',
+              '👟 DUO CHALLENGE: Opponent steps changed: $_opponentSteps -> $calculatedOpponentSteps, walking: $opponentIsWalking',
             );
           }
 
           // Only update state if values actually changed to prevent unnecessary rebuilds
           bool needsStateUpdate = false;
           if (_opponentPosition != opponentPos ||
-              _opponentSteps != opponentSteps ||
+              _opponentSteps != calculatedOpponentSteps ||
               _otherPlayerId != otherPlayerId ||
               _isOpponentWalking != opponentIsWalking) {
             needsStateUpdate = true;
@@ -514,7 +933,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           if (needsStateUpdate && mounted) {
             setState(() {
               _opponentPosition = opponentPos;
-              _opponentSteps = opponentSteps;
+              _opponentSteps = calculatedOpponentSteps;
               _otherPlayerId = otherPlayerId;
               _isOpponentWalking = opponentIsWalking;
             });
@@ -524,7 +943,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           _updateOpponentCharacterAnimation(opponentIsWalking);
 
           print(
-            '👥 DUO CHALLENGE: Opponent now visible with position: $opponentPos, steps: $opponentSteps, walking: $opponentIsWalking',
+            '👥 DUO CHALLENGE: Opponent now visible with position: $opponentPos, steps: $calculatedOpponentSteps, walking: $opponentIsWalking',
           );
 
           // If opponent was walking, stop after a short delay for smooth animation (like Solo Mode)
@@ -582,7 +1001,6 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         if (mounted) {
           setState(() {
             _gameEnded = true;
-            _winner = winner;
           });
         }
         _showWinnerDialog(winner);
@@ -601,168 +1019,114 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     // Wait for animations to be ready using the service method
     await animationService.waitForLoad();
 
-    if (mounted) {
-      setState(() {
-        _isLoadingCharacters = false;
-      });
-    }
+    // Characters are already visible, just ensure animations are ready
+    print('✅ DUO CHALLENGE: Character animations preloaded and ready');
   }
 
   void _initializeStepTracking() async {
     print(
-      '🏁 DUO CHALLENGE: Initializing sensor-based step tracking for challenge...',
+      '🏁 DUO CHALLENGE: Initializing StepCounterService-based step tracking for challenge...',
     );
 
     try {
-      // Force reset walking state to ensure correct initial state (like Solo Mode)
+      // Force reset walking state to ensure correct initial state
       if (mounted) {
         setState(() {
           _isUserWalking = false;
           _lastStepUpdate = null; // Reset step history
+          _steps = 0; // Start from zero
+          _previousSteps = 0; // Start from zero
         });
       }
 
-      // APPROACH 9: Use the same method as solo_mode.dart for consistency
-      await _fetchStepsFromSoloMethod();
+      // Set up StepCounterService stream listener
+      _setupStepCounterServiceListener();
 
-      // APPROACH 24: PROPERLY INITIALIZE STEP TRACKING (like Solo Mode)
-      // Set previous steps to current steps for proper comparison
-      if (mounted) {
-        setState(() {
-          _previousSteps = _steps;
-        });
-      }
-      print(
-        '📊 DUO CHALLENGE: Initialized step tracking: previous=$_previousSteps, current=$_steps',
-      );
-
-      // Force walking state to false after initial fetch (like Solo Mode)
+      // Force walking state to false after initialization
       if (mounted) {
         setState(() {
           _isUserWalking = false;
         });
       }
-      print('🔄 DUO CHALLENGE: Force reset walking state after initial fetch');
+      print('🔄 DUO CHALLENGE: Force reset walking state after initialization');
 
-      // Force character to idle state during initialization (like Solo Mode)
+      // Force character to idle state during initialization
       if (_userGameInstance?.character != null) {
         _userGameInstance!.character!.isWalking = false;
         _userGameInstance!.character!.updateAnimation(false);
         print('🎬 DUO CHALLENGE: Forced character to idle state');
       }
 
-      // APPROACH 26: START CONTINUOUS MONITORING (like Solo Mode)
+      // Start continuous monitoring for idle detection
       _startContinuousMonitoring();
 
-      // Initialize sensor-based tracking only for the challenge
-      await _initializeSensorBasedTracking();
-
       print(
-        '✅ DUO CHALLENGE: Challenge-specific sensor-based step tracking initialized',
+        '✅ DUO CHALLENGE: StepCounterService-based step tracking initialized',
       );
+      print('🎯 DUO CHALLENGE: Step goal set to: $_stepGoal steps');
     } catch (e) {
-      print('❌ DUO CHALLENGE: Error initializing real-time tracking: $e');
+      print('❌ DUO CHALLENGE: Error initializing step tracking: $e');
       // Fallback to periodic polling
       _startPeriodicUpdates();
     }
   }
 
-  Future<void> _initializeSensorBasedTracking() async {
-    print('📱 DUO CHALLENGE: Initializing sensor-based tracking...');
+  void _setupStepCounterServiceListener() {
+    print('📱 DUO CHALLENGE: Setting up StepCounterService stream listener...');
 
-    // Use ONLY Health Connect monitoring to avoid false increments (like Solo Mode)
-    final hasPermissions = await _healthService.checkHealthConnectPermissions();
+    _stepSubscription = StepCounterService.stepStream.listen(
+      (data) async {
+        if (data['type'] == 'step_update') {
+          final currentSteps = data['currentSteps'] as int;
+          final timestamp = data['timestamp'] as DateTime;
 
-    if (hasPermissions) {
-      // Start Health Connect monitoring only (no hybrid system)
-      await _healthService.startRealTimeStepMonitoring();
+          // Update user's raw steps
+          _userRawSteps = currentSteps;
 
-      // Set up Health Connect listener
-      _setupHealthConnectListener();
+          // Calculate challenge-specific steps using Firestore baseline
+          int challengeSteps = 0;
+          if (_userInitialStepCount != null) {
+            challengeSteps = currentSteps - _userInitialStepCount!;
+          }
 
-      print('✅ DUO CHALLENGE: Health Connect monitoring started');
-    } else {
-      // Fallback to periodic polling if no permissions
-      print(
-        '⚠️ DUO CHALLENGE: No Health Connect permissions, using periodic polling',
-      );
-      _startPeriodicUpdates();
-    }
-  }
+          if (mounted) {
+            setState(() {
+              _previousSteps = _steps;
+              _steps = challengeSteps;
+            });
 
-  void _setupHealthConnectListener() {
-    // Set up callback for Health Connect step updates (like Solo Mode)
-    _healthService.setStepUpdateCallback((totalSteps, stepIncrease) async {
-      if (mounted) {
-        // Use sensor-optimized method to get accurate step count
-        final accurateSteps = await _healthService.fetchHybridRealTimeSteps();
+            _checkUserWalkingWithTiming(timestamp);
+            _syncCharacterAnimation();
+            await _updateStepsInFirestore(); // Firestore sync
+          }
 
-        // Update steps and check walking state
-        setState(() {
-          _previousSteps = _steps;
-          _steps = accurateSteps; // Use accurate steps, not hybrid total
-        });
+          print(
+            '🏥 DUO CHALLENGE StepCounterService update: Device Steps: $currentSteps, Challenge Steps: $challengeSteps (Baseline: $_userInitialStepCount)',
+          );
+        }
+      },
+      onError: (error) {
+        print('❌ DUO CHALLENGE: Error in step stream: $error');
+      },
+    );
 
-        // Check if user is walking (steps increased)
-        _checkUserWalkingWithTiming(DateTime.now());
-
-        // Sync character animation
-        _syncCharacterAnimation();
-
-        // Update steps in Firestore for opponent visibility
-        await _updateStepsInFirestore();
-
-        print(
-          '🏥 DUO CHALLENGE Health Connect update: +$stepIncrease steps (Accurate Total: $accurateSteps)',
-        );
-      }
-    });
-  }
-
-  // APPROACH 10: Use the animation-safe hybrid method (like Solo Mode)
-  Future<void> _fetchStepsFromSoloMethod() async {
-    try {
-      // Use the sensor-optimized method for accurate steps and responsive animations
-      final stepsCount = await _healthService
-          .fetchHybridRealTimeSteps(); // Use hybrid for immediate feedback + accuracy
-
-      if (mounted) {
-        // Store the current steps as previous before updating
-        int oldSteps = _steps;
-
-        setState(() {
-          _previousSteps = oldSteps; // Store the actual previous steps
-          _steps = stepsCount;
-        });
-
-        // Check if user is walking (steps increased)
-        _checkUserWalkingWithTiming(DateTime.now());
-
-        print(
-          '📱 DUO CHALLENGE SENSOR-OPTIMIZED: Fetched accurate steps: $stepsCount (previous: $_previousSteps)',
-        );
-
-        // APPROACH 22: DEBUG STEP TRACKING
-        print(
-          '📊 DUO CHALLENGE Step tracking: previous=$_previousSteps, current=$_steps, difference=${_steps - _previousSteps}',
-        );
-      }
-    } catch (e) {
-      print('❌ DUO CHALLENGE Error in animation-safe step fetch: $e');
-      if (mounted) {
-        setState(() {
-          _steps = 0;
-        });
-      }
-    }
+    print(
+      '✅ DUO CHALLENGE: StepCounterService stream listener set up with Firestore baseline tracking',
+    );
   }
 
   Future<void> _updateStepsInFirestore() async {
     await _firestore
         .collection('duo_challenge_invites')
         .doc(widget.inviteId)
-        .update({'steps.$_userId': _steps});
-    print('📊 DUO CHALLENGE: Updated steps in Firestore: $_steps');
+        .update({
+      'steps.$_userId': _steps,
+      'rawSteps.$_userId':
+          _userRawSteps, // Update raw steps for opponent calculation
+    });
+    print(
+      '📊 DUO CHALLENGE: Updated steps in Firestore: $_steps (raw: $_userRawSteps)',
+    );
   }
 
   void _startPeriodicUpdates() {
@@ -770,7 +1134,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     Future.delayed(const Duration(seconds: 5), () {
       // 5-second interval to ensure reliability
       if (mounted) {
-        _fetchStepsFromSoloMethod();
+        // StepCounterService handles step updates via stream - no need to fetch here
 
         // Force check walking state if still walking but no recent steps
         if (_isUserWalking && _lastStepUpdate != null) {
@@ -1128,8 +1492,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   void _moveUserForward() async {
     if (_gameEnded) return;
 
-    // Move user forward with smooth increment (like Solo Mode)
-    const double moveIncrement = 15.0; // Smooth increment for natural movement
+    // Move user forward with step-based increment
+    const double moveIncrement =
+        25.0; // Larger increment for step-based movement
     if (mounted) {
       setState(() {
         _userPosition += moveIncrement;
@@ -1154,16 +1519,6 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     }
   }
 
-  // Add smooth opponent movement tracking
-  void _updateOpponentPosition(double newPosition) {
-    if (mounted) {
-      setState(() {
-        _opponentPosition = newPosition;
-      });
-      print('🎯 DUO CHALLENGE: Opponent position updated to: $newPosition');
-    }
-  }
-
   void _checkUserWalkingWithTiming(DateTime timestamp) {
     final now = DateTime.now();
 
@@ -1176,6 +1531,16 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       print(
         '🎯 DUO CHALLENGE: GRACE PERIOD: Screen not fully initialized, ignoring walking detection',
       );
+      return;
+    }
+
+    // NEW: Check for win condition if match has started
+    if (_matchStarted &&
+        _steps >= _stepGoal &&
+        !_gameEnded &&
+        !_showingWinnerDialog) {
+      print('🏆 DUO CHALLENGE: User reached step goal! User wins!');
+      _handleUserWin();
       return;
     }
 
@@ -1225,39 +1590,15 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       _setWalkingState(true);
     }
 
-    // APPROACH 3: Additional safety check - force idle if no recent steps (like Solo Mode)
+    // 5-SECOND IDLE DETECTION: Only check timeout if currently walking
     if (_isUserWalking && _lastStepUpdate != null) {
       final timeSinceLastStep = now.difference(_lastStepUpdate!).inSeconds;
       print('⏰ DUO CHALLENGE: Time since last step: ${timeSinceLastStep}s');
 
       if (timeSinceLastStep >= 5) {
-        // Force idle after 5 seconds of no steps (proper idle detection)
+        // Force idle after exactly 5 seconds of no steps
         print(
           '⏰ DUO CHALLENGE: 5-SECOND TIMEOUT: No steps for ${timeSinceLastStep}s, FORCING IDLE',
-        );
-        print(
-          '⏰ DUO CHALLENGE: 5-SECOND TIMEOUT: User has stopped walking - switching to idle',
-        );
-        _setWalkingState(false);
-      } else if (timeSinceLastStep >= 3) {
-        print(
-          '⚠️ DUO CHALLENGE: WARNING: No steps for ${timeSinceLastStep}s - preparing to force idle soon',
-        );
-      } else if (timeSinceLastStep >= 1) {
-        print(
-          '👀 DUO CHALLENGE: MONITORING: No steps for ${timeSinceLastStep}s - watching for idle state',
-        );
-      }
-    }
-
-    // APPROACH 32: PROPER 5-SECOND IDLE DETECTION (like Solo Mode)
-    // Only force idle if steps haven't increased for 5 seconds
-    if (_isUserWalking && _lastStepUpdate != null) {
-      final timeSinceLastStep = now.difference(_lastStepUpdate!).inSeconds;
-
-      if (timeSinceLastStep >= 5) {
-        print(
-          '⏰ DUO CHALLENGE: 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle',
         );
         _setWalkingState(false);
         _forceCharacterAnimationSync();
@@ -1288,6 +1629,191 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         }
       }
     }
+  }
+
+  // NEW: Handle user win
+  Future<void> _handleUserWin() async {
+    if (_showingWinnerDialog) return;
+
+    setState(() {
+      _showingWinnerDialog = true;
+      _gameEnded = true;
+    });
+
+    print('🏆 DUO CHALLENGE: User won the challenge!');
+
+    // Award coins to winner
+    const int winnerCoins = 50;
+    final coinService = CoinService();
+    await coinService.addCoins(winnerCoins);
+
+    // Update Firestore with match result
+    await _firestore
+        .collection('duo_challenge_invites')
+        .doc(widget.inviteId)
+        .update({
+      'gameEnded': true,
+      'winner': _userId,
+      'winnerUsername': 'You',
+      'loser': _otherPlayerId,
+      'loserUsername': widget.otherUsername ?? 'Opponent',
+      'winnerSteps': _steps,
+      'loserSteps': _opponentSteps,
+      'winnerCoins': winnerCoins,
+      'matchEndTime': FieldValue.serverTimestamp(),
+    });
+
+    // Show winner dialog
+    _showWinnerDialog(_userId);
+  }
+
+  // NEW: Handle opponent win
+  void _handleOpponentWin() {
+    if (_showingWinnerDialog) return;
+
+    setState(() {
+      _showingWinnerDialog = true;
+      _gameEnded = true;
+    });
+
+    print('😢 DUO CHALLENGE: Opponent won the challenge');
+
+    // Show loser dialog
+    _showLoserDialog();
+  }
+
+  // NEW: Show loser dialog
+  void _showLoserDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('😢 You Lost'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${widget.otherUsername ?? 'Opponent'} reached $_stepGoal steps first!',
+              ),
+              const SizedBox(height: 16),
+              const Text('Better luck next time!'),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _returnToHome();
+              },
+              child: const Text('Back to Home'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // NEW: Show quit confirmation dialog
+  void _showQuitConfirmation() {
+    if (_showingQuitDialog) return;
+
+    setState(() {
+      _showingQuitDialog = true;
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('⚠️ Quit Challenge?'),
+          content: const Text(
+            'Are you sure you want to quit? Your opponent will win and you will lose the match.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _showingQuitDialog = false;
+                });
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handleUserQuit();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Quit'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // NEW: Handle user quit
+  Future<void> _handleUserQuit() async {
+    print('🚪 DUO CHALLENGE: User quit the challenge');
+
+    // Award coins to opponent
+    const int winnerCoins = 50;
+
+    // Update Firestore with quit result
+    await _firestore
+        .collection('duo_challenge_invites')
+        .doc(widget.inviteId)
+        .update({
+      'gameEnded': true,
+      'winner': _otherPlayerId,
+      'winnerUsername': widget.otherUsername ?? 'Opponent',
+      'loser': _userId,
+      'loserUsername': 'You',
+      'winnerSteps': _opponentSteps,
+      'loserSteps': _steps,
+      'winnerCoins': winnerCoins,
+      'quitBy': _userId,
+      'matchEndTime': FieldValue.serverTimestamp(),
+    });
+
+    // Show quit confirmation
+    _showQuitConfirmationDialog();
+  }
+
+  // NEW: Show quit confirmation dialog
+  void _showQuitConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('🚪 Challenge Quit'),
+          content: const Text(
+            'You have quit the challenge. Your opponent wins by default.',
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _returnToHome();
+              },
+              child: const Text('Back to Home'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // NEW: Return to home screen
+  void _returnToHome() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   void _forceCharacterAnimationSync() {
@@ -1399,36 +1925,6 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     print('🎬 DUO CHALLENGE: Character walking animation stopped');
   }
 
-  void _updateUserCharacterAnimation(bool walking) {
-    if (_userGameInstance != null && _userGameInstance!.character != null) {
-      // Debounce animation updates to prevent flickering
-      final now = DateTime.now();
-      if (_lastUserAnimationUpdate != null &&
-          now.difference(_lastUserAnimationUpdate!) < _animationDebounceTime) {
-        print(
-          '🎬 DUO CHALLENGE: User animation update debounced to prevent flickering',
-        );
-        return;
-      }
-
-      // Only update if the walking state actually changed to prevent blinking
-      if (_userGameInstance!.character!.isWalking != walking) {
-        print(
-          '🎬 DUO CHALLENGE: Updating user character animation to ${walking ? "walking" : "idle"}',
-        );
-        _userGameInstance!.updateWalkingState(walking);
-        _userGameInstance!.character!.isWalking = walking;
-        _userGameInstance!.character!.updateAnimation(walking);
-        _lastUserAnimationUpdate = now;
-        print('✅ DUO CHALLENGE: User character animation updated successfully');
-      } else {
-        print(
-          '🎬 DUO CHALLENGE: User animation state unchanged, skipping update to prevent blinking',
-        );
-      }
-    }
-  }
-
   void _updateOpponentCharacterAnimation(bool walking) {
     if (_opponentGameInstance != null &&
         _opponentGameInstance!.character != null) {
@@ -1499,6 +1995,17 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (isUser) {
       print('🎮 DUO CHALLENGE: Setting _userGameInstance for user character');
       _userGameInstance = game;
+
+      // Ensure user character starts with correct animation state
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (mounted && _userGameInstance?.character != null) {
+          print(
+            '🎬 DUO CHALLENGE: Initializing user character animation state',
+          );
+          _userGameInstance!.character!.isWalking = _isUserWalking;
+          _userGameInstance!.character!.updateAnimation(_isUserWalking);
+        }
+      });
     } else {
       print(
         '🎮 DUO CHALLENGE: Setting _opponentGameInstance for opponent character',
@@ -1506,7 +2013,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       _opponentGameInstance = game;
 
       // Ensure opponent character starts with correct animation state
-      Future.delayed(const Duration(milliseconds: 100), () {
+      Future.delayed(const Duration(milliseconds: 50), () {
         if (mounted && _opponentGameInstance?.character != null) {
           print(
             '🎬 DUO CHALLENGE: Initializing opponent character animation state',
@@ -1569,21 +2076,40 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   void _showWinnerDialog(String? winnerId) {
     final winnerUsername =
         winnerId == _userId ? 'You' : (widget.otherUsername ?? 'Opponent');
+    final isUserWinner = winnerId == _userId;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('🏆 Race Complete!'),
-          content: Text('Winner is $winnerUsername!'),
+          title: Text(isUserWinner ? '🎉 You Win!' : '🏆 Race Complete!'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isUserWinner) ...[
+                const Text('Congratulations! You reached the step goal first!'),
+                const SizedBox(height: 16),
+                const Text(
+                  '+50 Coins',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ] else ...[
+                Text('Winner is $winnerUsername!'),
+              ],
+              const SizedBox(height: 16),
+              const Text('Returning to home in 3 seconds...'),
+            ],
+          ),
           actions: [
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop(); // Close dialog
-                Navigator.of(
-                  context,
-                ).popUntil((route) => route.isFirst); // Go to home
+                _returnToHome();
               },
               child: const Text('Back to Home'),
             ),
@@ -1591,6 +2117,14 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         );
       },
     );
+
+    // Auto-return to home after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close dialog
+        _returnToHome();
+      }
+    });
   }
 
   @override
@@ -1601,6 +2135,24 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         title: const Text('Duo Challenge Race'),
         backgroundColor: const Color(0xFF7C4DFF),
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (_gameEnded) {
+              _returnToHome();
+            } else {
+              _showQuitConfirmation();
+            }
+          },
+        ),
+        actions: [
+          if (!_gameEnded)
+            IconButton(
+              icon: const Icon(Icons.exit_to_app),
+              onPressed: _showQuitConfirmation,
+              tooltip: 'Quit Challenge',
+            ),
+        ],
       ),
       body: _buildRacingTrack(),
     );
@@ -1623,8 +2175,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     final double buildingsHeight = screenHeight - roadHeight;
 
     // Character sizing
-    final double characterWidth = 280;
-    final double characterHeight = 280;
+    const double characterWidth = 280;
+    const double characterHeight = 280;
     final double roadTopY = screenHeight - roadHeight;
 
     // Calculate how many times to repeat the background images
@@ -1637,7 +2189,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(6),
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 2)],
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
           ),
           child: Text(
             name,
@@ -1743,42 +2295,42 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
                   ),
                 ),
                 // Opponent character positioned on the track based on actual position
-                if (_otherPlayerId != null)
-                  Positioned(
-                    left: _opponentPosition -
-                        (characterWidth /
-                            2), // Position based on track location
-                    top: roadTopY - characterHeight + 100, // Feet on road
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      children: [
-                        // The label, positioned exactly at the top of the character
-                        Positioned(
-                          top: 0,
-                          child: nameLabel(
-                            _otherPlayerId == 'waiting_for_opponent'
-                                ? 'Waiting...'
-                                : (widget.otherUsername ?? 'Opponent'),
-                          ),
+                Positioned(
+                  left: _opponentPosition -
+                      (characterWidth / 2), // Position based on track location
+                  top: roadTopY - characterHeight + 100, // Feet on road
+                  child: Stack(
+                    alignment: Alignment.topCenter,
+                    children: [
+                      // The label, positioned exactly at the top of the character
+                      Positioned(
+                        top: 0,
+                        child: nameLabel(
+                          _otherPlayerId == null ||
+                                  _otherPlayerId == 'waiting_for_opponent'
+                              ? 'Waiting...'
+                              : (widget.otherUsername ?? 'Opponent'),
                         ),
-                        // The character, positioned directly below the label
-                        SizedBox(
-                          width: characterWidth,
-                          height: characterHeight,
-                          child: _buildGameWidget(
-                            isPlayer1: false,
-                            isWalking: _isOpponentWalking,
-                            userId: _otherPlayerId == 'waiting_for_opponent'
-                                ? 'placeholder'
-                                : _otherPlayerId!,
-                            characterWidth: characterWidth,
-                            characterHeight: characterHeight,
-                            isUser: false,
-                          ),
+                      ),
+                      // The character, positioned directly below the label
+                      SizedBox(
+                        width: characterWidth,
+                        height: characterHeight,
+                        child: _buildGameWidget(
+                          isPlayer1: false,
+                          isWalking: _isOpponentWalking,
+                          userId: _otherPlayerId == null ||
+                                  _otherPlayerId == 'waiting_for_opponent'
+                              ? 'placeholder'
+                              : _otherPlayerId!,
+                          characterWidth: characterWidth,
+                          characterHeight: characterHeight,
+                          isUser: false,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -1792,11 +2344,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(25),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -1836,11 +2388,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -1848,6 +2400,27 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
             ),
             child: Column(
               children: [
+                // Step goal indicator - always visible
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C4DFF).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF7C4DFF)),
+                  ),
+                  child: Text(
+                    '🎯 Goal: $_stepGoal Steps',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF7C4DFF),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 // Text labels with steps and position
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2031,8 +2604,6 @@ class CharacterDisplayGame extends FlameGame with KeyboardEvents {
     await super.onLoad();
     final screenWidth = size.x;
     final screenHeight = size.y;
-    final scaleX = screenWidth / baseWidth;
-    final scaleY = screenHeight / baseHeight;
 
     try {
       // No background layers here, only character (like Solo Mode)
@@ -2173,20 +2744,6 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
       print('DUO Character onLoad error: $e');
       print(st);
     }
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    // Only update animation when walking state changes to prevent flickering
-    // The animation will be updated externally when needed
-  }
-
-  @override
-  bool onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    isWalking = keysPressed.contains(LogicalKeyboardKey.arrowRight);
-    updateAnimation(isWalking);
-    return true;
   }
 
   void updateAnimation(bool walking) {

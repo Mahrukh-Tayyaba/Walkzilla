@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'duo_challenge_game_screen.dart';
+import '../services/coin_service.dart';
 
 class DuoChallengeLobby extends StatefulWidget {
   final String inviteId;
@@ -92,14 +93,19 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
   Future<void> _deductCoinsIfNeeded() async {
     if (coinsMerged) return;
     coinsMerged = true;
-    // Deduct 50 coins from this user
-    final userDoc = _firestore.collection('users').doc(_userId);
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(userDoc);
-      final currentCoins = (snapshot.data()?['coins'] ?? 0) as int;
-      transaction.update(userDoc, {'coins': currentCoins - 50});
-    });
-    // Optionally, deduct from the other user as well (if you want to do it here)
+
+    // Use the coin service to properly deduct coins with validation
+    final coinService = CoinService();
+    final success = await coinService.deductCoins(50);
+
+    if (!success) {
+      print(
+          '❌ Failed to deduct coins for duo challenge - insufficient balance');
+      // Handle the case where user doesn't have enough coins
+      // You might want to show an error message or redirect user
+    } else {
+      print('✅ Successfully deducted 50 coins for duo challenge');
+    }
   }
 
   @override

@@ -77,25 +77,6 @@ class _HomeState extends State<Home> {
     }
   }
 
-  Future<void> _logout() async {
-    try {
-      await _auth.signOut();
-      if (!mounted) return;
-
-      // Clear the navigation stack and go to login screen
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error signing out: ${e.toString()}')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.of(context).size;
@@ -477,12 +458,6 @@ class _HomeState extends State<Home> {
                   color: Colors.grey.withOpacity(0.3),
                   thickness: 1,
                 ),
-              ),
-              _buildDrawerItem(
-                icon: Icons.logout_outlined,
-                title: "Logout",
-                color: Colors.red[400]!,
-                onTap: _logout,
               ),
               const SizedBox(height: 16),
             ],

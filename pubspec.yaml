@@ -186,6 +186,7 @@ flutter:
     - assets/gifs/logo.gif
     - assets/gifs/tagline.gif
     - assets/videos/splash-screen.mp4
+    - assets/images/launch_logo.png
 
 
     

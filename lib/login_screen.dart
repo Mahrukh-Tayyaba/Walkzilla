@@ -12,6 +12,7 @@ import 'services/username_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
 import 'services/user_login_service.dart';
+import 'services/leveling_migration_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'main.dart' show navigatorKey;
 
@@ -111,6 +112,7 @@ class LoginScreenState extends State<LoginScreen> {
           'profileImage': userCredential.user!.photoURL,
           'level': 1,
           'currentStreak': 0,
+          'totalLifetimeSteps': 0,
           'coins': 100, // Initial coins for new users
           'isOnline': false,
           'lastActive': FieldValue.serverTimestamp(),
@@ -122,6 +124,10 @@ class LoginScreenState extends State<LoginScreen> {
             'walking': 'images/sprite_sheets/MyCharacter_walking.json',
           },
           'shown_rewards': {},
+          'levelUpHistory': [],
+          'achievedMilestones': [],
+          'lastLevelUpdate': FieldValue.serverTimestamp(),
+          'challenges_won': 0,
         });
       } else {
         // Update existing user's last login and online status
@@ -136,6 +142,9 @@ class LoginScreenState extends State<LoginScreen> {
 
         // Initialize coins for existing users who don't have coins field
         await _coinService.initializeCoinsForExistingUsers();
+
+        // Initialize leveling data for existing users who don't have leveling fields
+        await LevelingMigrationService.initializeCurrentUserLevelingData();
       }
 
       // Save FCM token if not already present or if changed

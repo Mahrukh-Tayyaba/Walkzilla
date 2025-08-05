@@ -233,23 +233,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 20),
                   _buildActionButton(
-                    label: 'Sign Out',
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      if (context.mounted) {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const LoginScreen()),
-                          (route) => false,
-                        );
-                      }
-                    },
-                    backgroundColor: Colors.orange,
-                    textColor: Colors.white,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildActionButton(
                     label: 'Delete Account',
                     onPressed: _showDeleteAccountConfirmation,
                     backgroundColor: Colors.red,

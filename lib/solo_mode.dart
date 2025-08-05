@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
-// Removed unused import
 import 'package:flame/input.dart';
 import 'package:flutter/services.dart';
-// Removed unused import
 import 'dart:async';
-// Removed unused import
 import 'services/character_animation_service.dart';
-// Removed unused import
 import 'services/health_service.dart';
-import 'services/step_counter_service.dart';
 import 'services/milestone_helper.dart';
 
 class SoloMode extends StatefulWidget {
@@ -36,8 +31,7 @@ class _SoloModeState extends State<SoloMode> {
   // Day change detection
   DateTime? _lastKnownDate;
 
-  // Milestone tracking
-  bool _milestoneShown = false;
+  // Removed unused milestone tracking field
 
   @override
   void initState() {
@@ -117,10 +111,12 @@ class _SoloModeState extends State<SoloMode> {
         _startPeriodicUpdates();
       }
 
-      // Restore milestones after initialization
+      // Restore milestones and clean up out-of-range ones after initialization
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           _restoreMilestones();
+          _cleanupOutOfRangeMilestones();
+          _cleanupOutOfRangeMilestonesRealTime();
         }
       });
     } catch (e) {
@@ -147,14 +143,25 @@ class _SoloModeState extends State<SoloMode> {
           _isLoading = false;
         });
 
+        // IMMEDIATE MILESTONE CHECK: Check for milestone achievement immediately when steps are fetched
+        if (_steps > _previousSteps) {
+          print(
+              '🎯 FETCH STEPS: Steps increased from $_previousSteps to $_steps - checking milestones immediately');
+          _checkMilestoneAchievementRealTime();
+        }
+
         // Check if user is walking (steps increased)
         _checkUserWalkingWithTiming(DateTime.now());
 
-        // Check for milestone achievement on every step fetch
-        _checkMilestoneAchievement();
+        // Check for milestone achievement on every step fetch (real-time)
+        _checkMilestoneAchievementRealTime();
 
-        // Restore milestones that should be visible
+        // Restore milestones that should be visible and clean up out-of-range ones
         _restoreMilestones();
+        _cleanupOutOfRangeMilestones();
+
+        // Real-time cleanup of milestones that just went out of range
+        _cleanupOutOfRangeMilestonesRealTime();
 
         print(
             '📱 SENSOR-OPTIMIZED: Fetched accurate steps: $stepsCount (previous: $_previousSteps)');
@@ -181,21 +188,36 @@ class _SoloModeState extends State<SoloMode> {
         // Use sensor-optimized method to get accurate step count
         final accurateSteps = await _healthService.fetchHybridRealTimeSteps();
 
+        // Store previous steps before updating
+        int oldSteps = _steps;
+
         // Update steps and check walking state
         setState(() {
-          _previousSteps = _steps;
+          _previousSteps = oldSteps;
           _steps = accurateSteps; // Use accurate steps, not hybrid total
         });
+
+        // IMMEDIATE MILESTONE CHECK: Check for milestone achievement immediately when steps update
+        if (_steps > _previousSteps) {
+          print(
+              '🎯 HEALTH CONNECT: Steps increased from $_previousSteps to $_steps - checking milestones immediately');
+          _checkMilestoneAchievementRealTime();
+        }
 
         // Check if user is walking (steps increased)
         _checkUserWalkingWithTiming(DateTime.now());
 
-        // 🎯 CRITICAL FIX: Check for milestone achievement on EVERY step update
-        print('🎯 STEP UPDATE: Checking milestone for $_steps steps');
-        _checkMilestoneAchievement();
+        // 🎯 REAL-TIME MILESTONE CHECK: Check for milestone achievement on EVERY step update
+        print(
+            '🎯 REAL-TIME MILESTONE CHECK: Steps=$_steps, Previous=$_previousSteps');
+        _checkMilestoneAchievementRealTime();
 
-        // Restore milestones that should be visible
+        // Restore milestones that should be visible and clean up out-of-range ones
         _restoreMilestones();
+        _cleanupOutOfRangeMilestones();
+
+        // Real-time cleanup of milestones that just went out of range
+        _cleanupOutOfRangeMilestonesRealTime();
 
         // Sync character animation
         _syncCharacterAnimation();
@@ -206,175 +228,46 @@ class _SoloModeState extends State<SoloMode> {
     });
   }
 
-  // APPROACH 26: CONTINUOUS MONITORING SYSTEM
+  // SIMPLIFIED MONITORING: Single monitoring system to prevent jitter
   void _startContinuousMonitoring() {
-    print('🔄 Starting continuous monitoring system...');
+    print('🔄 Starting simplified monitoring system...');
 
-    // Monitor every 1 second for immediate response
-    _startFrequentMonitoring();
-
-    // Monitor every 2 seconds for backup
-    _startBackupMonitoring();
-
-    // Monitor every 3 seconds for safety
-    _startSafetyMonitoring();
+    // Single monitoring system every 2 seconds
+    _startSingleMonitoring();
   }
 
-  void _startFrequentMonitoring() {
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        _checkWalkingStateFrequently();
-        _startFrequentMonitoring(); // Recursive call
-      }
-    });
-  }
-
-  void _startBackupMonitoring() {
+  void _startSingleMonitoring() {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        _checkWalkingStateBackup();
-        _startBackupMonitoring(); // Recursive call
+        _checkWalkingStateSimple();
+        _startSingleMonitoring(); // Recursive call
       }
     });
   }
 
-  void _startSafetyMonitoring() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        _checkWalkingStateSafety();
-        _startSafetyMonitoring(); // Recursive call
-      }
-    });
-  }
-
-  void _checkWalkingStateFrequently() {
-    // GRACE PERIOD: Don't check walking state during initialization
+  void _checkWalkingStateSimple() {
+    // GRACE PERIOD: Don't check during initialization
     if (!_isInitialized) {
       return;
     }
 
+    // Only check for idle timeout if currently walking
     if (_isUserWalking && _lastStepUpdate != null) {
       final timeSinceLastStep =
           DateTime.now().difference(_lastStepUpdate!).inSeconds;
-      print('⚡ FREQUENT CHECK: Time since last step: ${timeSinceLastStep}s');
 
       if (timeSinceLastStep >= 5) {
         print(
-            '⏰ FREQUENT 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW');
+            '⏰ 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle');
         _setWalkingState(false);
-        _forceCharacterAnimationSync();
       }
     }
 
-    // APPROACH 29: CONTINUOUS CHARACTER SYNC
-    // Always sync character animation with walking state
-    if (mounted && _game?.character != null) {
-      final characterIsWalking = _game!.character!.isWalking;
-      if (characterIsWalking != _isUserWalking) {
-        print(
-            '🎬 FREQUENT SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC');
-
-        // APPROACH 34: AGGRESSIVE CHARACTER STATE FORCE
-        _game!.character!.isWalking = _isUserWalking;
-        _game!.character!.updateAnimation(_isUserWalking);
-
-        // Force animation directly if still not synced
-        if (!_isUserWalking && _game!.character!.idleAnimation != null) {
-          print('🎬 FREQUENT FORCE: Directly setting idle animation');
-          _game!.character!.animation = _game!.character!.idleAnimation;
-        }
-      }
+    // ENHANCED MILESTONE CHECK: Check for milestone achievements during continuous monitoring
+    if (_isUserWalking) {
+      print('🎯 CONTINUOUS MONITORING: User is walking, checking milestones');
+      _checkMilestoneAchievementRealTime();
     }
-
-    // MILESTONE CHECK: Check for milestone achievements every second
-    _checkMilestoneAchievement();
-
-    // MILESTONE RESTORATION: Restore milestones that should be visible
-    _restoreMilestones();
-  }
-
-  void _checkWalkingStateBackup() {
-    // GRACE PERIOD: Don't check walking state during initialization
-    if (!_isInitialized) {
-      return;
-    }
-
-    if (_isUserWalking && _lastStepUpdate != null) {
-      final timeSinceLastStep =
-          DateTime.now().difference(_lastStepUpdate!).inSeconds;
-      print('🔄 BACKUP CHECK: Time since last step: ${timeSinceLastStep}s');
-
-      if (timeSinceLastStep >= 5) {
-        print(
-            '⏰ BACKUP 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW');
-        _setWalkingState(false);
-        _forceCharacterAnimationSync();
-      }
-    }
-
-    // APPROACH 30: BACKUP CHARACTER SYNC
-    if (mounted && _game?.character != null) {
-      final characterIsWalking = _game!.character!.isWalking;
-      if (characterIsWalking != _isUserWalking) {
-        print(
-            '🎬 BACKUP SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC');
-
-        // APPROACH 35: AGGRESSIVE BACKUP CHARACTER FORCE
-        _game!.character!.isWalking = _isUserWalking;
-        _game!.character!.updateAnimation(_isUserWalking);
-
-        // Force animation directly if still not synced
-        if (!_isUserWalking && _game!.character!.idleAnimation != null) {
-          print('🎬 BACKUP FORCE: Directly setting idle animation');
-          _game!.character!.animation = _game!.character!.idleAnimation;
-        }
-      }
-    }
-
-    // 🎯 BACKUP MILESTONE CHECK: Check for milestone achievements every 2 seconds
-    _checkMilestoneAchievement();
-  }
-
-  void _checkWalkingStateSafety() {
-    // GRACE PERIOD: Don't check walking state during initialization
-    if (!_isInitialized) {
-      return;
-    }
-
-    if (_isUserWalking && _lastStepUpdate != null) {
-      final timeSinceLastStep =
-          DateTime.now().difference(_lastStepUpdate!).inSeconds;
-      print('🛡️ SAFETY CHECK: Time since last step: ${timeSinceLastStep}s');
-
-      if (timeSinceLastStep >= 5) {
-        print(
-            '⏰ SAFETY 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW');
-        _setWalkingState(false);
-        _forceCharacterAnimationSync();
-      }
-    }
-
-    // APPROACH 31: SAFETY CHARACTER SYNC
-    if (mounted && _game?.character != null) {
-      final characterIsWalking = _game!.character!.isWalking;
-      if (characterIsWalking != _isUserWalking) {
-        print(
-            '🎬 SAFETY SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC');
-
-        // APPROACH 36: AGGRESSIVE SAFETY CHARACTER FORCE
-        _game!.character!.isWalking = _isUserWalking;
-        _game!.character!.updateAnimation(_isUserWalking);
-
-        // Force animation directly if still not synced
-        if (!_isUserWalking && _game!.character!.idleAnimation != null) {
-          print('🎬 SAFETY FORCE: Directly setting idle animation');
-          _game!.character!.animation = _game!.character!.idleAnimation;
-        }
-      }
-    }
-
-    // 🎯 SAFETY MILESTONE CHECK: Check for milestone achievements every 3 seconds
-    _checkMilestoneAchievement();
   }
 
   void _setWalkingState(bool walking) {
@@ -384,41 +277,8 @@ class _SoloModeState extends State<SoloMode> {
       });
       walking ? _startCharacterWalking() : _stopCharacterWalking();
       print(walking ? '🚶‍♂️ User started walking' : '🛑 User stopped walking');
-
-      // APPROACH 6: Additional safety check after state change
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted && _game?.character != null) {
-          final characterIsWalking = _game!.character!.isWalking;
-          if (characterIsWalking != walking) {
-            print(
-                '🛡️ Safety check: Character state mismatch, forcing correction');
-            _game!.updateWalkingState(walking);
-          }
-        }
-      });
-
-      // APPROACH 13: IMMEDIATE ANIMATION FORCE
-      if (!walking) {
-        // When stopping walking, force idle animation immediately
-        Future.delayed(const Duration(milliseconds: 50), () {
-          if (mounted && _game?.character != null) {
-            print('🎬 IMMEDIATE: Forcing idle animation');
-            _game!.character!.updateAnimation(false);
-          }
-        });
-      }
     } else {
-      // APPROACH 28: FORCE ANIMATION EVEN IF STATE IS SAME
-      // If state is already correct but animation might not be
-      print('🔄 State already correct ($walking), but forcing animation sync');
-      walking ? _startCharacterWalking() : _stopCharacterWalking();
-
-      // Force character animation immediately
-      if (mounted && _game?.character != null) {
-        print(
-            '🎬 FORCE SYNC: Forcing character animation to ${walking ? "walking" : "idle"}');
-        _game!.character!.updateAnimation(walking);
-      }
+      print('✅ State already correct: $walking');
     }
   }
 
@@ -438,7 +298,7 @@ class _SoloModeState extends State<SoloMode> {
     // Check for milestone achievement (500 steps)
     _checkMilestoneAchievement();
 
-    // APPROACH 1: Immediate detection with multiple checks
+    // SIMPLIFIED LOGIC: Only two states - walking or idle
     bool shouldBeWalking = false;
 
     // Check if steps increased
@@ -448,126 +308,84 @@ class _SoloModeState extends State<SoloMode> {
       print(
           '🚶‍♂️ Steps increased: $_previousSteps -> $_steps, user is walking');
 
-      // APPROACH 23: UPDATE PREVIOUS STEPS WHEN WALKING
+      // IMMEDIATE MILESTONE CHECK: Check for milestone achievement when steps increase
+      print(
+          '🎯 IMMEDIATE MILESTONE CHECK: Steps increased, checking milestones');
+      _checkMilestoneAchievementRealTime();
+
       // Update previous steps to current steps for next comparison
       _previousSteps = _steps;
       print('📊 Updated previous steps to: $_previousSteps');
     } else {
-      // Steps didn't increase - user should be idle
-      shouldBeWalking = false;
-      print('🛑 Steps unchanged: $_steps, user should be idle');
+      // Steps didn't increase - check if we should go idle
+      if (_isUserWalking && _lastStepUpdate != null) {
+        final timeSinceLastStep = now.difference(_lastStepUpdate!).inSeconds;
+
+        if (timeSinceLastStep >= 5) {
+          // Force idle after 5 seconds of no steps
+          shouldBeWalking = false;
+          print(
+              '⏰ 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle');
+        } else {
+          // Still in walking window, keep walking
+          shouldBeWalking = true;
+          print('👀 Still walking: ${timeSinceLastStep}s since last step');
+        }
+      } else {
+        // Not walking, stay idle
+        shouldBeWalking = false;
+      }
     }
 
-    // APPROACH 2: Force state change if different
+    // Only change state if it's actually different
     if (_isUserWalking != shouldBeWalking) {
       print('🔄 State change needed: $_isUserWalking -> $shouldBeWalking');
       _setWalkingState(shouldBeWalking);
     } else {
       print('✅ State is correct: $_isUserWalking');
     }
-
-    // APPROACH 27: AGGRESSIVE WALKING FORCE
-    // If steps are increasing but user is not marked as walking, force it
-    if (_steps > _previousSteps && !_isUserWalking) {
-      print(
-          '🚨 AGGRESSIVE WALKING FORCE: Steps increasing but user not walking - FORCING WALKING');
-      print(
-          '🚨 AGGRESSIVE WALKING FORCE: $_previousSteps -> $_steps, forcing _isUserWalking = true');
-      _setWalkingState(true);
-    }
-
-    // APPROACH 3: Additional safety check - force idle if no recent steps
-    if (_isUserWalking && _lastStepUpdate != null) {
-      final timeSinceLastStep = now.difference(_lastStepUpdate!).inSeconds;
-      print('⏰ Time since last step: ${timeSinceLastStep}s');
-
-      if (timeSinceLastStep >= 5) {
-        // Force idle after 5 seconds of no steps (proper idle detection)
-        print(
-            '⏰ 5-SECOND TIMEOUT: No steps for ${timeSinceLastStep}s, FORCING IDLE');
-        print(
-            '⏰ 5-SECOND TIMEOUT: User has stopped walking - switching to idle');
-        _setWalkingState(false);
-      } else if (timeSinceLastStep >= 3) {
-        print(
-            '⚠️ WARNING: No steps for ${timeSinceLastStep}s - preparing to force idle soon');
-      } else if (timeSinceLastStep >= 1) {
-        print(
-            '👀 MONITORING: No steps for ${timeSinceLastStep}s - watching for idle state');
-      }
-    }
-
-    // APPROACH 32: PROPER 5-SECOND IDLE DETECTION
-    // Only force idle if steps haven't increased for 5 seconds
-    if (_isUserWalking && _lastStepUpdate != null) {
-      final timeSinceLastStep = now.difference(_lastStepUpdate!).inSeconds;
-
-      if (timeSinceLastStep >= 5) {
-        print(
-            '⏰ 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle');
-        _setWalkingState(false);
-        _forceCharacterAnimationSync();
-      } else {
-        print(
-            '👀 MONITORING: ${timeSinceLastStep}s since last step - still in walking window');
-      }
-    }
-
-    // APPROACH 16: DEBUG CHARACTER STATE
-    if (_game?.character != null) {
-      print(
-          '🎬 Character state: isWalking=${_game!.character!.isWalking}, animation=${_game!.character!.animation == _game!.character!.walkingAnimation ? "walking" : "idle"}');
-
-      // APPROACH 20: FORCE CHARACTER IDLE IF STEPS UNCHANGED
-      if (_steps == _previousSteps && _game!.character!.isWalking) {
-        print(
-            '🚨 CHARACTER FORCE: Steps unchanged but character is walking - FORCING IDLE');
-        _game!.character!.isWalking = false;
-        _game!.character!.updateAnimation(false);
-        if (_game!.character!.idleAnimation != null) {
-          _game!.character!.animation = _game!.character!.idleAnimation;
-          print('🎬 CHARACTER FORCE: Animation set to idle');
-        }
-      }
-    }
   }
 
   void _forceCharacterAnimationSync() {
     // APPROACH 8: Force immediate character animation sync
-    if (_game?.character != null) {
-      print('🔄 FORCING character animation sync to IDLE');
+    try {
+      if (_game?.character != null) {
+        print('🔄 FORCING character animation sync to IDLE');
 
-      // APPROACH 37: ULTRA AGGRESSIVE CHARACTER FORCE
-      _game!.character!.isWalking = false;
-      _game!.character!.updateAnimation(false);
-      _game!.character!.stopWalking();
+        // APPROACH 37: ULTRA AGGRESSIVE CHARACTER FORCE
+        _game!.character!.isWalking = false;
+        _game!.character!.updateAnimation(false);
+        _game!.character!.stopWalking();
 
-      // Force idle animation directly
-      if (_game!.character!.idleAnimation != null) {
-        print('🎬 ULTRA FORCE: Setting animation to idleAnimation');
-        _game!.character!.animation = _game!.character!.idleAnimation;
+        // Force idle animation directly
+        if (_game!.character!.idleAnimation != null) {
+          print('🎬 ULTRA FORCE: Setting animation to idleAnimation');
+          _game!.character!.animation = _game!.character!.idleAnimation;
 
-        // Force animation restart by reassignment
-        print('🎬 ULTRA FORCE: Animation reassigned to force restart');
-      }
-
-      // Double-check state after forcing
-      Future.delayed(const Duration(milliseconds: 50), () {
-        if (mounted && _game?.character != null) {
-          final isWalking = _game!.character!.isWalking;
-          if (isWalking) {
-            print(
-                '🎬 ULTRA FORCE: Character still walking after force, trying again');
-            _game!.character!.isWalking = false;
-            _game!.character!.updateAnimation(false);
-          }
+          // Force animation restart by reassignment
+          print('🎬 ULTRA FORCE: Animation reassigned to force restart');
         }
-      });
+
+        // Double-check state after forcing
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (mounted && _game?.character != null) {
+            final isWalking = _game!.character!.isWalking;
+            if (isWalking) {
+              print(
+                  '🎬 ULTRA FORCE: Character still walking after force, trying again');
+              _game!.character!.isWalking = false;
+              _game!.character!.updateAnimation(false);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      print('❌ Error forcing character animation sync: $e');
     }
   }
 
   // Day change detection
-  void _checkForDayChange() {
+  void _checkForDayChange() async {
     final currentDate = DateTime.now();
 
     if (_lastKnownDate == null) {
@@ -586,29 +404,133 @@ class _SoloModeState extends State<SoloMode> {
       _fetchStepsFromHomeMethod();
 
       // Reset milestone tracking for new day
-      _milestoneShown = false;
-      // Reset all milestone states for new day
+      await MilestoneHelper.resetMilestonesForNewDay();
+
+      // Reset game milestone states
       if (_game != null) {
         _game!.milestoneShown.clear();
-        for (final threshold in [
-          500,
-          1000,
-          2000,
-          4000,
-          6000,
-          8000,
-          10000,
-          15000,
-          20000,
-          25000
-        ]) {
+        for (final threshold in MilestoneHelper.milestones) {
           _game!.milestoneShown[threshold] = false;
         }
-        print('🔄 All milestone states reset for new day');
       }
+
+      // Clean up any out-of-range milestones on day change
+      _cleanupOutOfRangeMilestones();
 
       // Update last known date
       _lastKnownDate = currentDate;
+    }
+  }
+
+  // Force check and show milestones that should be visible
+  void _forceCheckVisibleMilestones() async {
+    print('🔧 FORCE CHECKING VISIBLE MILESTONES: Current steps: $_steps');
+
+    try {
+      for (final milestone in MilestoneHelper.milestones) {
+        bool isInRange = MilestoneHelper.isMilestoneInRange(milestone, _steps);
+        bool alreadyShown = await MilestoneHelper.isShown(milestone);
+        bool isInGame =
+            _game?.children.contains(_game?.milestoneBoards[milestone]) ??
+                false;
+        bool boardExists = _game?.milestoneBoards[milestone] != null;
+
+        print(
+            '🔧 MILESTONE $milestone: inRange=$isInRange, alreadyShown=$alreadyShown, isInGame=$isInGame, boardExists=$boardExists');
+
+        // If milestone should be visible but not in game, add it
+        if (isInRange && alreadyShown && !isInGame && boardExists) {
+          print(
+              '🔧 FORCE ADDING: $milestone milestone should be visible but not in game');
+          _game!.add(_game!.milestoneBoards[milestone]!);
+          print('✅ FORCE ADDED: $milestone milestone to game');
+
+          // Ensure character stays on top
+          if (_game?.character != null) {
+            _game!.remove(_game!.character!);
+            _game!.add(_game!.character!);
+          }
+
+          if (mounted) {
+            setState(() {});
+          }
+        } else if (isInRange && !boardExists) {
+          print('❌ MILESTONE $milestone: Board does not exist!');
+        }
+      }
+    } catch (e) {
+      print('❌ Error in force checking visible milestones: $e');
+    }
+  }
+
+  // Enhanced real-time milestone check for immediate response
+  void _checkMilestoneAchievementRealTime() async {
+    // Debug milestone check
+    print(
+        '🔍 REAL-TIME MILESTONE CHECK: Steps=$_steps, Previous=$_previousSteps, Walking=$_isUserWalking');
+
+    try {
+      // Check if we just crossed a milestone threshold
+      for (final milestone in MilestoneHelper.milestones) {
+        // Check if we just entered the milestone range (previous was below, current is within range)
+        bool wasBelowRange = _previousSteps < milestone;
+        bool isInRange = MilestoneHelper.isMilestoneInRange(milestone, _steps);
+
+        // Also check if we just crossed the milestone exactly (for immediate response)
+        bool justCrossedMilestone =
+            _previousSteps < milestone && _steps >= milestone;
+
+        // Check if we're currently walking and just reached the milestone
+        bool walkingAndReached = _isUserWalking && justCrossedMilestone;
+
+        print(
+            '🔍 MILESTONE $milestone: wasBelowRange=$wasBelowRange, isInRange=$isInRange, justCrossedMilestone=$justCrossedMilestone, walkingAndReached=$walkingAndReached');
+
+        // Enhanced condition: Show milestone if we just crossed it OR if we're walking and just entered range
+        if (justCrossedMilestone ||
+            (walkingAndReached && wasBelowRange && isInRange)) {
+          print(
+              '🎯 REAL-TIME: Just entered milestone range for $milestone! (Crossed: $justCrossedMilestone, Walking: $_isUserWalking)');
+
+          // Check if this milestone has already been shown
+          bool alreadyShown = await MilestoneHelper.isShown(milestone);
+
+          if (!alreadyShown) {
+            print(
+                '🏆 REAL-TIME: $milestone milestone reached! Showing milestone board immediately');
+
+            // Mark milestone as shown in SharedPreferences
+            await MilestoneHelper.markAsShown(milestone);
+
+            // Add the milestone board to the game immediately
+            if (_game?.milestoneBoards[milestone] != null) {
+              _game!.add(_game!.milestoneBoards[milestone]!);
+              print(
+                  '✅ REAL-TIME: $milestone milestone board added to game immediately');
+
+              // Ensure character stays on top
+              if (_game?.character != null) {
+                _game!.remove(_game!.character!);
+                _game!.add(_game!.character!);
+                print('🎬 Character re-added to ensure it stays on top');
+              }
+
+              // Force a visual update immediately
+              if (mounted) {
+                setState(() {});
+              }
+
+              print('🎯 REAL-TIME MILESTONE $milestone SHOULD BE VISIBLE NOW!');
+            } else {
+              print('❌ REAL-TIME: Milestone board for $milestone is null!');
+            }
+          } else {
+            print('ℹ️ REAL-TIME: $milestone milestone already shown');
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error in real-time milestone achievement check: $e');
     }
   }
 
@@ -617,80 +539,52 @@ class _SoloModeState extends State<SoloMode> {
     // Debug milestone check
     print('🔍 MILESTONE CHECK: Steps=$_steps, Game=${_game != null}');
 
-    // Check for current milestone using MilestoneHelper
-    int? currentMilestone = await MilestoneHelper.getCurrentMilestone(_steps);
+    try {
+      // Check for current milestone using MilestoneHelper
+      int? currentMilestone = await MilestoneHelper.getCurrentMilestone(_steps);
 
-    if (currentMilestone != null) {
-      print('🎯 Found milestone: $currentMilestone');
+      if (currentMilestone != null) {
+        print('🎯 Found milestone: $currentMilestone');
 
-      // Check if this milestone has already been shown
-      bool alreadyShown = await MilestoneHelper.isShown(currentMilestone);
+        // Check if this milestone has already been shown
+        bool alreadyShown = await MilestoneHelper.isShown(currentMilestone);
 
-      if (!alreadyShown) {
-        print(
-            '🏆 $currentMilestone milestone reached! Showing milestone board');
-
-        // Mark milestone as shown in SharedPreferences
-        await MilestoneHelper.markAsShown(currentMilestone);
-
-        // Add the milestone board to the game
-        if (_game?.milestoneBoards[currentMilestone] != null) {
-          _game!.add(_game!.milestoneBoards[currentMilestone]!);
-          print('✅ $currentMilestone milestone board added to game');
-
-          // Ensure character stays on top
-          if (_game?.character != null) {
-            _game!.remove(_game!.character!);
-            _game!.add(_game!.character!);
-            print('🎬 Character re-added to ensure it stays on top');
-          }
-
-          // Force a visual update
-          setState(() {});
-
-          print('🎯 MILESTONE $currentMilestone SHOULD BE VISIBLE NOW!');
-        }
-      } else {
-        print('ℹ️ $currentMilestone milestone already shown');
-      }
-    }
-
-    // Debug: Show all milestone statuses
-    await _debugMilestoneStatus();
-  }
-
-  // Debug milestone status using MilestoneHelper
-  Future<void> _debugMilestoneStatus() async {
-    print('🔍 MILESTONE STATUS (SharedPreferences):');
-    print('Current Steps: $_steps');
-
-    for (int milestone in MilestoneHelper.milestones) {
-      bool isShown = await MilestoneHelper.isShown(milestone);
-      bool isAvailable = _game?.milestoneBoards[milestone] != null;
-      bool isInGame =
-          _game?.children.contains(_game?.milestoneBoards[milestone]) ?? false;
-      bool hasReached = _steps >= milestone;
-      bool isInRange = _steps >= milestone && _steps <= milestone + 50;
-      bool readyToShow = hasReached && isInRange && !isShown;
-
-      String status = readyToShow ? '🎯 READY TO SHOW' : '⏸️ NOT READY';
-      if (isShown) status = '✅ ALREADY SHOWN';
-      if (!hasReached) status = '⏳ NOT REACHED';
-      if (hasReached && !isInRange) status = '⏭️ OUT OF RANGE';
-
-      print(
-          '  - $milestone steps: Available=$isAvailable, Shown=$isShown, InGame=$isInGame, Reached=$hasReached, InRange=$isInRange | $status');
-
-      // Additional debugging for milestone boards
-      if (isAvailable && isInGame) {
-        var milestoneBoard = _game?.milestoneBoards[milestone];
-        if (milestoneBoard != null) {
+        if (!alreadyShown) {
           print(
-              '    📍 Position: ${milestoneBoard.position}, Size: ${milestoneBoard.size}');
-          print('    🎨 Priority: ${milestoneBoard.priority}');
+              '🏆 $currentMilestone milestone reached! Showing milestone board');
+
+          // Mark milestone as shown in SharedPreferences
+          await MilestoneHelper.markAsShown(currentMilestone);
+
+          // Add the milestone board to the game
+          if (_game?.milestoneBoards[currentMilestone] != null) {
+            _game!.add(_game!.milestoneBoards[currentMilestone]!);
+            print('✅ $currentMilestone milestone board added to game');
+
+            // Ensure character stays on top
+            if (_game?.character != null) {
+              _game!.remove(_game!.character!);
+              _game!.add(_game!.character!);
+              print('🎬 Character re-added to ensure it stays on top');
+            }
+
+            // Force a visual update
+            if (mounted) {
+              setState(() {});
+            }
+
+            print('🎯 MILESTONE $currentMilestone SHOULD BE VISIBLE NOW!');
+          }
+        } else {
+          print('ℹ️ $currentMilestone milestone already shown');
         }
       }
+    } catch (e) {
+      print('❌ Error in milestone achievement check: $e');
     }
+
+    // Debug: Show all milestone statuses (only if needed)
+    // await _debugMilestoneStatus();
   }
 
   void _startPeriodicUpdates() {
@@ -703,8 +597,8 @@ class _SoloModeState extends State<SoloMode> {
         // Check for day change
         _checkForDayChange();
 
-        // Check for milestone achievements
-        _checkMilestoneAchievement();
+        // Check for milestone achievements (real-time)
+        _checkMilestoneAchievementRealTime();
 
         // Force check walking state if still walking but no recent steps
         if (_isUserWalking && _lastStepUpdate != null) {
@@ -796,464 +690,63 @@ class _SoloModeState extends State<SoloMode> {
     }
   }
 
-  // Debug milestone state
-  void _debugMilestoneState() {
-    print('🏆 MILESTONE STATE DEBUG:');
-    print('  - Current Steps: $_steps');
-    print('  - Game Available: ${_game != null}');
-    print('  - Screen Initialized: $_isInitialized');
-    print('');
-
-    final milestoneThresholds = [
-      500,
-      1000,
-      2000,
-      4000,
-      6000,
-      8000,
-      10000,
-      15000,
-      20000,
-      25000
-    ];
-
-    print('📊 COMPLETE MILESTONE STATUS:');
-    print('┌─────────┬──────────┬─────────┬─────────┬─────────┬─────────────┐');
-    print('│ Steps   │ Available│ Shown   │ InGame  │ Reached │ Status      │');
-    print('├─────────┼──────────┼─────────┼─────────┼─────────┼─────────────┤');
-
-    for (final threshold in milestoneThresholds) {
-      final isShown = _game?.milestoneShown[threshold] ?? false;
-      final isAvailable = _game?.milestoneBoards[threshold] != null;
-      final isInGame =
-          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
-      final hasReached = _steps >= threshold;
-
-      String status = '';
-      if (!isAvailable) {
-        status = '❌ Not Loaded';
-      } else if (hasReached && !isShown) {
-        status = '🎯 READY TO SHOW';
-      } else if (hasReached && isShown && isInGame) {
-        status = '✅ Currently Displayed';
-      } else if (hasReached && isShown && !isInGame) {
-        status = '📋 Already Shown';
-      } else if (!hasReached) {
-        status = '⏳ Not Reached Yet';
-      }
-
-      print(
-          '│ ${threshold.toString().padLeft(7)} │ ${isAvailable.toString().padLeft(8)} │ ${isShown.toString().padLeft(7)} │ ${isInGame.toString().padLeft(7)} │ ${hasReached.toString().padLeft(7)} │ ${status.padLeft(11)} │');
-    }
-    print('└─────────┴──────────┴─────────┴─────────┴─────────┴─────────────┘');
-    print('');
-
-    // Additional detailed info for milestones that should be shown
-    print('🔍 DETAILED ANALYSIS:');
-    for (final threshold in milestoneThresholds) {
-      final isShown = _game?.milestoneShown[threshold] ?? false;
-      final isAvailable = _game?.milestoneBoards[threshold] != null;
-      final isInGame =
-          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
-      final hasReached = _steps >= threshold;
-
-      if (hasReached && !isShown && isAvailable) {
-        print(
-            '  🎯 $threshold: READY TO SHOW - Steps=$_steps >= $threshold, Shown=false, Available=true');
-      } else if (hasReached && isShown && !isInGame) {
-        print(
-            '  📋 $threshold: ALREADY SHOWN - Steps=$_steps >= $threshold, Shown=true, InGame=false');
-      } else if (hasReached && isShown && isInGame) {
-        print(
-            '  ✅ $threshold: CURRENTLY DISPLAYED - Steps=$_steps >= $threshold, Shown=true, InGame=true');
-      } else if (!hasReached) {
-        print('  ⏳ $threshold: NOT REACHED - Steps=$_steps < $threshold');
-      } else if (!isAvailable) {
-        print('  ❌ $threshold: NOT AVAILABLE - Milestone board not loaded');
-      }
-
-      if (_game?.milestoneBoards[threshold] != null) {
-        print(
-            '    📍 Position: ${_game!.milestoneBoards[threshold]!.position}');
-        print('    📏 Size: ${_game!.milestoneBoards[threshold]!.size}');
-      }
-    }
-    print('');
-  }
-
-  // Reset milestone for testing
-  void _resetMilestoneForTesting() async {
-    print('🔄 RESETTING MILESTONE FOR TESTING');
-    _milestoneShown = false;
-
-    // Reset all milestone states in SharedPreferences
-    await MilestoneHelper.resetMilestones();
-    print('✅ All milestone states reset in SharedPreferences');
-
-    // Remove all milestone boards from game
-    if (_game != null) {
-      for (final milestoneBoard in _game!.milestoneBoards.values) {
-        if (_game!.children.contains(milestoneBoard)) {
-          _game!.remove(milestoneBoard);
-        }
-      }
-      print('✅ All milestone boards removed from game');
-    }
-
-    print('✅ Milestone state reset - ready for testing');
-  }
-
-  // Test milestone system by simulating step counts
-  void _testMilestoneSystem() {
-    print('🧪 TESTING MILESTONE SYSTEM');
-    print('📋 Range System: Each milestone has a 50-step range');
-
-    // Reset milestone states first
-    _resetMilestoneForTesting();
-
-    // Test with different step counts (including range testing)
-    final testSteps = [
-      500,
-      510,
-      1000,
-      1020,
-      2000,
-      2030,
-      4000,
-      4020,
-      6000,
-      6030
-    ];
-
-    for (int i = 0; i < testSteps.length; i++) {
-      final testStep = testSteps[i];
-      Future.delayed(Duration(milliseconds: i * 800), () {
-        if (mounted) {
-          print('🧪 Testing with $testStep steps (Range Test)');
-          setState(() {
-            _steps = testStep;
-          });
-          _checkMilestoneAchievement();
-          print('🧪 Test completed for $testStep steps');
-        }
-      });
-    }
-  }
-
-  // Force show a specific milestone for testing
-  void _forceShowMilestone(int threshold) async {
-    print('🔧 FORCE SHOWING MILESTONE $threshold');
-    print(
-        '📋 Range System: This milestone has range ${threshold}-${threshold + 50}');
-
-    if (_game?.milestoneBoards[threshold] != null) {
-      // Mark milestone as shown in SharedPreferences
-      await MilestoneHelper.markAsShown(threshold);
-
-      // Remove any existing milestone boards
-      for (final milestoneBoard in _game!.milestoneBoards.values) {
-        if (_game!.children.contains(milestoneBoard)) {
-          _game!.remove(milestoneBoard);
-        }
-      }
-
-      // Add the specific milestone board
-      _game!.add(_game!.milestoneBoards[threshold]!);
-
-      print(
-          '✅ Milestone $threshold forced to show (Range: ${threshold}-${threshold + 50})');
-    } else {
-      print('❌ Milestone $threshold not available');
-    }
-  }
-
-  // Force restore a specific milestone (for testing)
-  void _forceRestoreMilestone(int threshold) async {
-    print('🔄 FORCE RESTORING MILESTONE $threshold');
-    print('=======================================');
-
-    bool isShown = await MilestoneHelper.isShown(threshold);
-    bool isAvailable = _game?.milestoneBoards[threshold] != null;
-    bool isInGame =
-        _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
-
-    print('Status: Shown=$isShown, Available=$isAvailable, InGame=$isInGame');
-
-    if (isAvailable && !isInGame) {
-      // Add to game
-      _game!.add(_game!.milestoneBoards[threshold]!);
-      print('✅ $threshold milestone restored to game');
-
-      // Ensure character stays on top
-      if (_game?.character != null) {
-        _game!.remove(_game!.character!);
-        _game!.add(_game!.character!);
-      }
-
-      setState(() {});
-      print('🎯 MILESTONE $threshold SHOULD BE VISIBLE NOW!');
-    } else if (isInGame) {
-      print('ℹ️ $threshold milestone already in game');
-    } else {
-      print('❌ $threshold milestone board not available');
-    }
-  }
-
-  // Quick status check for all milestones
-  void _quickMilestoneStatus() {
-    print('🚀 QUICK MILESTONE STATUS CHECK');
-    print('Current Steps: $_steps');
-    print('Game Available: ${_game != null}');
-    print('');
-
-    final milestoneThresholds = [
-      500,
-      1000,
-      2000,
-      4000,
-      6000,
-      8000,
-      10000,
-      15000,
-      20000,
-      25000
-    ];
-
-    for (final threshold in milestoneThresholds) {
-      final isShown = _game?.milestoneShown[threshold] ?? false;
-      final isAvailable = _game?.milestoneBoards[threshold] != null;
-      final hasReached = _steps >= threshold;
-      final rangeStart = threshold;
-      final rangeEnd = threshold + 50;
-      final isInRange = _steps >= rangeStart && _steps <= rangeEnd;
-
-      String icon = '⏳';
-      if (isInRange && !isShown && isAvailable) {
-        icon = '🎯';
-      } else if (hasReached && isShown) {
-        icon = '✅';
-      } else if (!isAvailable) {
-        icon = '❌';
-      }
-
-      print(
-          '$icon $threshold: ${hasReached ? "REACHED" : "Not reached"} | Range: $rangeStart-$rangeEnd | InRange: $isInRange | Available: $isAvailable | Shown: $isShown');
-    }
-    print('');
-  }
-
-  // Complete milestone testing sequence
-  void _completeMilestoneTest() {
-    print('🧪 COMPLETE MILESTONE TESTING SEQUENCE');
-    print('=====================================');
-    print(
-        '📋 Range System: Each milestone has a 50-step range (e.g., 500-550 for 500 milestone)');
-
-    // Step 1: Show current status
-    print('\n📊 STEP 1: Current Status');
-    _quickMilestoneStatus();
-
-    // Step 2: Reset all milestones
-    print('\n🔄 STEP 2: Resetting All Milestones');
-    _resetMilestoneForTesting();
-
-    // Step 3: Show status after reset
-    print('\n📊 STEP 3: Status After Reset');
-    _quickMilestoneStatus();
-
-    // Step 4: Test with different step counts (including range testing)
-    print('\n🎯 STEP 4: Testing Milestone Display with Range System');
-    final testSteps = [
-      500,
-      510,
-      1000,
-      1020,
-      2000,
-      2030,
-      4000,
-      4020,
-      6000,
-      6030
-    ];
-
-    for (int i = 0; i < testSteps.length; i++) {
-      final testStep = testSteps[i];
-      Future.delayed(Duration(milliseconds: (i + 1) * 1500), () {
-        if (mounted) {
-          print('\n🧪 Testing with $testStep steps (Range Test)...');
-          setState(() {
-            _steps = testStep;
-          });
-
-          // Check milestone achievement
-          _checkMilestoneAchievement();
-
-          // Show status after this test
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              print('📊 Status after $testStep steps:');
-              _quickMilestoneStatus();
-            }
-          });
-        }
-      });
-    }
-
-    // Step 5: Final status check
-    Future.delayed(Duration(milliseconds: (testSteps.length + 1) * 1500), () {
-      if (mounted) {
-        print('\n📊 STEP 5: Final Status Check');
-        _debugMilestoneState();
-        print('\n✅ Complete milestone testing finished!');
-        print(
-            '📋 Range System Tested: Milestones should trigger within their 50-step ranges');
-      }
-    });
-  }
-
-  // Quick one-click milestone test
-  void _quickMilestoneTest() {
-    print('⚡ QUICK MILESTONE TEST');
-    print('======================');
-    print('📋 Range System: Testing with 500 steps (Range: 500-550)');
-
-    // Reset and test with 500 steps immediately
-    _resetMilestoneForTesting();
-
-    setState(() {
-      _steps = 500;
-    });
-
-    _checkMilestoneAchievement();
-
-    print('✅ Quick test completed - 500 milestone should be visible now!');
-    print('📊 Current status:');
-    _quickMilestoneStatus();
-  }
-
-  // Fix milestones that are marked as shown but not displayed
-  void _fixMilestoneDisplay() {
-    print('🔧 FIXING MILESTONE DISPLAY ISSUES');
-    print('==================================');
-
-    final milestoneThresholds = [
-      500,
-      1000,
-      2000,
-      4000,
-      6000,
-      8000,
-      10000,
-      15000,
-      20000,
-      25000
-    ];
-
-    for (final threshold in milestoneThresholds) {
-      final isShown = _game?.milestoneShown[threshold] ?? false;
-      final isAvailable = _game?.milestoneBoards[threshold] != null;
-      final isInGame =
-          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
-      final rangeStart = threshold;
-      final rangeEnd = threshold + 50;
-      final isInRange = _steps >= rangeStart && _steps <= rangeEnd;
-      final hasReached = _steps >= threshold;
-
-      if (hasReached && isShown && !isInGame && isAvailable) {
-        print(
-            '🔧 FIXING: $threshold milestone marked as shown but not displayed (Range: $rangeStart-$rangeEnd, InRange: $isInRange)');
-        _game!.add(_game!.milestoneBoards[threshold]!);
-        print('✅ $threshold milestone board re-added to game');
-      }
-    }
-
-    print('🔧 Milestone display fix completed');
-  }
-
-  // Handle missed milestones (reached but not shown)
-  void _handleMissedMilestones() {
-    print('🎯 HANDLING MISSED MILESTONES');
-    print('=============================');
-
-    final milestoneThresholds = [
-      500,
-      1000,
-      2000,
-      4000,
-      6000,
-      8000,
-      10000,
-      15000,
-      20000,
-      25000
-    ];
-
-    for (final threshold in milestoneThresholds) {
-      final isShown = _game?.milestoneShown[threshold] ?? false;
-      final isAvailable = _game?.milestoneBoards[threshold] != null;
-      final isInGame =
-          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
-      final hasReached = _steps >= threshold;
-      final rangeStart = threshold;
-      final rangeEnd = threshold + 50;
-      final isInRange = _steps >= rangeStart && _steps <= rangeEnd;
-
-      // If milestone is reached but not shown and not in game
-      if (hasReached && !isShown && !isInGame && isAvailable) {
-        print(
-            '🎯 MISSED MILESTONE: $threshold reached but not shown (Steps: $_steps, Range: $rangeStart-$rangeEnd)');
-        print('🎯 SHOWING MISSED MILESTONE: $threshold');
-
-        // Mark milestone as shown
-        _game!.milestoneShown[threshold] = true;
-
-        // Add the milestone board to the game
-        _game!.add(_game!.milestoneBoards[threshold]!);
-        print('✅ $threshold milestone board added to game');
-
-        // Ensure character stays on top
-        if (_game!.character != null) {
-          _game!.remove(_game!.character!);
-          _game!.add(_game!.character!);
-        }
-
-        // Force visual update
-        setState(() {});
-
-        print('🎯 MISSED MILESTONE $threshold SHOULD BE VISIBLE NOW!');
-        return; // Only show one milestone at a time
-      }
-    }
-
-    print('✅ No missed milestones found');
-  }
-
-  // Refresh step count to fix display issues
-  void _refreshStepCount() async {
-    print('🔄 REFRESHING STEP COUNT');
-    print('========================');
-    print('Current displayed steps: $_steps');
+  // Real-time cleanup of milestones that just went out of range
+  void _cleanupOutOfRangeMilestonesRealTime() async {
+    print('🧹 REAL-TIME CLEANUP: Checking for out-of-range milestones');
+    print('Current Steps: $_steps, Previous: $_previousSteps');
 
     try {
-      // Fetch fresh step count
-      final freshSteps = await _healthService.fetchHybridRealTimeSteps();
-      print('Fresh step count from service: $freshSteps');
+      for (final threshold in MilestoneHelper.milestones) {
+        final isInGame =
+            _game?.children.contains(_game?.milestoneBoards[threshold]) ??
+                false;
+        final isInRange = MilestoneHelper.isMilestoneInRange(threshold, _steps);
+        final wasInRange =
+            MilestoneHelper.isMilestoneInRange(threshold, _previousSteps);
 
-      if (mounted) {
-        setState(() {
-          _previousSteps = _steps;
-          _steps = freshSteps;
-        });
+        // Remove milestone if it was in range before but is out of range now
+        if (isInGame && wasInRange && !isInRange) {
+          print(
+              '🗑️ REAL-TIME CLEANUP: Removing $threshold milestone (just went out of range: $_previousSteps → $_steps)');
+          _game!.remove(_game!.milestoneBoards[threshold]!);
+          print('✅ REAL-TIME: $threshold milestone board removed from game');
 
-        print('✅ Step count refreshed: $_steps');
-        print('📊 Step difference: ${_steps - _previousSteps}');
-
-        // Check for milestones after refresh
-        _checkMilestoneAchievement();
+          // Force a visual update immediately
+          if (mounted) {
+            setState(() {});
+          }
+        }
       }
     } catch (e) {
-      print('❌ Error refreshing step count: $e');
+      print('❌ Error in real-time cleanup of out-of-range milestones: $e');
     }
+  }
+
+  // Clean up milestones that are out of range
+  void _cleanupOutOfRangeMilestones() async {
+    print('🧹 CLEANING UP OUT-OF-RANGE MILESTONES');
+    print('Current Steps: $_steps');
+
+    try {
+      for (final threshold in MilestoneHelper.milestones) {
+        final isInGame =
+            _game?.children.contains(_game?.milestoneBoards[threshold]) ??
+                false;
+        final isInRange = MilestoneHelper.isMilestoneInRange(threshold, _steps);
+
+        // Remove milestone if it's in game but out of range
+        if (isInGame && !isInRange) {
+          print(
+              '🗑️ CLEANUP: Removing $threshold milestone (out of range: $_steps steps)');
+          _game!.remove(_game!.milestoneBoards[threshold]!);
+          print('✅ $threshold milestone board removed from game');
+        }
+      }
+    } catch (e) {
+      print('❌ Error cleaning up out-of-range milestones: $e');
+    }
+
+    print('✅ Out-of-range milestone cleanup completed');
   }
 
   // Restore milestones that should be visible based on current steps
@@ -1262,130 +755,37 @@ class _SoloModeState extends State<SoloMode> {
     print('=======================');
     print('Current Steps: $_steps');
 
-    for (final threshold in MilestoneHelper.milestones) {
-      final isShown = await MilestoneHelper.isShown(threshold);
-      final isAvailable = _game?.milestoneBoards[threshold] != null;
-      final isInGame =
-          _game?.children.contains(_game?.milestoneBoards[threshold]) ?? false;
-      final hasReached = _steps >= threshold;
+    try {
+      for (final threshold in MilestoneHelper.milestones) {
+        final isShown = await MilestoneHelper.isShown(threshold);
+        final isAvailable = _game?.milestoneBoards[threshold] != null;
+        final isInGame =
+            _game?.children.contains(_game?.milestoneBoards[threshold]) ??
+                false;
+        final hasReached = _steps >= threshold;
+        final isInRange = MilestoneHelper.isMilestoneInRange(threshold, _steps);
 
-      // If milestone should be shown (reached and marked as shown) but not in game
-      if (hasReached && isShown && !isInGame && isAvailable) {
-        print(
-            '🔄 RESTORING: $threshold milestone (reached and should be shown)');
+        // If milestone should be shown (reached, marked as shown, and in range) but not in game
+        if (hasReached && isShown && isInRange && !isInGame && isAvailable) {
+          print(
+              '🔄 RESTORING: $threshold milestone (reached, shown, and in range)');
 
-        // Add the milestone board back to the game
-        _game!.add(_game!.milestoneBoards[threshold]!);
-        print('✅ $threshold milestone board restored to game');
+          // Add the milestone board back to the game
+          _game!.add(_game!.milestoneBoards[threshold]!);
+          print('✅ $threshold milestone board restored to game');
+        } else if (hasReached && isShown && !isInRange && isInGame) {
+          // Remove milestone if it's out of range but still in game
+          print(
+              '🗑️ REMOVING: $threshold milestone (out of range: $_steps steps)');
+          _game!.remove(_game!.milestoneBoards[threshold]!);
+          print('✅ $threshold milestone board removed from game');
+        }
       }
+    } catch (e) {
+      print('❌ Error restoring milestones: $e');
     }
 
     print('✅ Milestone restoration completed');
-  }
-
-  // Test milestone with current steps
-  void _testCurrentStepsMilestone() {
-    print('🧪 TESTING MILESTONE WITH CURRENT STEPS');
-    print('=======================================');
-    print('Current Steps: $_steps');
-    print('');
-
-    // Reset all milestones first
-    print('🔄 Resetting all milestones...');
-    _resetMilestoneForTesting();
-
-    // Check milestone achievement with current steps
-    print('🎯 Checking milestone achievement...');
-    _checkMilestoneAchievement();
-
-    // Show final status
-    print('📊 Final milestone status:');
-    _quickMilestoneStatus();
-
-    print('✅ Test completed! Check if milestone is visible on screen.');
-    print(
-        '📋 Range System: Each milestone has a 50-step range (e.g., 500-550 for 500 milestone)');
-  }
-
-  // 🧪 Simple milestone test with specific step count
-  void _testMilestoneWithSteps(int testSteps) {
-    print('🧪 SIMPLE MILESTONE TEST WITH $testSteps STEPS');
-    print('==============================================');
-    print('Current Steps: $_steps');
-    print('Test Steps: $testSteps');
-    print('');
-
-    // Reset all milestones first
-    print('🔄 Resetting all milestones...');
-    _resetMilestoneForTesting();
-
-    // Set test steps
-    setState(() {
-      _steps = testSteps;
-    });
-
-    print('📊 Steps set to: $_steps');
-
-    // Check milestone achievement
-    print('🎯 Checking milestone achievement...');
-    _checkMilestoneAchievement();
-
-    // Show final status
-    print('📊 Final milestone status:');
-    _quickMilestoneStatus();
-
-    print('✅ Test completed! Check if milestone is visible on screen.');
-    print('📋 Range System: Each milestone has a 50-step range');
-    print(
-        '🎯 Expected milestone for $testSteps steps: ${_getExpectedMilestone(testSteps)}');
-  }
-
-  // Helper method to get expected milestone for step count
-  int? _getExpectedMilestone(int steps) {
-    for (int milestone in MilestoneHelper.milestones) {
-      if (steps >= milestone && steps <= milestone + 50) {
-        return milestone;
-      }
-    }
-    return null;
-  }
-
-  // 🧪 Test milestone system with simulated step increases
-  void _testMilestoneWithStepIncreases() {
-    print('🧪 TESTING MILESTONE WITH STEP INCREASES');
-    print('=========================================');
-    print('Current Steps: $_steps');
-    print('');
-
-    // Reset all milestones first
-    print('🔄 Resetting all milestones...');
-    _resetMilestoneForTesting();
-
-    // Test step increases that should trigger milestones
-    final testStepIncreases = [3990, 4000, 4010, 4020, 4030, 4040, 4050, 4060];
-
-    for (int i = 0; i < testStepIncreases.length; i++) {
-      final testSteps = testStepIncreases[i];
-      Future.delayed(Duration(milliseconds: i * 1000), () {
-        if (mounted) {
-          print('\n🧪 Testing step increase to $testSteps...');
-
-          // Simulate step increase
-          setState(() {
-            _previousSteps = _steps;
-            _steps = testSteps;
-          });
-
-          // Check milestone achievement (this should trigger the milestone)
-          _checkMilestoneAchievement();
-
-          print('📊 Steps: $_previousSteps -> $_steps');
-          print('🎯 Expected milestone: ${_getExpectedMilestone(testSteps)}');
-        }
-      });
-    }
-
-    print('✅ Step increase test started! Watch for milestone triggers.');
   }
 
   void _syncCharacterAnimation() {
@@ -1406,45 +806,13 @@ class _SoloModeState extends State<SoloMode> {
           }
         }
 
-        print(
-            '✅ Character animation synced: ${_isUserWalking ? "Walking" : "Idle"}');
+        // Reduced debug logging to prevent performance issues
+        // print('✅ Character animation synced: ${_isUserWalking ? "Walking" : "Idle"}');
       } catch (e) {
         print('❌ Error syncing character animation: $e');
       }
     } else {
       print('⚠️ Game instance not available for animation sync');
-    }
-  }
-
-  Future<void> _fetchSteps() async {
-    try {
-      // Use sensor-optimized method to include accurate step data and responsive animations
-      int steps = await _healthService.fetchHybridRealTimeSteps();
-      if (mounted) {
-        // Store the current steps as previous before updating
-        int oldSteps = _steps;
-
-        setState(() {
-          _previousSteps = oldSteps; // Store the actual previous steps
-          _steps = steps;
-          _isLoading = false;
-        });
-
-        // IMMEDIATE MILESTONE CHECK: Check milestones right after step update
-        _checkMilestoneAchievement();
-        _restoreMilestones();
-
-        // Check if user is walking (steps increased)
-        _checkUserWalkingWithTiming(DateTime.now());
-      }
-    } catch (e) {
-      print('❌ Error in fallback step fetch: $e');
-      if (mounted) {
-        setState(() {
-          _steps = 0;
-          _isLoading = false;
-        });
-      }
     }
   }
 
@@ -1465,24 +833,6 @@ class _SoloModeState extends State<SoloMode> {
       print('🎬 Character walking animation stopped');
     } catch (e) {
       print('❌ Error stopping character walking: $e');
-    }
-  }
-
-  void _checkAnimationStatus() async {
-    final animationService = CharacterAnimationService();
-
-    // If not loaded and not loading, start preloading
-    if (!animationService.isLoaded && !animationService.isLoading) {
-      animationService.preloadAnimations();
-    }
-
-    // Wait for animations to be ready using the service method
-    await animationService.waitForLoad();
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -1580,61 +930,39 @@ class _SoloModeState extends State<SoloMode> {
                         }
                       }
 
-                      // MILESTONE DEBUG: Check milestone state
-                      _debugMilestoneState();
-
-                      // MANUAL MILESTONE CHECK: Force check milestone achievement
+                      // MANUAL MILESTONE CHECK: Force check milestone achievement (real-time)
                       print('🔧 Manual milestone check triggered');
-                      _checkMilestoneAchievement();
+                      _checkMilestoneAchievementRealTime();
 
-                      // QUICK MILESTONE STATUS: Show all milestone status
-                      print('📊 QUICK MILESTONE STATUS CHECK');
-                      _quickMilestoneStatus();
+                      // FORCE CHECK: Check for milestones that should be visible
+                      print('🔧 Force checking visible milestones');
+                      _forceCheckVisibleMilestones();
 
-                      // FIX MILESTONE DISPLAY: Fix milestones marked as shown but not displayed
-                      _fixMilestoneDisplay();
+                      // TEST: Reset 2000 milestone for testing
+                      print('🧪 Resetting 2000 milestone for testing');
+                      await MilestoneHelper.resetSpecificMilestone(2000);
 
-                      // RESTORE MILESTONES: Restore milestones that should be visible
+                      // DEBUG: Check available milestone boards
+                      print('🔍 DEBUG: Checking available milestone boards');
+                      if (_game != null) {
+                        print(
+                            '🔍 Game milestone boards: ${_game!.milestoneBoards.keys.toList()}');
+                      } else {
+                        print('❌ Game is null!');
+                      }
+
+                      // RESTORE MILESTONES: Restore milestones that should be visible and clean up out-of-range ones
                       _restoreMilestones();
+                      _cleanupOutOfRangeMilestones();
 
-                      // FORCE RESTORE 2000 MILESTONE: Test specific milestone (uncomment to test)
-                      // _forceRestoreMilestone(2000);
-
-                      // REFRESH STEPS: Force refresh step count (uncomment to test)
-                      // _refreshStepCount();
-
-                      // TEST 500 MILESTONE: Test with current steps (uncomment to test)
-                      // _testCurrentStepsMilestone();
-
-                      // MILESTONE TEST: Reset milestone for testing (uncomment to test)
-                      // _resetMilestoneForTesting();
-
-                      // MILESTONE TEST: Test milestone system (uncomment to test)
-                      // _testMilestoneSystem();
-
-                      // MILESTONE TEST: Force show 500 milestone (uncomment to test)
-                      // _forceShowMilestone(500);
-
-                      // QUICK STATUS: Check all milestone status (uncomment to test)
-                      // _quickMilestoneStatus();
-
-                      // TEST SEQUENCE: Complete milestone testing (uncomment to test)
-                      // _completeMilestoneTest();
-
-                      // QUICK TEST: One-click milestone test (uncomment to test)
-                      // _quickMilestoneTest();
-
-                      // 🧪 SIMPLE MILESTONE TEST: Test with 4000 steps (uncomment to test)
-                      // _testMilestoneWithSteps(4000);
-
-                      // 🧪 STEP INCREASE TEST: Test milestone with step increases (uncomment to test)
-                      // _testMilestoneWithStepIncreases();
+                      // Real-time cleanup of milestones that just went out of range
+                      _cleanupOutOfRangeMilestonesRealTime();
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           vertical: 18, horizontal: 18),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
+                        color: Colors.white.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Column(
@@ -1703,6 +1031,8 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
   bool isWalking = false;
   double moveSpeed = 100.0; // Reduced speed for smoother movement
   bool _animationsLoaded = false;
+  bool _lastAnimationState =
+      false; // Track last animation state to prevent redundant calls
 
   Character()
       : super(size: Vector2(300, 300)); // Reduced size for better performance
@@ -1742,8 +1072,11 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
   @override
   void update(double dt) {
     super.update(dt);
-    // APPROACH 1: Force recheck animation every frame
-    updateAnimation(isWalking);
+    // REMOVED: Force recheck animation every frame - this was causing jittery animations
+    // updateAnimation(isWalking);
+    //
+    // FIXED: Animation is now only updated when walking state actually changes,
+    // preventing the jittery restart effect when steps increase
   }
 
   @override
@@ -1761,27 +1094,49 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
       return;
     }
 
-    final newAnimation = walking ? walkingAnimation : idleAnimation;
+    try {
+      // Prevent redundant animation calls if state hasn't changed
+      if (_lastAnimationState == walking) {
+        return; // State hasn't changed, don't update animation
+      }
 
-    if (animation != newAnimation) {
-      print(
-          '🔄 Character: Switching animation to ${walking ? "walking" : "idle"}');
-      animation = newAnimation;
-      // Force animation restart by reassigning
-      print('🎬 Animation switched and will restart');
+      final newAnimation = walking ? walkingAnimation : idleAnimation;
+
+      if (animation != newAnimation) {
+        print(
+            '🔄 Character: Switching animation to ${walking ? "walking" : "idle"}');
+        animation = newAnimation;
+        print('🎬 Animation switched and will restart');
+      } else {
+        // Animation is already correct - don't restart it
+        // This prevents jittery restarts when the same animation is already playing
+      }
+
+      // Update the last animation state
+      _lastAnimationState = walking;
+    } catch (e) {
+      print('❌ Error updating character animation: $e');
     }
   }
 
   void startWalking() {
     print('🎬 Character startWalking called');
-    isWalking = true;
-    updateAnimation(true);
+    try {
+      isWalking = true;
+      updateAnimation(true);
+    } catch (e) {
+      print('❌ Error starting character walking: $e');
+    }
   }
 
   void stopWalking() {
     print('🎬 Character stopWalking called');
-    isWalking = false;
-    updateAnimation(false);
+    try {
+      isWalking = false;
+      updateAnimation(false);
+    } catch (e) {
+      print('❌ Error stopping character walking: $e');
+    }
   }
 }
 
@@ -1808,12 +1163,16 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
   }
 
   void updateWalkingState(bool walking) {
-    if (character != null) {
-      character!.isWalking = walking;
-      character!.updateAnimation(walking);
-      print('🎮 Game: Character ${walking ? "started" : "stopped"} walking');
-    } else {
-      print('⚠️ Game: Character not available for walking state update');
+    try {
+      if (character != null) {
+        character!.isWalking = walking;
+        character!.updateAnimation(walking);
+        print('🎮 Game: Character ${walking ? "started" : "stopped"} walking');
+      } else {
+        print('⚠️ Game: Character not available for walking state update');
+      }
+    } catch (e) {
+      print('❌ Error updating walking state: $e');
     }
   }
 
@@ -1934,7 +1293,7 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
 
       // Layer 3: Character (on top of path)
       // Compensate for transparent pixels at the bottom of the character sprite
-      final double transparentBottomPx = 140; // Adjust this value as needed
+      const double transparentBottomPx = 140; // Adjust this value as needed
       final double transparentOffset = transparentBottomPx * scaleY;
       character = Character();
       character!.size =
@@ -1966,8 +1325,8 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
     super.update(dt);
     if (character?.isWalking == true) {
       final double dx = walkSpeed * dt;
-      // APPROACH 3: Add debug logging for background movement
-      print('🎮 Game: Moving background (character walking)');
+      // Reduced debug logging to prevent performance issues
+      // print('🎮 Game: Moving background (character walking)');
 
       // Sky
       skyA?.x -= dx;
@@ -2011,10 +1370,10 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
         milestoneBoard.x -= dx;
       }
     } else {
-      // APPROACH 4: Debug when character is not walking
-      if (character != null) {
-        print('🎮 Game: Background stopped (character idle)');
-      }
+      // Reduced debug logging to prevent performance issues
+      // if (character != null) {
+      //   print('🎮 Game: Background stopped (character idle)');
+      // }
     }
   }
 }
@@ -2033,7 +1392,7 @@ class StepProgressBar extends StatelessWidget {
     final double barWidth = MediaQuery.of(context).size.width - 64.0;
     final double progress =
         (currentSteps.toDouble() / stepGoal.toDouble()).clamp(0.0, 1.0);
-    final double indicatorRadius = 16.0;
+    const double indicatorRadius = 16.0;
     final double indicatorLeft =
         (progress * (barWidth - indicatorRadius * 2)) + indicatorRadius;
     return Padding(

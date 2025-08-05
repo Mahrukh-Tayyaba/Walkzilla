@@ -6,7 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'welcome_screen.dart';
+import 'splash_screen.dart';
 import 'providers/step_goal_provider.dart';
 import 'providers/streak_provider.dart';
 import 'health_dashboard.dart';
@@ -17,6 +17,7 @@ import 'widgets/reward_notification_widget.dart';
 import 'services/health_service.dart';
 import 'services/coin_service.dart';
 import 'services/network_service.dart';
+import 'services/leveling_migration_service.dart';
 
 // Global navigator key to show dialogs from anywhere
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -50,6 +51,10 @@ void main() async {
       final cleanupService = UserDocumentCleanupService();
       await cleanupService.cleanupAllUserDocuments();
       print('User document cleanup completed');
+
+      // Initialize challenges_won field for existing users
+      await LevelingMigrationService.initializeChallengesWonForAllUsers();
+      print('Challenges_won field initialization completed');
     } catch (e) {
       print('Error initializing Firebase: $e');
       // Continue without Firebase for now
@@ -255,7 +260,7 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: kDebugMode ? const WelcomeScreen() : const HealthDashboard(),
+      home: kDebugMode ? const SplashScreen() : const HealthDashboard(),
     );
   }
 }

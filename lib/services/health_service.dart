@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'dart:async'; // Added for Timer and StreamSubscription
 import 'step_counter_service.dart';
+import 'leveling_service.dart';
 import 'leaderboard_service.dart';
 import 'network_service.dart';
 
@@ -2825,6 +2826,9 @@ class HealthService {
                 'weekly_steps': weeklyTotal,
               });
 
+              // Update leveling system with new daily steps
+              await _updateLevelingSystem(user.uid, stepIncrease.toInt());
+
               print(
                   "📊 LEADERBOARD: Updated daily steps: $currentDailySteps → $steps (+$stepIncrease)");
               print("📊 LEADERBOARD: Updated weekly total: $weeklyTotal");
@@ -2966,6 +2970,26 @@ class HealthService {
   DateTime _getStartOfWeek(DateTime date) {
     final daysFromMonday = date.weekday - 1;
     return date.subtract(Duration(days: daysFromMonday));
+  }
+
+  /// Update leveling system with new daily steps
+  Future<void> _updateLevelingSystem(String userId, int stepIncrease) async {
+    try {
+      // Update user level with the step increase
+      final levelResult =
+          await LevelingService.updateUserLevel(userId, stepIncrease);
+
+      if (levelResult != null && levelResult['leveledUp'] == true) {
+        print(
+            "🎉 LEVEL UP: User ${userId} leveled up from ${levelResult['oldLevel']} to ${levelResult['newLevel']}");
+        print("🎉 LEVEL UP: Reward: ${levelResult['reward']} coins");
+
+        // You can add notification logic here for level up
+        // _showLevelUpNotification(levelResult);
+      }
+    } catch (e) {
+      print("Error updating leveling system: $e");
+    }
   }
 
   // Force reset all Health Connect permissions and cache

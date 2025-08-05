@@ -37,6 +37,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
     // Load data in background without blocking UI
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeHealth();
+      _refreshStreakData();
     });
   }
 
@@ -133,6 +134,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
         });
       }
 
+      // Update streak system based on today's steps and goal
+      await _updateStreakIfNeeded(todaySteps);
+
       print("✅ Dashboard updated - Steps: $_steps, Calories: $_calories");
     } catch (e) {
       print("❌ Error fetching health data for dashboard: $e");
@@ -155,6 +159,47 @@ class _HealthDashboardState extends State<HealthDashboard> {
           ),
         );
       }
+    }
+  }
+
+  // New method to update streak based on today's steps
+  Future<void> _updateStreakIfNeeded(int todaySteps) async {
+    try {
+      final stepGoalProvider = context.read<StepGoalProvider>();
+      final streakProvider = context.read<StreakProvider>();
+      final goalSteps = stepGoalProvider.goalSteps;
+
+      print(
+          "🔥 Checking streak - Today's steps: $todaySteps, Goal: $goalSteps");
+
+      // Use the new method from streak provider
+      await streakProvider.checkAndUpdateTodayStreak(todaySteps, goalSteps);
+
+      print("✅ Streak check completed");
+    } catch (e) {
+      print("❌ Error updating streak: $e");
+    }
+  }
+
+  // New method to refresh streak data
+  Future<void> _refreshStreakData() async {
+    try {
+      final stepGoalProvider = context.read<StepGoalProvider>();
+      final streakProvider = context.read<StreakProvider>();
+      final goalSteps = stepGoalProvider.goalSteps;
+
+      // Get today's steps to check if goal is met
+      final todaySteps = await _healthService.fetchStepsData();
+
+      print(
+          "🔄 Refreshing streak data - Today's steps: $todaySteps, Goal: $goalSteps");
+
+      // Use the new method from streak provider
+      await streakProvider.checkAndUpdateTodayStreak(todaySteps, goalSteps);
+
+      print("✅ Streak data refreshed");
+    } catch (e) {
+      print("❌ Error refreshing streak data: $e");
     }
   }
 
@@ -305,9 +350,13 @@ class _HealthDashboardState extends State<HealthDashboard> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           stepGoalProvider.setGoal(tempGoalSteps);
                           Navigator.pop(context);
+
+                          // Update streak after goal change
+                          await _updateStreakIfNeeded(_steps);
+
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: const Text('Step goal updated!'),

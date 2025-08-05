@@ -125,8 +125,11 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Future<void> handleBuyClick(ShopItem item) async {
     if (item.isOwned) {
-      // If already owned, wear it instead
-      await _wearItem(item);
+      // If already owned, show preview first
+      setState(() {
+        buyPreviewItem = item;
+        selectedItem = item;
+      });
     } else {
       // Show buy preview
       setState(() {
@@ -402,12 +405,13 @@ class _ShopScreenState extends State<ShopScreen> {
                 maxCameraOrbit: "0deg 75deg 100%",
                 interactionPrompt: InteractionPrompt.none,
                 disableTap: true,
-                autoPlay: true,
+                autoPlay: false,
                 disableZoom: true,
                 disablePan: true,
                 minFieldOfView: "45deg",
                 maxFieldOfView: "45deg",
                 fieldOfView: "45deg",
+                animationCrossfadeDuration: 0,
               ),
             ),
           ),
@@ -690,13 +694,17 @@ class _ShopScreenState extends State<ShopScreen> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: item.isOwned
-                                          ? Colors.green
+                                      color: showOwnedItems
+                                          ? (item.isWorn
+                                              ? Colors.grey
+                                              : Colors.green)
                                           : Colors.black,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
-                                      item.isOwned ? 'Wear' : 'Buy',
+                                      showOwnedItems
+                                          ? (item.isWorn ? 'Wearing' : 'Wear')
+                                          : 'Buy',
                                       style: const TextStyle(
                                         fontSize: 8,
                                         color: Colors.white,
@@ -723,6 +731,8 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Widget _buildBuyPreview() {
     if (buyPreviewItem == null) return const SizedBox.shrink();
+
+    final isOwned = buyPreviewItem!.isOwned;
 
     return Container(
       decoration: BoxDecoration(
@@ -801,36 +811,44 @@ class _ShopScreenState extends State<ShopScreen> {
 
           const SizedBox(height: 16),
 
-          // Buy Button
+          // Action Button (Buy or Wear)
           SizedBox(
             width: double.infinity,
             child: GestureDetector(
-              onTap: () => _buyItem(buyPreviewItem!),
+              onTap: () => isOwned
+                  ? _wearItem(buyPreviewItem!)
+                  : _buyItem(buyPreviewItem!),
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: userCoins >= buyPreviewItem!.price
-                      ? Colors.black
-                      : Colors.grey[200],
+                  color: isOwned
+                      ? Colors.green
+                      : (userCoins >= buyPreviewItem!.price
+                          ? Colors.black
+                          : Colors.grey[200]),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      userCoins >= buyPreviewItem!.price
-                          ? 'Buy'
-                          : 'Not enough coins',
+                      isOwned
+                          ? 'Wear'
+                          : (userCoins >= buyPreviewItem!.price
+                              ? 'Buy'
+                              : 'Not enough coins'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: userCoins >= buyPreviewItem!.price
+                        color: isOwned
                             ? Colors.white
-                            : Colors.grey[500],
+                            : (userCoins >= buyPreviewItem!.price
+                                ? Colors.white
+                                : Colors.grey[500]),
                       ),
                     ),
-                    if (userCoins >= buyPreviewItem!.price)
+                    if (!isOwned && userCoins >= buyPreviewItem!.price)
                       Row(
                         children: [
                           const Icon(Icons.monetization_on,

@@ -446,6 +446,7 @@ class SignupScreenState extends State<SignupScreen> {
             'walking': 'images/sprite_sheets/MyCharacter_walking.json',
           },
           'shown_rewards': {},
+          'challenges_won': 0,
         });
       } else {
         // Update existing user's last login

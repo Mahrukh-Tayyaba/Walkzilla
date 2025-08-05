@@ -82,6 +82,12 @@ class CoinService {
       final currentUser = _auth.currentUser;
       if (currentUser == null) return false;
 
+      // Prevent setting negative coins
+      if (amount < 0) {
+        print('Error: Cannot set coins to negative value: $amount');
+        return false;
+      }
+
       await _firestore.collection('users').doc(currentUser.uid).update({
         'coins': amount,
       });

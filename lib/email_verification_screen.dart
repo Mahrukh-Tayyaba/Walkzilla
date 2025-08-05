@@ -231,6 +231,7 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
           'walking': 'images/sprite_sheets/MyCharacter_walking.json',
         },
         'shown_rewards': {},
+        'challenges_won': 0,
       });
 
       if (mounted) {

@@ -16,6 +16,9 @@ import 'services/character_data_service.dart';
 import 'widgets/daily_challenge_spin.dart';
 import 'widgets/reward_notification_widget.dart';
 import 'widgets/connection_status_widget.dart';
+import 'widgets/level_up_notification.dart';
+import 'services/leveling_service.dart';
+import 'services/leveling_migration_service.dart';
 import 'challenges_screen.dart';
 import 'notification_page.dart';
 
@@ -51,6 +54,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   String _userName = 'User'; // Default name
   bool _isUserDataLoading = true; // Add loading state for user data
   int _coins = 0; // Will be loaded from coin service
+  int _userLevel = 1; // User level for display
   bool _isUsingRealData = false; // Track if using real health data
   bool _isOnline = true; // Track network status
   String _currentGlbPath =
@@ -111,6 +115,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         _startCoinListener();
         _startRewardListener();
         _startConnectionStatusMonitoring();
+        _initializeLevelingData();
       }
     });
   }
@@ -274,14 +279,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           final username = userData['username'] ?? '';
           final homeGlbPath =
               userData['homeGlbPath'] ?? 'assets/web/home/MyCharacter_home.glb';
+          final userLevel = userData['level'] ?? 1;
           print("Username from Firestore: $username");
           print("Home GLB path from Firestore: $homeGlbPath");
+          print("User level from Firestore: $userLevel");
 
           setState(() {
             _userName = username.isNotEmpty ? username : 'User';
             _currentGlbPath = homeGlbPath;
             _lastProcessedGlbPath =
                 homeGlbPath; // Initialize last processed path
+            _userLevel = userLevel;
             _isUserDataLoading = false;
           });
 
@@ -300,6 +308,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             _currentGlbPath = 'assets/web/home/MyCharacter_home.glb';
             _lastProcessedGlbPath =
                 'assets/web/home/MyCharacter_home.glb'; // Initialize last processed path
+            _userLevel = 1;
             _isUserDataLoading = false;
           });
         }
@@ -1241,20 +1250,147 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> _logout() async {
     try {
-      await _auth.signOut();
-      if (!mounted) return;
+      // Show confirmation dialog
+      final shouldLogout = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Confirm Logout'),
+            content: const Text('Are you sure you want to log out?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Yes, Logout'),
+              ),
+            ],
+          );
+        },
+      );
 
-      // Clear the navigation stack and go to login screen
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
+      if (shouldLogout != true) return;
+
+      print('🚪 Starting logout process...');
+
+      // Clean up resources before logout
+      await _cleanupBeforeLogout();
+
+      // Sign out from Firebase
+      await _auth.signOut();
+      print('✅ Firebase sign out completed');
+
+      if (!mounted) {
+        print('⚠️ Widget not mounted after sign out');
+        return;
+      }
+
+      // Navigate to login screen with proper error handling
+      try {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+        print('✅ Navigation to login screen completed');
+      } catch (navigationError) {
+        print('❌ Navigation error: $navigationError');
+        // Fallback navigation
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error signing out: ${e.toString()}')),
-      );
+      print('❌ Logout error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error signing out: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _cleanupBeforeLogout() async {
+    try {
+      print('🧹 Starting logout cleanup...');
+
+      // Cancel all active listeners and timers
+      if (_userDataListener != null) {
+        _userDataListener!.cancel();
+        _userDataListener = null;
+        print('✅ User data listener cancelled');
+      }
+
+      if (_acceptedInviteListener != null) {
+        _acceptedInviteListener!.cancel();
+        _acceptedInviteListener = null;
+        print('✅ Accepted invite listener cancelled');
+      }
+
+      if (_declinedInviteListener != null) {
+        _declinedInviteListener!.cancel();
+        _declinedInviteListener = null;
+        print('✅ Declined invite listener cancelled');
+      }
+
+      if (_connectionStatusTimer != null) {
+        _connectionStatusTimer!.cancel();
+        _connectionStatusTimer = null;
+        print('✅ Connection status timer cancelled');
+      }
+
+      if (_glbUpdateTimer != null) {
+        _glbUpdateTimer!.cancel();
+        _glbUpdateTimer = null;
+        print('✅ GLB update timer cancelled');
+      }
+
+      // Stop health monitoring
+      try {
+        _healthService.stopAllMonitoring();
+        print('✅ Health monitoring stopped');
+      } catch (e) {
+        print('⚠️ Error stopping health monitoring: $e');
+      }
+
+      // Clean up duo challenge service
+      _duoChallengeService = null;
+      print('✅ Duo challenge service cleaned');
+
+      // Clear any cached data and reset state
+      if (mounted) {
+        setState(() {
+          _userName = 'User';
+          _userLevel = 1;
+          _coins = 0;
+          _steps = 0;
+          _calories = 0.0;
+          _isUsingRealData = false;
+          _isOnline = true;
+          _currentGlbPath = 'assets/web/home/MyCharacter_home.glb';
+          _lastProcessedGlbPath = '';
+          _isUserDataLoading = false;
+          _userDataListenerStarted = false;
+        });
+        print('✅ State reset completed');
+      }
+
+      // Force garbage collection if possible
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      print('✅ Logout cleanup completed successfully');
+    } catch (e) {
+      print('❌ Error during logout cleanup: $e');
     }
   }
 
@@ -1864,9 +2000,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Text(
-                                "Beginner",
-                                style: TextStyle(
+                              child: Text(
+                                "Level $_userLevel",
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
@@ -2298,6 +2434,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
         ),
       );
+    }
+  }
+
+  // Initialize leveling data for current user
+  void _initializeLevelingData() async {
+    try {
+      await LevelingMigrationService.initializeCurrentUserLevelingData();
+      print('✅ Leveling data initialization completed');
+    } catch (e) {
+      print('❌ Error initializing leveling data: $e');
     }
   }
 

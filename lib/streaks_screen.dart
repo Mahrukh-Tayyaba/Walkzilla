@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'providers/step_goal_provider.dart';
 import 'providers/streak_provider.dart';
+import 'services/health_service.dart';
 
 class StreakSettings {
   final int stepGoal;
@@ -55,11 +56,47 @@ class _StreaksScreenState extends State<StreaksScreen> {
       DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
+  void initState() {
+    super.initState();
+    // Refresh streak data when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshStreakData();
+    });
+  }
+
+  Future<void> _refreshStreakData() async {
+    try {
+      final stepGoalProvider = context.read<StepGoalProvider>();
+      final streakProvider = context.read<StreakProvider>();
+      final goalSteps = stepGoalProvider.goalSteps;
+
+      // Get today's steps to check if goal is met
+      final healthService = HealthService();
+      final todaySteps = await healthService.fetchStepsData();
+
+      print("🔄 Streaks screen - refreshing streak data");
+      print("📊 Today's steps: $todaySteps, Goal: $goalSteps");
+
+      // Use the new method from streak provider
+      await streakProvider.checkAndUpdateTodayStreak(todaySteps, goalSteps);
+
+      print("✅ Streak data refreshed in streaks screen");
+    } catch (e) {
+      print("❌ Error refreshing streak data in streaks screen: $e");
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final streakProvider = Provider.of<StreakProvider>(context);
     final int currentStreak = streakProvider.currentStreak;
     final int longestStreak = streakProvider.bestStreak;
     final List<DateTime> streakDates = streakProvider.goalMetDays.toList();
+
+    // Debug: Print streak dates
+    print(
+        "📅 Streak dates: ${streakDates.map((d) => '${d.month}/${d.day}').toList()}");
+    print("🔥 Current streak: $currentStreak, Best streak: $longestStreak");
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -278,7 +315,36 @@ class _StreaksScreenState extends State<StreaksScreen> {
                     color: isStreak
                         ? Colors.orange
                         : (isToday ? Colors.grey[200] : null),
-                    borderRadius: BorderRadius.circular(8),
+                    // Flame-like shape for streak days
+                    borderRadius: isStreak
+                        ? BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(2),
+                            bottomLeft: Radius.circular(2),
+                            bottomRight: Radius.circular(16),
+                          )
+                        : BorderRadius.circular(8),
+                    // Add gradient for streak days
+                    gradient: isStreak
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.orange.shade400,
+                              Colors.orange.shade600,
+                            ],
+                          )
+                        : null,
+                    // Add shadow for streak days
+                    boxShadow: isStreak
+                        ? [
+                            BoxShadow(
+                              color: Colors.orange.withOpacity(0.3),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Center(
                     child: Text(
