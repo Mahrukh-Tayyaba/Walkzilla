@@ -37,7 +37,16 @@ class _HealthDashboardState extends State<HealthDashboard> {
     // Load data in background without blocking UI
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeHealth();
-      _refreshStreakData();
+      _loadAndRefreshStreakData();
+    });
+
+    // Set up periodic refresh for real-time updates (every 30 seconds)
+    Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _refreshDashboardData();
+      } else {
+        timer.cancel();
+      }
     });
   }
 
@@ -100,8 +109,8 @@ class _HealthDashboardState extends State<HealthDashboard> {
 
       print("🔄 Fetching today's steps for dashboard...");
 
-      // Use the same method as steps_screen.dart
-      int todaySteps = await _healthService.fetchStepsData();
+      // Use the hybrid approach same as home.dart for real-time updated data
+      int todaySteps = await _healthService.fetchHybridRealTimeSteps();
 
       double calculatedCalories = _calculateCaloriesFromSteps(todaySteps);
 
@@ -162,7 +171,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
     }
   }
 
-  // New method to update streak based on today's steps
+  // New method to update streak based on today's steps using hybrid data
   Future<void> _updateStreakIfNeeded(int todaySteps) async {
     try {
       final stepGoalProvider = context.read<StepGoalProvider>();
@@ -181,6 +190,62 @@ class _HealthDashboardState extends State<HealthDashboard> {
     }
   }
 
+  // Method to refresh dashboard data with hybrid approach
+  Future<void> _refreshDashboardData() async {
+    if (!mounted) return;
+
+    try {
+      print("🔄 Refreshing dashboard data with hybrid approach...");
+
+      // Use hybrid approach for real-time updated steps
+      final todaySteps = await _healthService.fetchHybridRealTimeSteps();
+      final calculatedCalories = _calculateCaloriesFromSteps(todaySteps);
+
+      // Fetch distance
+      final now = DateTime.now();
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      double todayDistance = 0.0;
+      try {
+        todayDistance = await _healthService.fetchDistance(
+          start: startOfToday,
+          end: now,
+        );
+      } catch (e) {
+        print("❌ Distance fetch failed during refresh: $e");
+      }
+
+      if (mounted) {
+        setState(() {
+          _steps = todaySteps;
+          _calories = calculatedCalories;
+          _distance = todayDistance;
+        });
+      }
+
+      // Update streak with fresh data
+      await _updateStreakIfNeeded(todaySteps);
+
+      print("✅ Dashboard refreshed - Steps: $_steps, Calories: $_calories");
+    } catch (e) {
+      print("❌ Error refreshing dashboard data: $e");
+    }
+  }
+
+  // Method to load and refresh streak data
+  Future<void> _loadAndRefreshStreakData() async {
+    try {
+      final streakProvider = context.read<StreakProvider>();
+
+      // First, reload any existing streak data from Firestore
+      await streakProvider.reloadStreaks();
+
+      // Then refresh with current step data
+      await _refreshStreakData();
+    } catch (e) {
+      print("❌ Error loading and refreshing streak data: $e");
+    }
+  }
+
   // New method to refresh streak data
   Future<void> _refreshStreakData() async {
     try {
@@ -188,8 +253,8 @@ class _HealthDashboardState extends State<HealthDashboard> {
       final streakProvider = context.read<StreakProvider>();
       final goalSteps = stepGoalProvider.goalSteps;
 
-      // Get today's steps to check if goal is met
-      final todaySteps = await _healthService.fetchStepsData();
+      // Get today's steps to check if goal is met using hybrid approach
+      final todaySteps = await _healthService.fetchHybridRealTimeSteps();
 
       print(
           "🔄 Refreshing streak data - Today's steps: $todaySteps, Goal: $goalSteps");
@@ -417,51 +482,56 @@ class _HealthDashboardState extends State<HealthDashboard> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDateSelector(),
-              const SizedBox(height: 24),
-              const Text(
-                'Recent Activity',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _refreshDashboardData();
+        },
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDateSelector(),
+                const SizedBox(height: 24),
+                const Text(
+                  'Recent Activity',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              _buildStepsCard(),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildMetricCard(
-                      'Calories',
-                      '${_calories.toInt()} kcal',
-                      Icons.bolt_rounded,
-                      Colors.orange,
+                const SizedBox(height: 16),
+                _buildStepsCard(),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricCard(
+                        'Calories',
+                        '${_calories.toInt()} kcal',
+                        Icons.bolt_rounded,
+                        Colors.orange,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildMetricCard(
-                      'Distance',
-                      '${_distance.toStringAsFixed(0)} M',
-                      Icons.directions_walk,
-                      Colors.blue,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildMetricCard(
+                        'Distance',
+                        '${_distance.toStringAsFixed(0)} M',
+                        Icons.directions_walk,
+                        Colors.blue,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              _buildDailyStreak(),
-              const SizedBox(height: 24),
-              _buildGoalSection(),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _buildDailyStreak(),
+                const SizedBox(height: 24),
+                _buildGoalSection(),
+              ],
+            ),
           ),
         ),
       ),

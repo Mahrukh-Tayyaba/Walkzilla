@@ -23,10 +23,11 @@ import 'challenges_screen.dart';
 import 'notification_page.dart';
 
 import 'profile_page.dart';
-import 'settings_page.dart';
+
 import 'friends_page.dart';
 import 'chat_list_page.dart';
 import 'leaderboard_page.dart';
+import 'streaks_screen.dart';
 import 'shop_screen.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'solo_mode.dart';
@@ -68,6 +69,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   bool _userDataListenerStarted = false; // Prevent multiple listeners
   String _lastProcessedGlbPath = ''; // Cache last processed GLB path
   Timer? _glbUpdateTimer; // Debounce GLB updates
+
+  // Leaderboard listeners
+  StreamSubscription<QuerySnapshot>? _weeklyRewardListener;
+  StreamSubscription<QuerySnapshot>? _dailyRewardListener;
+
+  // Logout state
+  bool _isLoggingOut = false;
 
   /// Validate if the GLB path is safe to use
   bool _isValidGlbPath(String path) {
@@ -197,6 +205,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   /// Start listening for user data changes (including GLB path updates)
   void _startUserDataListener() {
+    // Don't start listeners if logging out
+    if (_isLoggingOut) {
+      print('⚠️ Skipping user data listener setup - logging out');
+      return;
+    }
+
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -1036,8 +1050,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   void _startRewardListener() {
+    // Don't start listeners if logging out
+    if (_isLoggingOut) {
+      print('⚠️ Skipping reward listener setup - logging out');
+      return;
+    }
+
     // Listen for weekly reward notifications
-    _firestore
+    _weeklyRewardListener = _firestore
         .collection('leaderboard_history')
         .where('type', isEqualTo: 'weekly')
         .orderBy('createdAt', descending: true)
@@ -1085,7 +1105,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     });
 
     // Listen for leaderboard history to show daily reward notifications
-    _firestore
+    _dailyRewardListener = _firestore
         .collection('leaderboard_history')
         .where('type', isEqualTo: 'daily')
         .orderBy('createdAt', descending: true)
@@ -1280,6 +1300,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       print('🚪 Starting logout process...');
 
+      // Set logout flag to prevent new operations
+      setState(() {
+        _isLoggingOut = true;
+      });
+
       // Clean up resources before logout
       await _cleanupBeforeLogout();
 
@@ -1355,6 +1380,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         print('✅ GLB update timer cancelled');
       }
 
+      if (_weeklyRewardListener != null) {
+        _weeklyRewardListener!.cancel();
+        _weeklyRewardListener = null;
+        print('✅ Weekly reward listener cancelled');
+      }
+
+      if (_dailyRewardListener != null) {
+        _dailyRewardListener!.cancel();
+        _dailyRewardListener = null;
+        print('✅ Daily reward listener cancelled');
+      }
+
       // Stop health monitoring
       try {
         _healthService.stopAllMonitoring();
@@ -1381,6 +1418,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           _lastProcessedGlbPath = '';
           _isUserDataLoading = false;
           _userDataListenerStarted = false;
+          _isLoggingOut = false; // Reset logout flag
         });
         print('✅ State reset completed');
       }
@@ -1408,6 +1446,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         .migrateCurrentUserCharacterData()
         .catchError((error) {
       print('Failed to migrate character data: $error');
+      return false; // Return a value to satisfy the warning
     });
   }
 
@@ -1416,10 +1455,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         .initializeUserLeaderboardData(_auth.currentUser?.uid ?? '')
         .catchError((error) {
       print('Failed to initialize leaderboard data: $error');
+      return false; // Return a value to satisfy the warning
     });
   }
 
   void _listenForAcceptedInvitesAsSender() {
+    // Don't start listeners if logging out
+    if (_isLoggingOut) {
+      print('⚠️ Skipping accepted invite listener setup - logging out');
+      return;
+    }
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
     _acceptedInviteListener?.cancel();
@@ -1486,6 +1532,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   void _listenForDeclinedInvitesAsSender() {
+    // Don't start listeners if logging out
+    if (_isLoggingOut) {
+      print('⚠️ Skipping declined invite listener setup - logging out');
+      return;
+    }
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
     _declinedInviteListener?.cancel();
@@ -1543,6 +1595,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _declinedInviteListener?.cancel();
     _userDataListener?.cancel();
     _glbUpdateTimer?.cancel(); // Cancel GLB update timer
+    _weeklyRewardListener?.cancel(); // Cancel weekly reward listener
+    _dailyRewardListener?.cancel(); // Cancel daily reward listener
     _duoChallengeService?.stopListeningForInvites();
     _healthService.stopRealTimeStepMonitoring();
     _connectionStatusTimer?.cancel();
@@ -1552,6 +1606,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _declinedInviteListener = null;
     _userDataListener = null;
     _glbUpdateTimer = null; // Clear GLB update timer
+    _weeklyRewardListener = null; // Clear weekly reward listener
+    _dailyRewardListener = null; // Clear daily reward listener
     _duoChallengeService = null;
     _userDataListenerStarted = false; // Reset listener flag
 
@@ -1748,6 +1804,25 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               } else {
                                 print(
                                     "🎨 Building new ModelViewer with path: $_currentGlbPath");
+                              }
+
+                              // Don't build ModelViewer if logging out
+                              if (_isLoggingOut) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'Logging out...',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                );
                               }
 
                               return RepaintBoundary(
@@ -2032,12 +2107,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 },
               ),
               _buildDrawerItem(
-                icon: Icons.alarm_outlined,
-                title: "Reminders",
-                color: Colors.purple,
-                onTap: () {},
-              ),
-              _buildDrawerItem(
                 icon: Icons.people_outlined,
                 title: "Friends",
                 color: Colors.green,
@@ -2053,7 +2122,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               _buildDrawerItem(
                 icon: Icons.leaderboard,
                 title: "Leaderboard",
-                color: Colors.orange,
+                color: Colors.pink,
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -2064,28 +2133,28 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 },
               ),
               _buildDrawerItem(
+                icon: Icons.local_fire_department,
+                title: "Streaks",
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const StreaksScreen()),
+                  );
+                },
+              ),
+              _buildDrawerItem(
                 icon: Icons.chat_bubble_outline,
                 title: "Chats",
-                color: Colors.blue,
+                color: Colors.purple,
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) => const ChatListPage()),
-                  );
-                },
-              ),
-              _buildDrawerItem(
-                icon: Icons.settings_outlined,
-                title: "Settings",
-                color: Colors.grey[700],
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const SettingsPage()),
                   );
                 },
               ),

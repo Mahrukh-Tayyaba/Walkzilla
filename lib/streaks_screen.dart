@@ -60,8 +60,25 @@ class _StreaksScreenState extends State<StreaksScreen> {
     super.initState();
     // Refresh streak data when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshStreakData();
+      _loadAndRefreshStreakData();
     });
+  }
+
+  Future<void> _loadAndRefreshStreakData() async {
+    try {
+      final streakProvider = context.read<StreakProvider>();
+
+      // First, ensure streak data is initialized
+      await streakProvider.ensureStreakDataInitialized();
+
+      // Then, reload any existing streak data from Firestore
+      await streakProvider.reloadStreaks();
+
+      // Finally, refresh with current step data
+      await _refreshStreakData();
+    } catch (e) {
+      print("❌ Error loading and refreshing streak data: $e");
+    }
   }
 
   Future<void> _refreshStreakData() async {
@@ -74,11 +91,30 @@ class _StreaksScreenState extends State<StreaksScreen> {
       final healthService = HealthService();
       final todaySteps = await healthService.fetchStepsData();
 
-      print("🔄 Streaks screen - refreshing streak data");
-      print("📊 Today's steps: $todaySteps, Goal: $goalSteps");
+      // Get yesterday's steps to check if it should be marked
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final startOfYesterday =
+          DateTime(yesterday.year, yesterday.month, yesterday.day);
+      final endOfYesterday = startOfYesterday.add(const Duration(days: 1));
 
-      // Use the new method from streak provider
-      await streakProvider.checkAndUpdateTodayStreak(todaySteps, goalSteps);
+      // Fetch yesterday's steps data
+      int yesterdaySteps = 0;
+      try {
+        // Use the health service to get yesterday's data
+        final yesterdayData = await healthService.getStepsForDateRange(
+            startOfYesterday, endOfYesterday);
+        yesterdaySteps = yesterdayData;
+      } catch (e) {
+        print("❌ Could not fetch yesterday's steps: $e");
+      }
+
+      print("🔄 Streaks screen - refreshing streak data");
+      print(
+          "📊 Today's steps: $todaySteps, Yesterday's steps: $yesterdaySteps, Goal: $goalSteps");
+
+      // Use the enhanced method from streak provider
+      await streakProvider.checkAndUpdateStreakWithYesterday(
+          todaySteps, yesterdaySteps, goalSteps);
 
       print("✅ Streak data refreshed in streaks screen");
     } catch (e) {

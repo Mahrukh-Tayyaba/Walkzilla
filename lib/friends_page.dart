@@ -6,11 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'notification_page.dart';
 import 'profile_page.dart';
-import 'settings_page.dart';
+
 import 'chat_list_page.dart';
 import 'chat_detail_page.dart';
 import 'friend_profile_page.dart';
 import 'challenges_screen.dart';
+import 'streaks_screen.dart';
 import 'services/friend_service.dart';
 
 class Home extends StatefulWidget {
@@ -406,12 +407,6 @@ class _HomeState extends State<Home> {
                 },
               ),
               _buildDrawerItem(
-                icon: Icons.alarm_outlined,
-                title: "Reminders",
-                color: Colors.purple,
-                onTap: () {},
-              ),
-              _buildDrawerItem(
                 icon: Icons.people_outlined,
                 title: "Friends",
                 color: Colors.green,
@@ -425,28 +420,28 @@ class _HomeState extends State<Home> {
                 },
               ),
               _buildDrawerItem(
+                icon: Icons.local_fire_department,
+                title: "Streaks",
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const StreaksScreen()),
+                  );
+                },
+              ),
+              _buildDrawerItem(
                 icon: Icons.chat_bubble_outline,
                 title: "Chats",
-                color: Colors.blue,
+                color: Colors.purple,
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) => const ChatListPage()),
-                  );
-                },
-              ),
-              _buildDrawerItem(
-                icon: Icons.settings_outlined,
-                title: "Settings",
-                color: Colors.grey[700],
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const SettingsPage()),
                   );
                 },
               ),

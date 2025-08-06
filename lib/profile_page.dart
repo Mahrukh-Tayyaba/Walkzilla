@@ -16,7 +16,6 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool notificationsEnabled = true;
   // Removed unused field _formKey
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -485,74 +484,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
 
             const SizedBox(height: 24),
-
-            // Settings Section
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Settings',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.notifications,
-                              color: Colors.blue,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Notifications',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Switch(
-                        value: notificationsEnabled,
-                        onChanged: (value) {
-                          setState(() {
-                            notificationsEnabled = value;
-                          });
-                        },
-                        activeColor: Colors.blue,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
 
             const SizedBox(height: 16),
 

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'services/friend_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'services/coin_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'main.dart';
 import 'screens/duo_challenge_lobby.dart';
@@ -381,14 +382,36 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
         if (invites.isEmpty) {
           return const Center(child: Text('No invites sent yet.'));
         }
+
+        // Group invites by recipient and get the most recent one per person
+        final Map<String, QueryDocumentSnapshot> groupedInvites = {};
+        final Map<String, int> inviteCounts = {};
+
+        for (final doc in invites) {
+          final data = doc.data() as Map<String, dynamic>;
+          final toUserId = data['toUserId'] as String;
+
+          // Keep only the most recent invite per person
+          if (!groupedInvites.containsKey(toUserId)) {
+            groupedInvites[toUserId] = doc;
+            inviteCounts[toUserId] = 1;
+          } else {
+            inviteCounts[toUserId] = (inviteCounts[toUserId] ?? 0) + 1;
+          }
+        }
+
+        final uniqueInvites = groupedInvites.values.toList();
+
         return ListView.builder(
-          itemCount: invites.length,
+          itemCount: uniqueInvites.length,
           itemBuilder: (context, index) {
-            final doc = invites[index];
+            final doc = uniqueInvites[index];
             final data = doc.data() as Map<String, dynamic>;
+            final toUserId = data['toUserId'] as String;
+            final inviteCount = inviteCounts[toUserId] ?? 1;
+
             return FutureBuilder<DocumentSnapshot>(
-              future:
-                  _firestore.collection('users').doc(data['toUserId']).get(),
+              future: _firestore.collection('users').doc(toUserId).get(),
               builder: (context, userSnapshot) {
                 if (!userSnapshot.hasData || userSnapshot.data == null) {
                   return const ListTile(title: Text('Loading...'));
@@ -429,26 +452,55 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            CircleAvatar(
-                              backgroundColor:
-                                  const Color(0xFF7C4DFF).withOpacity(0.1),
-                              child: Text(
-                                (userData['displayName'] ??
-                                            userData['username'] ??
-                                            '?')
-                                        .toString()
-                                        .isNotEmpty
-                                    ? (userData['displayName'] ??
-                                            userData['username'] ??
-                                            '?')
-                                        .toString()[0]
-                                        .toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF7C4DFF)),
-                              ),
+                            Stack(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor:
+                                      const Color(0xFF7C4DFF).withOpacity(0.1),
+                                  child: Text(
+                                    (userData['displayName'] ??
+                                                userData['username'] ??
+                                                '?')
+                                            .toString()
+                                            .isNotEmpty
+                                        ? (userData['displayName'] ??
+                                                userData['username'] ??
+                                                '?')
+                                            .toString()[0]
+                                            .toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF7C4DFF)),
+                                  ),
+                                ),
+                                if (inviteCount > 1)
+                                  Positioned(
+                                    right: -2,
+                                    top: -2,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 20,
+                                        minHeight: 20,
+                                      ),
+                                      child: Text(
+                                        inviteCount.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -467,6 +519,15 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                                     style: const TextStyle(
                                         fontSize: 14, color: Colors.grey),
                                   ),
+                                  if (inviteCount > 1)
+                                    Text(
+                                      '$inviteCount invites sent',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.orange,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -519,8 +580,18 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                                 Expanded(
                                   child: TextButton(
                                     onPressed: () async {
-                                      await doc.reference
-                                          .update({'status': 'declined'});
+                                      // Cancel all invites to this user
+                                      final batch = _firestore.batch();
+                                      for (final inviteDoc in invites) {
+                                        final inviteData = inviteDoc.data()
+                                            as Map<String, dynamic>;
+                                        if (inviteData['toUserId'] ==
+                                            toUserId) {
+                                          batch.update(inviteDoc.reference,
+                                              {'status': 'declined'});
+                                        }
+                                      }
+                                      await batch.commit();
                                     },
                                     style: TextButton.styleFrom(
                                       shape: RoundedRectangleBorder(
@@ -556,6 +627,21 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
         throw Exception('User not authenticated');
+      }
+
+      // Check if user has enough coins before sending invite
+      final coinService = CoinService();
+      const requiredCoins = 50;
+      final hasEnoughCoins = await coinService.hasEnoughCoins(requiredCoins);
+
+      if (!hasEnoughCoins) {
+        setState(() {
+          _isInviting = false;
+        });
+        if (mounted) {
+          _showInsufficientCoinsDialog();
+        }
+        return;
       }
       // Create the invite and get the document reference
       final inviteDocRef =
@@ -649,5 +735,89 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
 
   Future<void> _declineInviteRequest(String inviteId) async {
     // Implementation of declining the invite request
+  }
+
+  void _showInsufficientCoinsDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.warning_amber,
+                  color: Colors.orange,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Insufficient Coins',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'You need 50 coins to send a duo challenge invite.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'To earn more coins:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '• Walk more steps to earn coins\n• Play daily challenges to earn more coins',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'OK',
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

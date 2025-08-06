@@ -51,6 +51,93 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
     _listenForGameStart();
   }
 
+  void _showInsufficientCoinsDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.warning_amber,
+                  color: Colors.orange,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Insufficient Coins',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'You need 50 coins to join this challenge.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'To earn more coins:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '• Walk more steps to earn coins\n• Play daily challenges to earn more coins',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(); // Go back to home
+              },
+              child: const Text(
+                'OK',
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _setPresence(false);
@@ -101,8 +188,10 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
     if (!success) {
       print(
           '❌ Failed to deduct coins for duo challenge - insufficient balance');
-      // Handle the case where user doesn't have enough coins
-      // You might want to show an error message or redirect user
+      // Show error dialog and redirect user
+      if (mounted) {
+        _showInsufficientCoinsDialog();
+      }
     } else {
       print('✅ Successfully deducted 50 coins for duo challenge');
     }

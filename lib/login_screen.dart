@@ -235,11 +235,17 @@ class LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       await _handleSuccessfulLogin(userCredential);
     } on FirebaseAuthException catch (e) {
-      String errorMessage = "An error occurred";
-      if (e.code == 'user-not-found') {
-        errorMessage = 'No user found with this email.';
-      } else if (e.code == 'wrong-password') {
-        errorMessage = 'Wrong password provided.';
+      String errorMessage;
+
+      // Debug: Print the actual error code
+      print('Firebase Auth Error Code: ${e.code}');
+      print('Firebase Auth Error Message: ${e.message}');
+
+      // Show generic message for authentication failures to prevent user enumeration
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        errorMessage = 'Wrong username or password.';
       } else if (e.code == 'invalid-email') {
         errorMessage = 'Please enter a valid email address.';
       } else if (e.code == 'user-disabled') {
@@ -249,6 +255,8 @@ class LoginScreenState extends State<LoginScreen> {
             'Too many failed login attempts. Please try again later.';
       } else if (e.code == 'user-not-verified') {
         errorMessage = 'Please verify your email address before logging in.';
+      } else {
+        errorMessage = 'An error occurred during login.';
       }
 
       if (!mounted) return;

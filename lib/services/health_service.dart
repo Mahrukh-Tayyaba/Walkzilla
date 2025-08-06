@@ -1315,6 +1315,62 @@ class HealthService {
     }
   }
 
+  // Fetch steps data for a specific date range
+  Future<int> getStepsForDateRange(DateTime startDate, DateTime endDate) async {
+    try {
+      print(
+          "Fetching steps data for date range: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}");
+
+      // Check if we have permissions
+      bool hasPermissions = await checkHealthConnectPermissions();
+      if (!hasPermissions) {
+        print("❌ No Health Connect permissions for steps");
+        return 0;
+      }
+
+      // Use aggregate API to get total steps for the date range
+      try {
+        print("🔄 Using aggregate API for date range steps...");
+
+        // Get aggregated steps data
+        final stepsData = await health.getTotalStepsInInterval(
+          startDate,
+          endDate,
+        );
+
+        print("📊 Aggregated steps for date range: $stepsData");
+        return stepsData ?? 0;
+      } catch (e) {
+        print(
+            "❌ Error with aggregate API for date range, falling back to raw data: $e");
+
+        // Fallback to raw data method
+        List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
+          startTime: startDate,
+          endTime: endDate,
+          types: [HealthDataType.STEPS],
+        );
+        print("📊 Raw health data points for date range: ${healthData.length}");
+
+        // Calculate total steps
+        int totalSteps = 0;
+        for (HealthDataPoint p in healthData) {
+          if (p.value is int) {
+            totalSteps += p.value as int;
+          } else if (p.value is double) {
+            totalSteps += (p.value as double).toInt();
+          }
+        }
+
+        print("📊 Total steps calculated for date range: $totalSteps");
+        return totalSteps;
+      }
+    } catch (e) {
+      print("Error in getStepsForDateRange: $e");
+      return 0;
+    }
+  }
+
   // Fetch real active calories data from Health Connect
   Future<Map<String, dynamic>> fetchCaloriesData() async {
     try {

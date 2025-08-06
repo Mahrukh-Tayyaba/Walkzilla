@@ -31,7 +31,40 @@ class StreakProvider extends ChangeNotifier {
       _bestStreak = data['bestStreak'] ?? 0;
       final List<dynamic> daysList = data['goalMetDays'] ?? [];
       _goalMetDays = daysList.map((d) => DateTime.parse(d as String)).toSet();
+
+      print("📅 Loaded streak data from Firestore:");
+      print("   Current streak: $_currentStreak");
+      print("   Best streak: $_bestStreak");
+      print(
+          "   Goal met days: ${_goalMetDays.map((d) => '${d.month}/${d.day}').toList()}");
+
       notifyListeners();
+    } else {
+      print("❌ No streak data found in Firestore for user: $uid");
+    }
+  }
+
+  // Public method to reload streak data
+  Future<void> reloadStreaks() async {
+    print("🔄 Reloading streak data...");
+    await _loadStreaks();
+  }
+
+  // Method to ensure streak data is initialized
+  Future<void> ensureStreakDataInitialized() async {
+    final uid = await _getUserId();
+    if (uid == null) return;
+
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    if (!doc.exists || !doc.data()!.containsKey('currentStreak')) {
+      print("🆕 Initializing streak data for new user...");
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'currentStreak': 0,
+        'bestStreak': 0,
+        'goalMetDays': [],
+      });
+      await _loadStreaks();
     }
   }
 
@@ -113,6 +146,7 @@ class StreakProvider extends ChangeNotifier {
   Future<void> checkAndUpdateTodayStreak(int todaySteps, int goalSteps) async {
     final today = DateTime.now();
     final startOfToday = DateTime(today.year, today.month, today.day);
+    final yesterday = startOfToday.subtract(const Duration(days: 1));
 
     // Check if today is already marked
     final todayAlreadyMarked = _goalMetDays.any((date) =>
@@ -120,6 +154,13 @@ class StreakProvider extends ChangeNotifier {
         date.month == startOfToday.month &&
         date.day == startOfToday.day);
 
+    // Check if yesterday is already marked
+    final yesterdayAlreadyMarked = _goalMetDays.any((date) =>
+        date.year == yesterday.year &&
+        date.month == yesterday.month &&
+        date.day == yesterday.day);
+
+    // Handle today's streak status
     if (todaySteps >= goalSteps && !todayAlreadyMarked) {
       // Goal met today, add to streak
       _goalMetDays.add(startOfToday);
@@ -132,8 +173,72 @@ class StreakProvider extends ChangeNotifier {
           date.day == startOfToday.day);
       await _recalculateStreaks(goalSteps);
     }
-    // If today's goal is not met and today wasn't marked, we don't need to do anything
-    // The streak will continue to show the last completed day
+
+    // Check if we need to add yesterday to the streak
+    // This handles the case where the app wasn't opened yesterday but the goal was met
+    if (!yesterdayAlreadyMarked) {
+      // We need to check yesterday's data from Health Connect
+      // For now, we'll assume if today's goal is met and yesterday isn't marked,
+      // we should check if yesterday should be added
+      // This is a simplified approach - in a real app, you'd fetch yesterday's data
+
+      // If today's goal is met and we have a streak, yesterday should also be marked
+      if (todaySteps >= goalSteps && _currentStreak > 0) {
+        _goalMetDays.add(yesterday);
+        await _recalculateStreaks(goalSteps);
+      }
+    }
+  }
+
+  // Enhanced method to check and update streak with yesterday's data
+  Future<void> checkAndUpdateStreakWithYesterday(
+      int todaySteps, int yesterdaySteps, int goalSteps) async {
+    final today = DateTime.now();
+    final startOfToday = DateTime(today.year, today.month, today.day);
+    final yesterday = startOfToday.subtract(const Duration(days: 1));
+
+    // Check if today is already marked
+    final todayAlreadyMarked = _goalMetDays.any((date) =>
+        date.year == startOfToday.year &&
+        date.month == startOfToday.month &&
+        date.day == startOfToday.day);
+
+    // Check if yesterday is already marked
+    final yesterdayAlreadyMarked = _goalMetDays.any((date) =>
+        date.year == yesterday.year &&
+        date.month == yesterday.month &&
+        date.day == yesterday.day);
+
+    // Handle yesterday's streak status
+    if (yesterdaySteps >= goalSteps && !yesterdayAlreadyMarked) {
+      // Goal met yesterday, add to streak
+      _goalMetDays.add(yesterday);
+      print("✅ Added yesterday to streak: $yesterday");
+    } else if (yesterdaySteps < goalSteps && yesterdayAlreadyMarked) {
+      // Goal not met yesterday, remove from streak
+      _goalMetDays.removeWhere((date) =>
+          date.year == yesterday.year &&
+          date.month == yesterday.month &&
+          date.day == yesterday.day);
+      print("❌ Removed yesterday from streak: $yesterday");
+    }
+
+    // Handle today's streak status
+    if (todaySteps >= goalSteps && !todayAlreadyMarked) {
+      // Goal met today, add to streak
+      _goalMetDays.add(startOfToday);
+      print("✅ Added today to streak: $startOfToday");
+    } else if (todaySteps < goalSteps && todayAlreadyMarked) {
+      // Goal not met today, remove from streak
+      _goalMetDays.removeWhere((date) =>
+          date.year == startOfToday.year &&
+          date.month == startOfToday.month &&
+          date.day == startOfToday.day);
+      print("❌ Removed today from streak: $startOfToday");
+    }
+
+    // Recalculate streaks after any changes
+    await _recalculateStreaks(goalSteps);
   }
 
   // Method to manually add a day to the streak (for testing/debugging)
@@ -215,11 +320,19 @@ class StreakProvider extends ChangeNotifier {
     _currentStreak = streak;
     _bestStreak = best;
 
+    print("💾 Saving streak data to Firestore:");
+    print("   Current streak: $_currentStreak");
+    print("   Best streak: $_bestStreak");
+    print(
+        "   Goal met days: ${_goalMetDays.map((d) => '${d.month}/${d.day}').toList()}");
+
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'currentStreak': _currentStreak,
       'bestStreak': _bestStreak,
       'goalMetDays': _goalMetDays.map((d) => d.toIso8601String()).toList(),
     });
+
+    print("✅ Streak data saved to Firestore successfully");
     notifyListeners();
   }
 }

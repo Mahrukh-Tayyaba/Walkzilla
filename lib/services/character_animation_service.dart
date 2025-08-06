@@ -14,93 +14,144 @@ class CharacterAnimationService {
   final CharacterDataService _characterDataService = CharacterDataService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Cache for loaded animations
-  SpriteAnimation? _cachedIdleAnimation;
-  SpriteAnimation? _cachedWalkingAnimation;
-  ui.Image? _cachedIdleImage;
-  ui.Image? _cachedWalkingImage;
-  bool _isLoading = false;
-  bool _isLoaded = false;
-  DateTime? _lastLoadTime;
-  String? _lastLoadedCharacterId;
+  // Cache for loaded animations per character ID
+  final Map<String, SpriteAnimation> _cachedIdleAnimations = {};
+  final Map<String, SpriteAnimation> _cachedWalkingAnimations = {};
+  final Map<String, ui.Image> _cachedIdleImages = {};
+  final Map<String, ui.Image> _cachedWalkingImages = {};
+  final Map<String, bool> _isLoading = {};
+  final Map<String, bool> _isLoaded = {};
+  final Map<String, DateTime> _lastLoadTime = {};
+  final Map<String, String> _lastLoadedCharacterId = {};
 
-  // Getters
-  SpriteAnimation? get idleAnimation => _cachedIdleAnimation;
-  SpriteAnimation? get walkingAnimation => _cachedWalkingAnimation;
-  bool get isLoading => _isLoading;
-  bool get isLoaded => _isLoaded;
-  DateTime? get lastLoadTime => _lastLoadTime;
-  String? get lastLoadedCharacterId => _lastLoadedCharacterId;
+  // Getters for current user (backward compatibility)
+  SpriteAnimation? get idleAnimation => _cachedIdleAnimations['current_user'];
+  SpriteAnimation? get walkingAnimation =>
+      _cachedWalkingAnimations['current_user'];
+  bool get isLoading => _isLoading['current_user'] ?? false;
+  bool get isLoaded => _isLoaded['current_user'] ?? false;
+  DateTime? get lastLoadTime => _lastLoadTime['current_user'];
+  String? get lastLoadedCharacterId => _lastLoadedCharacterId['current_user'];
+
+  /// Get animations for a specific character ID
+  SpriteAnimation? getIdleAnimation(String characterId) =>
+      _cachedIdleAnimations[characterId];
+  SpriteAnimation? getWalkingAnimation(String characterId) =>
+      _cachedWalkingAnimations[characterId];
+  bool isLoadingForCharacter(String characterId) =>
+      _isLoading[characterId] ?? false;
+  bool isLoadedForCharacter(String characterId) =>
+      _isLoaded[characterId] ?? false;
 
   /// Preload character animations for the current user's character
   Future<void> preloadAnimations() async {
-    if (_isLoading) return;
-
-    _isLoading = true;
-    print('CharacterAnimationService: Starting dynamic preload...');
-
-    try {
-      // Get current user's sprite sheet paths
-      final spriteSheets = await _characterDataService.getCurrentSpriteSheets();
-      final currentCharacter =
-          await _characterDataService.getCurrentCharacter();
-
-      print(
-          'CharacterAnimationService: Loading animations for character: $currentCharacter');
-      print('CharacterAnimationService: Sprite sheets: $spriteSheets');
-
-      // Load animations using dynamic paths
-      _cachedIdleAnimation =
-          await _loadTexturePackerAnimation(spriteSheets['idle']!, 0.08);
-      _cachedWalkingAnimation =
-          await _loadTexturePackerAnimation(spriteSheets['walking']!, 0.06);
-
-      _isLoaded = true;
-      _isLoading = false;
-      _lastLoadTime = DateTime.now();
-      _lastLoadedCharacterId = currentCharacter;
-
-      print(
-          'CharacterAnimationService: Dynamic preload completed successfully for $currentCharacter');
-    } catch (e, st) {
-      _isLoading = false;
-      print('CharacterAnimationService: Dynamic preload failed: $e');
-      print('Stack trace: $st');
-      rethrow;
-    }
+    await preloadAnimationsForCharacter('current_user');
   }
 
   /// Preload animations for a specific character (useful for testing or preview)
   Future<void> preloadAnimationsForCharacter(String characterId) async {
-    if (_isLoading) return;
+    if (_isLoading[characterId] == true) return;
 
-    _isLoading = true;
+    _isLoading[characterId] = true;
     print(
         'CharacterAnimationService: Starting preload for character: $characterId');
 
     try {
       // Get sprite sheet paths for the specific character
-      final spriteSheets =
-          _characterDataService.getSpriteSheetsForCharacter(characterId);
+      Map<String, String> spriteSheets;
+      if (characterId == 'current_user') {
+        spriteSheets = await _characterDataService.getCurrentSpriteSheets();
+        final currentCharacter =
+            await _characterDataService.getCurrentCharacter();
+        _lastLoadedCharacterId[characterId] = currentCharacter;
+      } else {
+        // For opponent characters, we need to get their character data
+        // This will be handled by the calling code that provides characterData
+        throw UnimplementedError(
+            'Use preloadAnimationsForCharacterWithData for opponent characters');
+      }
 
       print(
           'CharacterAnimationService: Sprite sheets for $characterId: $spriteSheets');
 
       // Load animations using the character's paths
-      _cachedIdleAnimation =
-          await _loadTexturePackerAnimation(spriteSheets['idle']!, 0.08);
-      _cachedWalkingAnimation =
-          await _loadTexturePackerAnimation(spriteSheets['walking']!, 0.06);
+      _cachedIdleAnimations[characterId] = await _loadTexturePackerAnimation(
+          spriteSheets['idle']!, 0.08, characterId);
+      _cachedWalkingAnimations[characterId] = await _loadTexturePackerAnimation(
+          spriteSheets['walking']!, 0.06, characterId);
 
-      _isLoaded = true;
-      _isLoading = false;
-      _lastLoadTime = DateTime.now();
-      _lastLoadedCharacterId = characterId;
+      _isLoaded[characterId] = true;
+      _isLoading[characterId] = false;
+      _lastLoadTime[characterId] = DateTime.now();
 
       print(
           'CharacterAnimationService: Preload completed successfully for $characterId');
     } catch (e, st) {
-      _isLoading = false;
+      _isLoading[characterId] = false;
+      print('CharacterAnimationService: Preload failed for $characterId: $e');
+      print('Stack trace: $st');
+      rethrow;
+    }
+  }
+
+  /// Verify sprite sheet paths exist
+  Future<bool> _verifySpriteSheetPaths(Map<String, String> spriteSheets) async {
+    try {
+      for (final entry in spriteSheets.entries) {
+        final path = entry.value;
+        print('CharacterAnimationService: Verifying sprite sheet path: $path');
+
+        // Try to read the JSON file to verify it exists
+        await Flame.assets.readFile(path);
+        print('CharacterAnimationService: ✅ Sprite sheet path verified: $path');
+      }
+      return true;
+    } catch (e) {
+      print(
+          'CharacterAnimationService: ❌ Sprite sheet path verification failed: $e');
+      return false;
+    }
+  }
+
+  /// Preload animations for a specific character with provided character data
+  Future<void> preloadAnimationsForCharacterWithData(
+      String characterId, Map<String, dynamic> characterData) async {
+    if (_isLoading[characterId] == true) return;
+
+    _isLoading[characterId] = true;
+    print(
+        'CharacterAnimationService: Starting preload for character: $characterId with data: ${characterData['currentCharacter']}');
+
+    try {
+      // Get sprite sheet paths from the provided character data
+      final spriteSheets =
+          Map<String, String>.from(characterData['spriteSheets'] as Map);
+      _lastLoadedCharacterId[characterId] = characterData['currentCharacter'];
+
+      print(
+          'CharacterAnimationService: Sprite sheets for $characterId: $spriteSheets');
+
+      // Verify sprite sheet paths exist before loading
+      final pathsValid = await _verifySpriteSheetPaths(spriteSheets);
+      if (!pathsValid) {
+        throw Exception(
+            'Sprite sheet paths verification failed for character: $characterId');
+      }
+
+      // Load animations using the character's paths
+      _cachedIdleAnimations[characterId] = await _loadTexturePackerAnimation(
+          spriteSheets['idle']!, 0.08, characterId);
+      _cachedWalkingAnimations[characterId] = await _loadTexturePackerAnimation(
+          spriteSheets['walking']!, 0.06, characterId);
+
+      _isLoaded[characterId] = true;
+      _isLoading[characterId] = false;
+      _lastLoadTime[characterId] = DateTime.now();
+
+      print(
+          'CharacterAnimationService: Preload completed successfully for $characterId (${characterData['currentCharacter']})');
+    } catch (e, st) {
+      _isLoading[characterId] = false;
       print('CharacterAnimationService: Preload failed for $characterId: $e');
       print('Stack trace: $st');
       rethrow;
@@ -112,8 +163,8 @@ class CharacterAnimationService {
     print(
         'CharacterAnimationService: Reloading animations for current character...');
 
-    // Clear existing cache
-    clearCache();
+    // Clear existing cache for current user
+    clearCacheForCharacter('current_user');
 
     // Load new animations
     await preloadAnimations();
@@ -121,12 +172,12 @@ class CharacterAnimationService {
 
   /// Check if animations need to be reloaded (character changed)
   Future<bool> needsReload() async {
-    if (!_isLoaded) return true;
+    if (!(_isLoaded['current_user'] ?? false)) return true;
 
     try {
       final currentCharacter =
           await _characterDataService.getCurrentCharacter();
-      return _lastLoadedCharacterId != currentCharacter;
+      return _lastLoadedCharacterId['current_user'] != currentCharacter;
     } catch (e) {
       print('CharacterAnimationService: Error checking if reload needed: $e');
       return true;
@@ -143,30 +194,56 @@ class CharacterAnimationService {
 
   /// Load a single animation with memory optimization
   Future<SpriteAnimation> _loadTexturePackerAnimation(
-      String jsonPath, double stepTime) async {
+      String jsonPath, double stepTime, String characterId) async {
     try {
-      print('CharacterAnimationService: Loading animation from: $jsonPath');
+      print(
+          'CharacterAnimationService: Loading animation from: $jsonPath for character: $characterId');
 
       // Load JSON first
+      print('CharacterAnimationService: Reading JSON file: $jsonPath');
       final jsonStr = await Flame.assets.readFile(jsonPath);
+      print(
+          'CharacterAnimationService: JSON file read successfully, length: ${jsonStr.length}');
+
       final Map<String, dynamic> data = json.decode(jsonStr);
       final Map<String, dynamic> frames = data['frames'];
+      print(
+          'CharacterAnimationService: Parsed JSON, found ${frames.length} frames');
 
-      // Load image with caching
+      // Load image with caching per character
       final String imageName = data['meta']['image'];
+      print('CharacterAnimationService: Image name from JSON: $imageName');
+
       ui.Image image;
 
-      if (jsonPath.contains('idle') && _cachedIdleImage != null) {
-        image = _cachedIdleImage!;
-      } else if (jsonPath.contains('walking') && _cachedWalkingImage != null) {
-        image = _cachedWalkingImage!;
+      final idleImageKey = '${characterId}_idle_$imageName';
+      final walkingImageKey = '${characterId}_walking_$imageName';
+
+      if (jsonPath.contains('idle') &&
+          _cachedIdleImages.containsKey(idleImageKey)) {
+        image = _cachedIdleImages[idleImageKey]!;
+        print(
+            'CharacterAnimationService: Using cached idle image for $characterId');
+      } else if (jsonPath.contains('walking') &&
+          _cachedWalkingImages.containsKey(walkingImageKey)) {
+        image = _cachedWalkingImages[walkingImageKey]!;
+        print(
+            'CharacterAnimationService: Using cached walking image for $characterId');
       } else {
+        print('CharacterAnimationService: Loading image: $imageName');
         image = await Flame.images.load(imageName);
-        // Cache the image
+        print(
+            'CharacterAnimationService: Image loaded successfully, size: ${image.width}x${image.height}');
+
+        // Cache the image per character
         if (jsonPath.contains('idle')) {
-          _cachedIdleImage = image;
+          _cachedIdleImages[idleImageKey] = image;
+          print(
+              'CharacterAnimationService: Cached idle image for $characterId');
         } else if (jsonPath.contains('walking')) {
-          _cachedWalkingImage = image;
+          _cachedWalkingImages[walkingImageKey] = image;
+          print(
+              'CharacterAnimationService: Cached walking image for $characterId');
         }
       }
 
@@ -174,6 +251,7 @@ class CharacterAnimationService {
       final frameKeys = frames.keys.toList()..sort();
 
       // Create sprites with reduced memory footprint
+      print('CharacterAnimationService: Creating ${frameKeys.length} sprites');
       for (final frameKey in frameKeys) {
         final frame = frames[frameKey]['frame'];
         final sprite = Sprite(
@@ -185,88 +263,127 @@ class CharacterAnimationService {
       }
 
       print(
-          'CharacterAnimationService: Loaded ${spriteList.length} frames for $jsonPath');
+          'CharacterAnimationService: Loaded ${spriteList.length} frames for $jsonPath (character: $characterId)');
       return SpriteAnimation.spriteList(spriteList, stepTime: stepTime);
     } catch (e, st) {
       print(
-          'CharacterAnimationService: Error loading animation from $jsonPath: $e');
-      print('Stack trace: $st');
+          'CharacterAnimationService: Error loading animation from $jsonPath for character $characterId: $e');
+      print('CharacterAnimationService: Stack trace: $st');
       rethrow;
     }
   }
 
   /// Get animations - returns cached versions if available, auto-reloads if character changed
   Future<Map<String, SpriteAnimation>> getAnimations() async {
-    // Check if we need to reload due to character change
-    if (await needsReload()) {
+    return getAnimationsForCharacter('current_user');
+  }
+
+  /// Get animations for a specific character
+  Future<Map<String, SpriteAnimation>> getAnimationsForCharacter(
+      String characterId) async {
+    // Check if we need to reload due to character change (only for current user)
+    if (characterId == 'current_user' && await needsReload()) {
       print(
           'CharacterAnimationService: Character changed, reloading animations...');
       await reloadAnimationsForCurrentCharacter();
     }
 
-    if (_isLoaded) {
+    if (_isLoaded[characterId] ?? false) {
       return {
-        'idle': _cachedIdleAnimation!,
-        'walking': _cachedWalkingAnimation!,
+        'idle': _cachedIdleAnimations[characterId]!,
+        'walking': _cachedWalkingAnimations[characterId]!,
       };
     }
 
-    // If not loaded, load them now
-    await preloadAnimations();
-    return {
-      'idle': _cachedIdleAnimation!,
-      'walking': _cachedWalkingAnimation!,
-    };
+    // If not loaded, this is an error for opponent characters
+    // They should be preloaded before calling this method
+    throw StateError(
+        'Animations not loaded for character: $characterId. Call preloadAnimationsForCharacterWithData first.');
   }
 
   /// Wait for animations to be loaded (useful for UI)
   Future<void> waitForLoad() async {
-    // Check if we need to reload due to character change
-    if (await needsReload()) {
+    await waitForLoadForCharacter('current_user');
+  }
+
+  /// Wait for animations to be loaded for a specific character
+  Future<void> waitForLoadForCharacter(String characterId) async {
+    // Check if we need to reload due to character change (only for current user)
+    if (characterId == 'current_user' && await needsReload()) {
       print(
           'CharacterAnimationService: Character changed during wait, reloading...');
       await reloadAnimationsForCurrentCharacter();
       return;
     }
 
-    if (_isLoaded) return;
+    if (_isLoaded[characterId] ?? false) return;
 
-    while (_isLoading) {
+    while (_isLoading[characterId] == true) {
       await Future.delayed(const Duration(milliseconds: 50));
     }
 
-    if (!_isLoaded) {
-      await preloadAnimations();
+    if (!(_isLoaded[characterId] ?? false)) {
+      if (characterId == 'current_user') {
+        await preloadAnimations();
+      } else {
+        throw StateError(
+            'Animations not loaded for character: $characterId. Call preloadAnimationsForCharacterWithData first.');
+      }
     }
   }
 
   /// Get loading progress (0.0 to 1.0)
   double get loadingProgress {
-    if (_isLoaded) return 1.0;
-    if (!_isLoading) return 0.0;
+    if (_isLoaded['current_user'] ?? false) return 1.0;
+    if (!(_isLoading['current_user'] ?? false)) return 0.0;
     return 0.5;
   }
 
   /// Clear cache with proper disposal
   void clearCache() {
-    // Clear references (SpriteAnimation doesn't have dispose method)
-    _cachedIdleAnimation = null;
-    _cachedWalkingAnimation = null;
-    _cachedIdleImage = null;
-    _cachedWalkingImage = null;
-    _isLoaded = false;
-    _isLoading = false;
-    _lastLoadTime = null;
-    _lastLoadedCharacterId = null;
+    clearCacheForCharacter('current_user');
+  }
 
-    // Force garbage collection
-    print('CharacterAnimationService: Cache cleared and disposed');
+  /// Clear cache for a specific character
+  void clearCacheForCharacter(String characterId) {
+    // Clear references (SpriteAnimation doesn't have dispose method)
+    _cachedIdleAnimations.remove(characterId);
+    _cachedWalkingAnimations.remove(characterId);
+    _isLoaded[characterId] = false;
+    _isLoading[characterId] = false;
+    _lastLoadTime.remove(characterId);
+    _lastLoadedCharacterId.remove(characterId);
+
+    // Clear associated images
+    final keysToRemove = <String>[];
+    for (final key in _cachedIdleImages.keys) {
+      if (key.startsWith('${characterId}_')) {
+        keysToRemove.add(key);
+      }
+    }
+    for (final key in keysToRemove) {
+      _cachedIdleImages.remove(key);
+    }
+
+    keysToRemove.clear();
+    for (final key in _cachedWalkingImages.keys) {
+      if (key.startsWith('${characterId}_')) {
+        keysToRemove.add(key);
+      }
+    }
+    for (final key in keysToRemove) {
+      _cachedWalkingImages.remove(key);
+    }
+
+    print(
+        'CharacterAnimationService: Cache cleared for character: $characterId');
   }
 
   /// Check if cache is stale (older than specified duration)
   bool isCacheStale(Duration maxAge) {
-    if (_lastLoadTime == null) return true;
-    return DateTime.now().difference(_lastLoadTime!) > maxAge;
+    final lastLoad = _lastLoadTime['current_user'];
+    if (lastLoad == null) return true;
+    return DateTime.now().difference(lastLoad) > maxAge;
   }
 
   /// Refresh cache if stale
@@ -297,8 +414,9 @@ class CharacterAnimationService {
 
   /// Check memory usage and cleanup if needed
   void checkMemoryUsage() {
-    if (_lastLoadTime != null) {
-      final age = DateTime.now().difference(_lastLoadTime!);
+    final lastLoad = _lastLoadTime['current_user'];
+    if (lastLoad != null) {
+      final age = DateTime.now().difference(lastLoad);
       if (age.inMinutes > 5) {
         print('CharacterAnimationService: Cache is old, cleaning up...');
         clearCache();
@@ -316,11 +434,6 @@ class CharacterAnimationService {
 
   /// Get current character ID that animations are loaded for
   String? getCurrentLoadedCharacterId() {
-    return _lastLoadedCharacterId;
-  }
-
-  /// Check if animations are loaded for a specific character
-  bool isLoadedForCharacter(String characterId) {
-    return _isLoaded && _lastLoadedCharacterId == characterId;
+    return _lastLoadedCharacterId['current_user'];
   }
 }

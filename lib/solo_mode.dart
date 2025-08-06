@@ -442,10 +442,17 @@ class _SoloModeState extends State<SoloMode> {
         if (isInRange && alreadyShown && !isInGame && boardExists) {
           print(
               '🔧 FORCE ADDING: $milestone milestone should be visible but not in game');
-          _game!.add(_game!.milestoneBoards[milestone]!);
-          print('✅ FORCE ADDED: $milestone milestone to game');
 
-          // Ensure character stays on top
+          final board = _game!.milestoneBoards[milestone]!;
+
+          // Force priority reset to ensure proper rendering
+          board.priority = 2; // Ensure it's above background layers
+
+          // Use addAll for proper batching in Flame
+          _game!.addAll([board]);
+          print('✅ FORCE ADDED: $milestone milestone to game with addAll()');
+
+          // Ensure character stays on top by re-adding it
           if (_game?.character != null) {
             _game!.remove(_game!.character!);
             _game!.add(_game!.character!);
@@ -502,13 +509,19 @@ class _SoloModeState extends State<SoloMode> {
             // Mark milestone as shown in SharedPreferences
             await MilestoneHelper.markAsShown(milestone);
 
-            // Add the milestone board to the game immediately
+            // Add the milestone board to the game immediately using addAll for proper batching
             if (_game?.milestoneBoards[milestone] != null) {
-              _game!.add(_game!.milestoneBoards[milestone]!);
-              print(
-                  '✅ REAL-TIME: $milestone milestone board added to game immediately');
+              final board = _game!.milestoneBoards[milestone]!;
 
-              // Ensure character stays on top
+              // Force priority reset to ensure proper rendering
+              board.priority = 2; // Ensure it's above background layers
+
+              // Use addAll for proper batching in Flame
+              _game!.addAll([board]);
+              print(
+                  '✅ REAL-TIME: $milestone milestone board added to game with addAll()');
+
+              // Ensure character stays on top by re-adding it
               if (_game?.character != null) {
                 _game!.remove(_game!.character!);
                 _game!.add(_game!.character!);
@@ -556,12 +569,19 @@ class _SoloModeState extends State<SoloMode> {
           // Mark milestone as shown in SharedPreferences
           await MilestoneHelper.markAsShown(currentMilestone);
 
-          // Add the milestone board to the game
+          // Add the milestone board to the game using addAll for proper batching
           if (_game?.milestoneBoards[currentMilestone] != null) {
-            _game!.add(_game!.milestoneBoards[currentMilestone]!);
-            print('✅ $currentMilestone milestone board added to game');
+            final board = _game!.milestoneBoards[currentMilestone]!;
 
-            // Ensure character stays on top
+            // Force priority reset to ensure proper rendering
+            board.priority = 2; // Ensure it's above background layers
+
+            // Use addAll for proper batching in Flame
+            _game!.addAll([board]);
+            print(
+                '✅ $currentMilestone milestone board added to game with addAll()');
+
+            // Ensure character stays on top by re-adding it
             if (_game?.character != null) {
               _game!.remove(_game!.character!);
               _game!.add(_game!.character!);
@@ -770,9 +790,15 @@ class _SoloModeState extends State<SoloMode> {
           print(
               '🔄 RESTORING: $threshold milestone (reached, shown, and in range)');
 
-          // Add the milestone board back to the game
-          _game!.add(_game!.milestoneBoards[threshold]!);
-          print('✅ $threshold milestone board restored to game');
+          // Add the milestone board back to the game using addAll for proper batching
+          final board = _game!.milestoneBoards[threshold]!;
+
+          // Force priority reset to ensure proper rendering
+          board.priority = 2; // Ensure it's above background layers
+
+          // Use addAll for proper batching in Flame
+          _game!.addAll([board]);
+          print('✅ $threshold milestone board restored to game with addAll()');
         } else if (hasReached && isShown && !isInRange && isInGame) {
           // Remove milestone if it's out of range but still in game
           print(

@@ -82,22 +82,70 @@ class CharacterDataService {
   Future<Map<String, dynamic>> getCurrentUserCharacterData() async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return _getDefaultCharacterData();
+      if (user == null) {
+        print('🎭 CharacterDataService: No current user, using default');
+        return _getDefaultCharacterData();
+      }
 
+      print(
+          '🎭 CharacterDataService: Getting character data for current user: ${user.uid}');
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) return _getDefaultCharacterData();
+      if (!userDoc.exists) {
+        print(
+            '🎭 CharacterDataService: Current user document does not exist, using default');
+        return _getDefaultCharacterData();
+      }
 
       final userData = userDoc.data()!;
-      return {
-        'owned_items':
-            List<String>.from(userData['owned_items'] ?? ['MyCharacter']),
-        'currentCharacter': userData['currentCharacter'] ?? 'MyCharacter',
+      print('🎭 CharacterDataService: Raw current user data: $userData');
+
+      // Handle the type conversion issue
+      List<String> ownedItems;
+      if (userData['owned_items'] is List) {
+        ownedItems =
+            List<String>.from(userData['owned_items'] ?? ['MyCharacter']);
+      } else {
+        print(
+            '🎭 CharacterDataService: owned_items is not a List, using default');
+        ownedItems = ['MyCharacter'];
+      }
+
+      // Ensure currentCharacter is a string
+      String currentCharacter;
+      if (userData['currentCharacter'] is String) {
+        currentCharacter = userData['currentCharacter'] ?? 'MyCharacter';
+      } else {
+        print(
+            '🎭 CharacterDataService: currentCharacter is not a String, using default');
+        currentCharacter = 'MyCharacter';
+      }
+
+      // Get sprite sheets with proper fallback
+      Map<String, String> userSpriteSheets;
+      if (userData['spriteSheets'] is Map) {
+        userSpriteSheets = Map<String, String>.from(
+            userData['spriteSheets'] ?? spriteSheets['MyCharacter']!);
+      } else {
+        print(
+            '🎭 CharacterDataService: spriteSheets is not a Map, using default');
+        userSpriteSheets = spriteSheets['MyCharacter']!;
+      }
+
+      final result = {
+        'owned_items': ownedItems,
+        'currentCharacter': currentCharacter,
         'homeGlbPath':
             userData['homeGlbPath'] ?? characterHomeGlbPaths['MyCharacter'],
-        'spriteSheets': userData['spriteSheets'] ?? spriteSheets['MyCharacter'],
+        'spriteSheets': userSpriteSheets,
       };
+
+      print(
+          '🎭 CharacterDataService: Processed current user character data: $result');
+      return result;
     } catch (e) {
-      print('❌ Error getting character data: $e');
+      print(
+          '❌ CharacterDataService: Error getting current user character data: $e');
+      print('❌ CharacterDataService: Stack trace: ${StackTrace.current}');
       return _getDefaultCharacterData();
     }
   }
@@ -105,20 +153,63 @@ class CharacterDataService {
   /// Get character data for a specific user
   Future<Map<String, dynamic>> getUserCharacterData(String userId) async {
     try {
+      print(
+          '🎭 CharacterDataService: Getting character data for user: $userId');
       final userDoc = await _firestore.collection('users').doc(userId).get();
-      if (!userDoc.exists) return _getDefaultCharacterData();
+      if (!userDoc.exists) {
+        print(
+            '🎭 CharacterDataService: User document does not exist, using default');
+        return _getDefaultCharacterData();
+      }
 
       final userData = userDoc.data()!;
-      return {
-        'owned_items':
-            List<String>.from(userData['owned_items'] ?? ['MyCharacter']),
-        'currentCharacter': userData['currentCharacter'] ?? 'MyCharacter',
+      print('🎭 CharacterDataService: Raw user data: $userData');
+
+      // Handle the type conversion issue
+      List<String> ownedItems;
+      if (userData['owned_items'] is List) {
+        ownedItems =
+            List<String>.from(userData['owned_items'] ?? ['MyCharacter']);
+      } else {
+        print(
+            '🎭 CharacterDataService: owned_items is not a List, using default');
+        ownedItems = ['MyCharacter'];
+      }
+
+      // Ensure currentCharacter is a string
+      String currentCharacter;
+      if (userData['currentCharacter'] is String) {
+        currentCharacter = userData['currentCharacter'] ?? 'MyCharacter';
+      } else {
+        print(
+            '🎭 CharacterDataService: currentCharacter is not a String, using default');
+        currentCharacter = 'MyCharacter';
+      }
+
+      // Get sprite sheets with proper fallback
+      Map<String, String> userSpriteSheets;
+      if (userData['spriteSheets'] is Map) {
+        userSpriteSheets = Map<String, String>.from(
+            userData['spriteSheets'] ?? spriteSheets['MyCharacter']!);
+      } else {
+        print(
+            '🎭 CharacterDataService: spriteSheets is not a Map, using default');
+        userSpriteSheets = spriteSheets['MyCharacter']!;
+      }
+
+      final result = {
+        'owned_items': ownedItems,
+        'currentCharacter': currentCharacter,
         'homeGlbPath':
             userData['homeGlbPath'] ?? characterHomeGlbPaths['MyCharacter'],
-        'spriteSheets': userData['spriteSheets'] ?? spriteSheets['MyCharacter'],
+        'spriteSheets': userSpriteSheets,
       };
+
+      print('🎭 CharacterDataService: Processed character data: $result');
+      return result;
     } catch (e) {
-      print('❌ Error getting user character data: $e');
+      print('❌ CharacterDataService: Error getting user character data: $e');
+      print('❌ CharacterDataService: Stack trace: ${StackTrace.current}');
       return _getDefaultCharacterData();
     }
   }

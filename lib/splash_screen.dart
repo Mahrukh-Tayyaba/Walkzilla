@@ -24,49 +24,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeVideo() async {
-    try {
-      _videoController =
-          VideoPlayerController.asset('assets/videos/splash-screen.mp4');
+    // Skip video for now to prevent emulator crashes
+    if (mounted) {
+      setState(() {
+        _hasError = true;
+      });
 
-      await _videoController!.initialize();
-
-      if (mounted) {
-        setState(() {
-          _isVideoInitialized = true;
-        });
-
-        // Start playing the video
-        await _videoController!.play();
-
-        // Listen for video completion
-        _videoController!.addListener(() {
-          if (_videoController!.value.position >=
-              _videoController!.value.duration) {
-            _navigateToNextScreen();
-          }
-        });
-
-        // Fallback: navigate after 5 seconds if video doesn't complete
-        Future.delayed(const Duration(seconds: 5), () {
-          if (mounted && !_isNavigating) {
-            _navigateToNextScreen();
-          }
-        });
-      }
-    } catch (e) {
-      print('Error initializing video: $e');
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-        });
-
-        // Fallback to static splash with delay
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted && !_isNavigating) {
-            _navigateToNextScreen();
-          }
-        });
-      }
+      // Navigate after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && !_isNavigating) {
+          _navigateToNextScreen();
+        }
+      });
     }
   }
 
