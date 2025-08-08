@@ -77,7 +77,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
       // Finally, refresh with current step data
       await _refreshStreakData();
     } catch (e) {
-      print("❌ Error loading and refreshing streak data: $e");
+      debugPrint("❌ Error loading and refreshing streak data: $e");
     }
   }
 
@@ -105,20 +105,23 @@ class _StreaksScreenState extends State<StreaksScreen> {
             startOfYesterday, endOfYesterday);
         yesterdaySteps = yesterdayData;
       } catch (e) {
-        print("❌ Could not fetch yesterday's steps: $e");
+        debugPrint("❌ Could not fetch yesterday's steps: $e");
       }
 
-      print("🔄 Streaks screen - refreshing streak data");
-      print(
+      debugPrint("🔄 Streaks screen - refreshing streak data");
+      debugPrint(
           "📊 Today's steps: $todaySteps, Yesterday's steps: $yesterdaySteps, Goal: $goalSteps");
+
+      // Get the goal set date from StepGoalProvider
+      final goalSetDate = stepGoalProvider.getGoalSetDateForCurrentMonth();
 
       // Use the enhanced method from streak provider
       await streakProvider.checkAndUpdateStreakWithYesterday(
-          todaySteps, yesterdaySteps, goalSteps);
+          todaySteps, yesterdaySteps, goalSteps, goalSetDate);
 
-      print("✅ Streak data refreshed in streaks screen");
+      debugPrint("✅ Streak data refreshed in streaks screen");
     } catch (e) {
-      print("❌ Error refreshing streak data in streaks screen: $e");
+      debugPrint("❌ Error refreshing streak data in streaks screen: $e");
     }
   }
 
@@ -127,12 +130,17 @@ class _StreaksScreenState extends State<StreaksScreen> {
     final streakProvider = Provider.of<StreakProvider>(context);
     final int currentStreak = streakProvider.currentStreak;
     final int longestStreak = streakProvider.bestStreak;
-    final List<DateTime> streakDates = streakProvider.goalMetDays.toList();
 
-    // Debug: Print streak dates
-    print(
-        "📅 Streak dates: ${streakDates.map((d) => '${d.month}/${d.day}').toList()}");
-    print("🔥 Current streak: $currentStreak, Best streak: $longestStreak");
+    // Get goal met days for the displayed month
+    final List<DateTime> streakDates = streakProvider
+        .getGoalMetDaysForMonth(_displayedMonth.year, _displayedMonth.month)
+        .toList();
+
+    // Debug: Print streak dates for displayed month
+    debugPrint(
+        "📅 Streak dates for ${_displayedMonth.month}/${_displayedMonth.year}: ${streakDates.map((d) => '${d.month}/${d.day}').toList()}");
+    debugPrint(
+        "🔥 Current streak: $currentStreak, Best streak: $longestStreak");
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -194,7 +202,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                 border: Border.all(color: Colors.grey.shade200, width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withAlpha((0.04 * 255).round()),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -264,42 +272,83 @@ class _StreaksScreenState extends State<StreaksScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              DateFormat('MMMM yyyy').format(month),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: () {
-                    setState(() {
-                      _displayedMonth = DateTime(
-                        _displayedMonth.year,
-                        _displayedMonth.month - 1,
-                      );
-                    });
-                  },
+                Text(
+                  DateFormat('MMMM yyyy').format(month),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: () {
-                    setState(() {
-                      _displayedMonth = DateTime(
-                        _displayedMonth.year,
-                        _displayedMonth.month + 1,
-                      );
-                    });
-                  },
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () {
+                        setState(() {
+                          _displayedMonth = DateTime(
+                            _displayedMonth.year,
+                            _displayedMonth.month - 1,
+                          );
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () {
+                        setState(() {
+                          _displayedMonth = DateTime(
+                            _displayedMonth.year,
+                            _displayedMonth.month + 1,
+                          );
+                        });
+                      },
+                    ),
+                  ],
                 ),
               ],
+            ),
+            const SizedBox(height: 4),
+            // Show goal for the displayed month
+            Builder(
+              builder: (context) {
+                final stepGoalProvider =
+                    Provider.of<StepGoalProvider>(context, listen: false);
+                final monthKey =
+                    '${month.year}-${month.month.toString().padLeft(2, '0')}';
+                final goalForMonth =
+                    stepGoalProvider.getGoalForMonth(month.year, month.month);
+
+                if (goalForMonth != 10000) {
+                  // If a custom goal is set for this month
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      'Goal: ${goalForMonth.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")} steps',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  );
+                } else {
+                  return const SizedBox
+                      .shrink(); // Don't show anything if no custom goal
+                }
+              },
             ),
           ],
         ),
@@ -354,10 +403,10 @@ class _StreaksScreenState extends State<StreaksScreen> {
                     // Flame-like shape for streak days
                     borderRadius: isStreak
                         ? BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(2),
-                            bottomLeft: Radius.circular(2),
-                            bottomRight: Radius.circular(16),
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(2),
+                            bottomLeft: const Radius.circular(2),
+                            bottomRight: const Radius.circular(16),
                           )
                         : BorderRadius.circular(8),
                     // Add gradient for streak days
@@ -375,7 +424,8 @@ class _StreaksScreenState extends State<StreaksScreen> {
                     boxShadow: isStreak
                         ? [
                             BoxShadow(
-                              color: Colors.orange.withOpacity(0.3),
+                              color:
+                                  Colors.orange.withAlpha((0.3 * 255).round()),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -404,6 +454,212 @@ class _StreaksScreenState extends State<StreaksScreen> {
     );
   }
 
+  void _showClearDataDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: const Text(
+            'Clear Streak Data',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          content: const Text(
+            'This will clear all existing streak data and start fresh. This action cannot be undone. Are you sure?',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black54,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _runClearData(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Clear All'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _runClearData(BuildContext context) async {
+    // Store references before async operation
+    final streakProvider = context.read<StreakProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Clearing streak data...'),
+            ],
+          ),
+        ),
+      );
+
+      // Clear data
+      await streakProvider.clearGoalMetDaysAndResetStreaks();
+
+      // Check if widget is still mounted before accessing context
+      if (mounted) {
+        // Close loading dialog
+        navigator.pop();
+
+        // Show success message
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Streak data cleared successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Check if widget is still mounted before accessing context
+      if (mounted) {
+        // Close loading dialog
+        navigator.pop();
+
+        // Show error message
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Error clearing streak data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showMigrationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: const Text(
+            'Restore Streak History',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          content: const Text(
+            'This will analyze your daily step data and restore any missing streak history. This process cannot be undone.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black54,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _runMigration(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Restore'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _runMigration(BuildContext context) async {
+    // Store references before async operation
+    final streakProvider = context.read<StreakProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Restoring streak history...'),
+            ],
+          ),
+        ),
+      );
+
+      // Run migration
+      await streakProvider.triggerStreakMigration();
+
+      // Check if widget is still mounted before accessing context
+      if (mounted) {
+        // Close loading dialog
+        navigator.pop();
+
+        // Show success message
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Streak history restored successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Check if widget is still mounted before accessing context
+      if (mounted) {
+        // Close loading dialog
+        navigator.pop();
+
+        // Show error message
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Error restoring streak history: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showStreakSettingsDialog(BuildContext context) {
     final provider =
         Provider.of<StreakSettingsProvider>(context, listen: false);
@@ -412,6 +668,9 @@ class _StreaksScreenState extends State<StreaksScreen> {
     final settings = provider.settings;
 
     int stepGoal = stepGoalProvider.goalSteps;
+    final now = DateTime.now();
+    final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final hasCurrentGoal = stepGoalProvider.hasCurrentMonthGoal;
 
     showDialog(
       context: context,
@@ -438,7 +697,10 @@ class _StreaksScreenState extends State<StreaksScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.close, size: 22),
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed:
+                              stepGoalProvider.isGoalLockedForCurrentMonth()
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
                           splashRadius: 20,
                         ),
                       ],
@@ -465,6 +727,32 @@ class _StreaksScreenState extends State<StreaksScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.calendar_month,
+                              color: Colors.blue, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Setting goal for ${DateFormat('MMMM yyyy').format(now)}',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -511,20 +799,30 @@ class _StreaksScreenState extends State<StreaksScreen> {
                             children: [
                               InkWell(
                                 borderRadius: BorderRadius.circular(32),
-                                onTap: () {
-                                  setState(() {
-                                    if (stepGoal > 1000) stepGoal -= 1000;
-                                  });
-                                },
+                                onTap: stepGoalProvider
+                                        .isGoalLockedForCurrentMonth()
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          if (stepGoal > 1000) stepGoal -= 1000;
+                                        });
+                                      },
                                 child: Container(
                                   width: 30,
                                   height: 30,
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Color(0xFFF3F4F6),
+                                    color: stepGoalProvider
+                                            .isGoalLockedForCurrentMonth()
+                                        ? Colors.grey.shade200
+                                        : const Color(0xFFF3F4F6),
                                   ),
-                                  child: const Icon(Icons.remove,
-                                      size: 18, color: Color(0xFF6B7280)),
+                                  child: Icon(Icons.remove,
+                                      size: 18,
+                                      color: stepGoalProvider
+                                              .isGoalLockedForCurrentMonth()
+                                          ? Colors.grey.shade400
+                                          : const Color(0xFF6B7280)),
                                 ),
                               ),
                               Expanded(
@@ -542,20 +840,30 @@ class _StreaksScreenState extends State<StreaksScreen> {
                               ),
                               InkWell(
                                 borderRadius: BorderRadius.circular(32),
-                                onTap: () {
-                                  setState(() {
-                                    stepGoal += 1000;
-                                  });
-                                },
+                                onTap: stepGoalProvider
+                                        .isGoalLockedForCurrentMonth()
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          stepGoal += 1000;
+                                        });
+                                      },
                                 child: Container(
                                   width: 30,
                                   height: 30,
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Color(0xFFF3F4F6),
+                                    color: stepGoalProvider
+                                            .isGoalLockedForCurrentMonth()
+                                        ? Colors.grey.shade200
+                                        : const Color(0xFFF3F4F6),
                                   ),
-                                  child: const Icon(Icons.add,
-                                      size: 18, color: Color(0xFF6B7280)),
+                                  child: Icon(Icons.add,
+                                      size: 18,
+                                      color: stepGoalProvider
+                                              .isGoalLockedForCurrentMonth()
+                                          ? Colors.grey.shade400
+                                          : const Color(0xFF6B7280)),
                                 ),
                               ),
                             ],
@@ -568,20 +876,31 @@ class _StreaksScreenState extends State<StreaksScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed:
+                                stepGoalProvider.isGoalLockedForCurrentMonth()
+                                    ? null
+                                    : () => Navigator.of(context).pop(),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              side: const BorderSide(color: Color(0xFFE5E7EB)),
+                              side: BorderSide(
+                                color: stepGoalProvider
+                                        .isGoalLockedForCurrentMonth()
+                                    ? Colors.grey.shade300
+                                    : const Color(0xFFE5E7EB),
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Cancel',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
-                                color: Colors.black,
+                                color: stepGoalProvider
+                                        .isGoalLockedForCurrentMonth()
+                                    ? Colors.grey.shade400
+                                    : Colors.black,
                               ),
                             ),
                           ),
@@ -589,27 +908,51 @@ class _StreaksScreenState extends State<StreaksScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              provider.updateSettings(
-                                StreakSettings(
-                                  stepGoal: stepGoal,
-                                  remindersEnabled: settings.remindersEnabled,
-                                  reminderTime: settings.reminderTime,
-                                ),
-                              );
-                              stepGoalProvider.setGoal(stepGoal);
-                              Navigator.of(context).pop();
-                            },
+                            onPressed: stepGoalProvider
+                                    .isGoalLockedForCurrentMonth()
+                                ? null
+                                : () {
+                                    try {
+                                      provider.updateSettings(
+                                        StreakSettings(
+                                          stepGoal: stepGoal,
+                                          remindersEnabled:
+                                              settings.remindersEnabled,
+                                          reminderTime: settings.reminderTime,
+                                        ),
+                                      );
+                                      stepGoalProvider
+                                          .setCurrentMonthGoal(stepGoal);
+                                      Navigator.of(context).pop();
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(e
+                                              .toString()
+                                              .replaceAll('Exception: ', '')),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF111827),
+                              backgroundColor:
+                                  stepGoalProvider.isGoalLockedForCurrentMonth()
+                                      ? Colors.grey
+                                      : const Color(0xFF111827),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
-                              'Save Goal',
+                            child: Text(
+                              stepGoalProvider.isGoalLockedForCurrentMonth()
+                                  ? 'Goal Set'
+                                  : (hasCurrentGoal
+                                      ? 'Update Goal'
+                                      : 'Save Goal'),
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,

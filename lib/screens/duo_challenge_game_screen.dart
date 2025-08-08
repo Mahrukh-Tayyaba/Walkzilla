@@ -90,7 +90,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
     // Set initialization time and start grace period
     _initializationTime = DateTime.now();
-    print('🏁 DUO CHALLENGE: Initialization started at $_initializationTime');
+    debugPrint(
+        '🏁 DUO CHALLENGE: Initialization started at $_initializationTime');
 
     // Initialize with walking state as false
     _isUserWalking = false;
@@ -117,13 +118,13 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     };
     _characterDataLoaded = true;
 
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE INIT: User fallback sprite sheets: ${_userCharacterData!['spriteSheets']}');
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE INIT: Opponent fallback sprite sheets: ${_opponentCharacterData!['spriteSheets']}');
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE INIT: User character: ${_userCharacterData!['currentCharacter']}');
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE INIT: Opponent character: ${_opponentCharacterData!['currentCharacter']}');
 
     _initializeGame();
@@ -135,7 +136,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         _isInitialized = true;
-        print(
+        debugPrint(
           '🏁 DUO CHALLENGE: Grace period ended, now accepting walking detection',
         );
       }
@@ -154,7 +155,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   void _initializeGame() async {
     // Reset step counter to zero specifically for this challenge
     StepCounterService.resetCounter();
-    print('🔄 DUO CHALLENGE: Step counter reset to zero for challenge start');
+    debugPrint(
+        '🔄 DUO CHALLENGE: Step counter reset to zero for challenge start');
 
     // Check if this is the first player or second player joining
     final docSnapshot = await _firestore
@@ -163,9 +165,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         .get();
 
     if (docSnapshot.exists && docSnapshot.data() != null) {
-      final data = docSnapshot.data() as Map<String, dynamic>?;
+      final data = docSnapshot.data();
       if (data == null) {
-        print('❌ DUO CHALLENGE: Document data is null in _initializeGame');
+        debugPrint('❌ DUO CHALLENGE: Document data is null in _initializeGame');
         return;
       }
 
@@ -178,7 +180,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
       // If game hasn't started yet, this is the first player
       if (!gameStarted) {
-        print('🏁 DUO CHALLENGE: First player joining - initializing game');
+        debugPrint(
+            '🏁 DUO CHALLENGE: First player joining - initializing game');
 
         // Get current device step count for baseline
         final currentDeviceSteps = StepCounterService.currentSteps;
@@ -210,16 +213,17 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           _steps = 0; // Ensure user steps start at zero
           _previousSteps = 0; // Ensure previous steps start at zero
         });
-        print('👥 DUO CHALLENGE: First player - created placeholder opponent');
-        print(
+        debugPrint(
+            '👥 DUO CHALLENGE: First player - created placeholder opponent');
+        debugPrint(
           '👥 DUO CHALLENGE: First player steps reset to 0 for challenge start',
         );
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: First player initial step count: $currentDeviceSteps',
         );
       } else {
         // Game already started, this is the second player joining
-        print(
+        debugPrint(
           '🏁 DUO CHALLENGE: Second player joining - adding to existing game',
         );
 
@@ -250,24 +254,24 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           });
         }
 
-        print(
+        debugPrint(
           '👥 DUO CHALLENGE: Second player steps reset to 0 for challenge start',
         );
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Second player initial step count: $currentDeviceSteps',
         );
 
         // Check if both players are ready to start the match
         final allPlayers = positions.keys.toList();
         if (allPlayers.length >= 2 && !matchStarted) {
-          print('🎮 DUO CHALLENGE: Both players ready - starting match!');
+          debugPrint('🎮 DUO CHALLENGE: Both players ready - starting match!');
           await _startMatch();
         }
       }
 
       // If match is already started, join the ongoing match
       if (matchStarted) {
-        print('🎮 DUO CHALLENGE: Joining ongoing match');
+        debugPrint('🎮 DUO CHALLENGE: Joining ongoing match');
         setState(() {
           _matchStarted = true;
         });
@@ -279,10 +283,10 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       if (otherPlayerId != null && initialSteps.containsKey(otherPlayerId)) {
         _opponentInitialStepCount = (initialSteps[otherPlayerId] ?? 0) as int;
         _opponentRawSteps = (rawSteps[otherPlayerId] ?? 0) as int;
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Loaded opponent initial step count: $_opponentInitialStepCount',
         );
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Loaded opponent raw steps: $_opponentRawSteps',
         );
       }
@@ -312,14 +316,15 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         _steps = 0;
         _previousSteps = 0;
 
-        print(
+        debugPrint(
           '👥 DUO CHALLENGE: Both characters forced to be visible immediately',
         );
-        print(
+        debugPrint(
           '👥 DUO CHALLENGE: User position: $_userPosition, Opponent position: $_opponentPosition',
         );
-        print('👥 DUO CHALLENGE: Other player ID: $_otherPlayerId');
-        print('👥 DUO CHALLENGE: Steps reset to zero for sensor-only tracking');
+        debugPrint('👥 DUO CHALLENGE: Other player ID: $_otherPlayerId');
+        debugPrint(
+            '👥 DUO CHALLENGE: Steps reset to zero for sensor-only tracking');
       });
     }
 
@@ -347,7 +352,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
   // NEW: Start the match when both players are ready
   Future<void> _startMatch() async {
-    print('🎮 DUO CHALLENGE: Starting match with both players!');
+    debugPrint('🎮 DUO CHALLENGE: Starting match with both players!');
 
     await _firestore
         .collection('duo_challenge_invites')
@@ -438,24 +443,24 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     // Show "🏁 Match Starting..." popup for 5 seconds, then start countdown
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
-        print(
+        debugPrint(
           '🎮 DUO CHALLENGE: 5 seconds elapsed - closing "Match Starting..." dialog',
         );
         try {
           Navigator.of(
             context,
           ).pop(); // Close the "🏁 Match Starting..." dialog
-          print(
+          debugPrint(
             '🎮 DUO CHALLENGE: "Match Starting..." dialog closed successfully',
           );
         } catch (e) {
-          print('🎮 DUO CHALLENGE: Error closing match start dialog: $e');
+          debugPrint('🎮 DUO CHALLENGE: Error closing match start dialog: $e');
         }
 
         // Small delay to ensure dialog is fully closed before starting countdown
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted) {
-            print(
+            debugPrint(
               '🎮 DUO CHALLENGE: Starting countdown sequence after dialog close',
             );
 
@@ -474,11 +479,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   // NEW: Start countdown and automatically begin game
   void _startCountdown() {
     if (_countdownCompleted) {
-      print('🎮 DUO CHALLENGE: Countdown already completed, skipping...');
+      debugPrint('🎮 DUO CHALLENGE: Countdown already completed, skipping...');
       return;
     }
 
-    print('🎮 DUO CHALLENGE: Starting countdown sequence...');
+    debugPrint('🎮 DUO CHALLENGE: Starting countdown sequence...');
 
     // Use a clean timer approach to prevent loops
     _runCountdownSequence();
@@ -492,7 +497,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     void showCountdownNumber(int number) {
       if (!mounted || countdownCompleted) return;
 
-      print('🎮 DUO CHALLENGE: Showing countdown number: $number');
+      debugPrint('🎮 DUO CHALLENGE: Showing countdown number: $number');
 
       showDialog(
         context: context,
@@ -534,7 +539,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
     void nextCountdownStep() {
       if (!mounted || countdownCompleted) {
-        print(
+        debugPrint(
           '🎮 DUO CHALLENGE: Countdown step cancelled - widget not mounted or countdown completed',
         );
         return;
@@ -551,11 +556,12 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
             try {
               Navigator.of(context).pop(); // Close current number
             } catch (e) {
-              print('🎮 DUO CHALLENGE: Error closing countdown number: $e');
+              debugPrint(
+                  '🎮 DUO CHALLENGE: Error closing countdown number: $e');
             }
             nextCountdownStep(); // Show next number
           } else {
-            print(
+            debugPrint(
               '🎮 DUO CHALLENGE: Countdown step skipped - widget not mounted or countdown completed',
             );
           }
@@ -563,7 +569,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       } else {
         // Countdown finished, show GO!
         countdownCompleted = true;
-        print('🎮 DUO CHALLENGE: Countdown finished, showing GO!');
+        debugPrint('🎮 DUO CHALLENGE: Countdown finished, showing GO!');
         _showGoMessage();
       }
     }
@@ -574,7 +580,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
   // NEW: Begin the actual game
   void _beginGame() {
-    print('🎮 DUO CHALLENGE: Game officially started!');
+    debugPrint('🎮 DUO CHALLENGE: Game officially started!');
 
     setState(() {
       _showingMatchStartDialog = false;
@@ -582,7 +588,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     });
 
     // Game is now active - both characters should be visible and step tracking enabled
-    print(
+    debugPrint(
       '🎮 DUO CHALLENGE: Game is now active - step tracking and character movement enabled!',
     );
 
@@ -590,14 +596,14 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     _enableStepTracking();
 
     // Final confirmation that countdown sequence is complete
-    print(
+    debugPrint(
       '🎮 DUO CHALLENGE: Countdown sequence completed - game is fully active!',
     );
   }
 
   // NEW: Enable step tracking when game officially starts
   void _enableStepTracking() {
-    print('🎯 DUO CHALLENGE: Step tracking officially enabled!');
+    debugPrint('🎯 DUO CHALLENGE: Step tracking officially enabled!');
 
     // Ensure both characters are visible and ready
     if (mounted) {
@@ -612,12 +618,12 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     _syncCharacterAnimation();
     _syncOpponentCharacterAnimation();
 
-    print('🎯 DUO CHALLENGE: Both characters ready for step tracking!');
+    debugPrint('🎯 DUO CHALLENGE: Both characters ready for step tracking!');
   }
 
   // NEW: Show "GO!" message
   void _showGoMessage() {
-    print('🎮 DUO CHALLENGE: Showing GO! message...');
+    debugPrint('🎮 DUO CHALLENGE: Showing GO! message...');
 
     showDialog(
       context: context,
@@ -659,11 +665,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     // Close after 1 second and start the game
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
-        print('🎮 DUO CHALLENGE: GO! message finished, starting game...');
+        debugPrint('🎮 DUO CHALLENGE: GO! message finished, starting game...');
         try {
           Navigator.of(context).pop();
         } catch (e) {
-          print('🎮 DUO CHALLENGE: Error closing GO! message: $e');
+          debugPrint('🎮 DUO CHALLENGE: Error closing GO! message: $e');
         }
         _beginGame(); // Start the game after "GO!" message
       }
@@ -671,7 +677,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   }
 
   Future<void> _loadExistingGameData() async {
-    print('📊 DUO CHALLENGE: Loading existing game data...');
+    debugPrint('📊 DUO CHALLENGE: Loading existing game data...');
 
     final docSnapshot = await _firestore
         .collection('duo_challenge_invites')
@@ -679,9 +685,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         .get();
 
     if (docSnapshot.exists && docSnapshot.data() != null) {
-      final data = docSnapshot.data() as Map<String, dynamic>?;
+      final data = docSnapshot.data();
       if (data == null) {
-        print(
+        debugPrint(
           '❌ DUO CHALLENGE: Document data is null in _loadExistingGameData',
         );
         return;
@@ -689,8 +695,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
       final positions = (data['positions'] as Map<String, dynamic>?) ?? {};
 
-      print('📊 DUO CHALLENGE: Current positions: $positions');
-      print('📊 DUO CHALLENGE: Current user ID: $_userId');
+      debugPrint('📊 DUO CHALLENGE: Current positions: $positions');
+      debugPrint('📊 DUO CHALLENGE: Current user ID: $_userId');
 
       // Load current user's data first (position only, not steps)
       if (positions.containsKey(_userId)) {
@@ -706,7 +712,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           });
         }
 
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Loaded user data - Position: $userPos, Steps: $_steps (sensor-only)',
         );
       }
@@ -715,14 +721,14 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       final otherPlayerId =
           positions.keys.where((key) => key != _userId).firstOrNull;
 
-      print('📊 DUO CHALLENGE: Found other player ID: $otherPlayerId');
+      debugPrint('📊 DUO CHALLENGE: Found other player ID: $otherPlayerId');
 
       if (otherPlayerId != null) {
         final opponentPos = (positions[otherPlayerId] ?? 200.0);
         // Don't load opponent steps from Firestore - they should start at 0 for challenge
         // final opponentSteps = (steps[otherPlayerId] ?? 0) as int;
 
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Found opponent data - Position: $opponentPos, Steps: 0 (challenge start)',
         );
 
@@ -735,18 +741,18 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           });
         }
 
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Set opponent data - _otherPlayerId: $_otherPlayerId, _opponentPosition: $_opponentPosition, _opponentSteps: $_opponentSteps',
         );
 
         // IMMEDIATE VISIBILITY: Ensure opponent character is immediately visible
-        print(
+        debugPrint(
           '👥 DUO CHALLENGE: Opponent immediately visible on game start with 0 steps!',
         );
       } else {
         // If no real opponent found but we have a placeholder, keep it
         if (_otherPlayerId == 'waiting_for_opponent') {
-          print(
+          debugPrint(
             '📊 DUO CHALLENGE: Keeping placeholder opponent until real opponent joins',
           );
         } else {
@@ -759,13 +765,13 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
               _isOpponentWalking = false;
             });
           }
-          print(
+          debugPrint(
             '📊 DUO CHALLENGE: Created placeholder opponent for immediate display',
           );
         }
       }
     } else {
-      print('📊 DUO CHALLENGE: Document does not exist');
+      debugPrint('📊 DUO CHALLENGE: Document does not exist');
 
       // Fallback: Ensure opponent character is visible even if document doesn't exist
       if (mounted) {
@@ -775,13 +781,14 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           _opponentSteps = 0;
           _isOpponentWalking = false;
         });
-        print('📊 DUO CHALLENGE: Fallback - Created placeholder opponent');
+        debugPrint('📊 DUO CHALLENGE: Fallback - Created placeholder opponent');
       }
     }
   }
 
   Future<void> _ensureBothPlayersVisible() async {
-    print('👥 DUO CHALLENGE: Ensuring both players are visible immediately...');
+    debugPrint(
+        '👥 DUO CHALLENGE: Ensuring both players are visible immediately...');
 
     // Get the latest game data
     final docSnapshot = await _firestore
@@ -790,9 +797,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         .get();
 
     if (docSnapshot.exists && docSnapshot.data() != null) {
-      final data = docSnapshot.data() as Map<String, dynamic>?;
+      final data = docSnapshot.data();
       if (data == null) {
-        print(
+        debugPrint(
           '❌ DUO CHALLENGE: Document data is null in _ensureBothPlayersVisible',
         );
         return;
@@ -814,7 +821,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           });
         }
 
-        print(
+        debugPrint(
           '👥 DUO CHALLENGE: User data confirmed - Position: $userPos, Steps: $_steps (sensor-only)',
         );
       }
@@ -836,10 +843,10 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           });
         }
 
-        print(
+        debugPrint(
           '👥 DUO CHALLENGE: Opponent data confirmed - Position: $opponentPos, Steps: 0 (challenge start)',
         );
-        print('👥 DUO CHALLENGE: BOTH PLAYERS NOW VISIBLE!');
+        debugPrint('👥 DUO CHALLENGE: BOTH PLAYERS NOW VISIBLE!');
       } else {
         // If no opponent yet, ensure placeholder is shown
         if (_otherPlayerId == null ||
@@ -852,11 +859,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
               _isOpponentWalking = false;
             });
           }
-          print(
+          debugPrint(
             '👥 DUO CHALLENGE: Created placeholder opponent for immediate visibility',
           );
         } else {
-          print(
+          debugPrint(
             '👥 DUO CHALLENGE: Placeholder opponent already visible - waiting for real opponent',
           );
         }
@@ -865,7 +872,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   }
 
   void _forceImmediateVisibilityCheck() {
-    print('🔍 DUO CHALLENGE: Force checking immediate visibility...');
+    debugPrint('🔍 DUO CHALLENGE: Force checking immediate visibility...');
 
     // Force a state update to ensure both characters are rendered
     if (mounted) {
@@ -873,13 +880,13 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // This will trigger a rebuild and ensure both characters are visible
       });
 
-      print(
+      debugPrint(
         '🔍 DUO CHALLENGE: Visibility check completed - both characters should be visible',
       );
 
       // Additional check: if opponent is still not visible, force it
       if (_otherPlayerId == null) {
-        print(
+        debugPrint(
           '🚨 DUO CHALLENGE: Opponent still not visible - forcing placeholder',
         );
         if (mounted) {
@@ -895,7 +902,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   }
 
   void _aggressiveVisibilityCheck() {
-    print('🚨 DUO CHALLENGE: AGGRESSIVE visibility check...');
+    debugPrint('🚨 DUO CHALLENGE: AGGRESSIVE visibility check...');
 
     // Force reload game data to ensure both players are visible
     _loadExistingGameData();
@@ -908,7 +915,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       });
     }
 
-    print('🚨 DUO CHALLENGE: Aggressive visibility check completed');
+    debugPrint('🚨 DUO CHALLENGE: Aggressive visibility check completed');
   }
 
   void _startGameStateListener() {
@@ -918,9 +925,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     _gameStateSubscription = docRef.snapshots().listen((snapshot) async {
       if (!snapshot.exists) return;
 
-      final data = snapshot.data() as Map<String, dynamic>?;
+      final data = snapshot.data();
       if (data == null) {
-        print('❌ DUO CHALLENGE: Document data is null');
+        debugPrint('❌ DUO CHALLENGE: Document data is null');
         return;
       }
 
@@ -936,11 +943,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       if (!matchStarted && !_matchStarted) {
         final allPlayers = positions.keys.toList();
         if (allPlayers.length >= 2) {
-          print(
+          debugPrint(
             '🎮 DUO CHALLENGE: Both players detected - starting match automatically!',
           );
-          print('🎮 DUO CHALLENGE: Player count: ${allPlayers.length}');
-          print('🎮 DUO CHALLENGE: Players: $allPlayers');
+          debugPrint('🎮 DUO CHALLENGE: Player count: ${allPlayers.length}');
+          debugPrint('🎮 DUO CHALLENGE: Players: $allPlayers');
           _startMatch();
           return;
         }
@@ -961,7 +968,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
             calculatedOpponentSteps = opponentRawSteps - opponentInitialSteps;
 
             if (calculatedOpponentSteps >= _stepGoal) {
-              print(
+              debugPrint(
                 '😢 DUO CHALLENGE: Opponent reached step goal! Opponent wins!',
               );
               _handleOpponentWin();
@@ -975,7 +982,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       final otherPlayerId =
           positions.keys.where((key) => key != _userId).firstOrNull;
 
-      print(
+      debugPrint(
         '🔍 DUO CHALLENGE: Checking for opponent - found: $otherPlayerId, current: $_otherPlayerId',
       );
 
@@ -993,7 +1000,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           // Update opponent's initial step count if not set locally
           if (_opponentInitialStepCount == null) {
             _opponentInitialStepCount = opponentInitialSteps;
-            print(
+            debugPrint(
               '📊 DUO CHALLENGE: Set opponent initial step count: $_opponentInitialStepCount',
             );
           }
@@ -1002,13 +1009,13 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Update opponent's raw steps
         _opponentRawSteps = opponentRawSteps;
 
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Real-time update - Opponent ID: $otherPlayerId, Position: $opponentPos',
         );
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Opponent raw steps: $opponentRawSteps, initial steps: ${initialSteps[otherPlayerId] ?? 0}',
         );
-        print(
+        debugPrint(
           '📊 DUO CHALLENGE: Calculated opponent challenge steps: $calculatedOpponentSteps',
         );
 
@@ -1017,7 +1024,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
         // Case 1: New opponent joined (different ID)
         if (_otherPlayerId != otherPlayerId) {
-          print(
+          debugPrint(
             '👥 DUO CHALLENGE: NEW OPPONENT JOINED - Making immediately visible!',
           );
           shouldUpdateOpponent = true;
@@ -1027,17 +1034,17 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
           // Ensure character data is loaded before updating state
           if (_opponentCharacterData != null) {
-            print(
+            debugPrint(
                 '✅ DUO CHALLENGE: Opponent character data loaded successfully');
           } else {
-            print(
+            debugPrint(
                 '⚠️ DUO CHALLENGE: Opponent character data failed to load, using fallback');
           }
         }
         // Case 2: Same opponent but data changed
         else if (_opponentPosition != opponentPos ||
             _opponentSteps != calculatedOpponentSteps) {
-          print(
+          debugPrint(
             '📊 DUO CHALLENGE: Existing opponent data changed - Position: $_opponentPosition -> $opponentPos, Steps: $_opponentSteps -> $calculatedOpponentSteps',
           );
           shouldUpdateOpponent = true;
@@ -1045,7 +1052,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Case 3: Same opponent, same data, but not visible (safety check)
         else if (_otherPlayerId == null ||
             _otherPlayerId == 'waiting_for_opponent') {
-          print(
+          debugPrint(
             '🚨 DUO CHALLENGE: Opponent exists but not visible - forcing visibility!',
           );
           shouldUpdateOpponent = true;
@@ -1057,7 +1064,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           if (_otherPlayerId == otherPlayerId &&
               _opponentSteps != calculatedOpponentSteps) {
             opponentIsWalking = calculatedOpponentSteps > _opponentSteps;
-            print(
+            debugPrint(
               '👟 DUO CHALLENGE: Opponent steps changed: $_opponentSteps -> $calculatedOpponentSteps, walking: $opponentIsWalking',
             );
           }
@@ -1083,7 +1090,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           // Update opponent character animation immediately with smooth transitions
           _updateOpponentCharacterAnimation(opponentIsWalking);
 
-          print(
+          debugPrint(
             '👥 DUO CHALLENGE: Opponent now visible with position: $opponentPos, steps: $calculatedOpponentSteps, walking: $opponentIsWalking',
           );
 
@@ -1095,22 +1102,25 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
                   _isOpponentWalking = false;
                 });
                 _updateOpponentCharacterAnimation(false);
-                print(
+                debugPrint(
                   '🎬 DUO CHALLENGE: Opponent walking animation stopped after delay',
                 );
               }
             });
           }
         } else {
-          print('📊 DUO CHALLENGE: Opponent already visible and up-to-date');
+          debugPrint(
+              '📊 DUO CHALLENGE: Opponent already visible and up-to-date');
         }
       } else {
         // No real opponent found, but keep placeholder if it exists
         if (_otherPlayerId == 'waiting_for_opponent') {
-          print('📊 DUO CHALLENGE: No real opponent yet, keeping placeholder');
+          debugPrint(
+              '📊 DUO CHALLENGE: No real opponent yet, keeping placeholder');
         } else if (_otherPlayerId == null) {
           // Create placeholder if no opponent and no placeholder
-          print('📊 DUO CHALLENGE: No opponent found - creating placeholder');
+          debugPrint(
+              '📊 DUO CHALLENGE: No opponent found - creating placeholder');
           setState(() {
             _otherPlayerId = 'waiting_for_opponent';
             _opponentPosition = 200.0;
@@ -1118,13 +1128,13 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
             _isOpponentWalking = false;
           });
         } else {
-          print('📊 DUO CHALLENGE: No opponent found in real-time update');
+          debugPrint('📊 DUO CHALLENGE: No opponent found in real-time update');
         }
       }
 
       // CRITICAL: Always ensure both characters are visible (final safety check)
       if (_otherPlayerId == null) {
-        print(
+        debugPrint(
           '🚨 DUO CHALLENGE: FINAL SAFETY CHECK - Creating placeholder opponent',
         );
         if (mounted) {
@@ -1150,19 +1160,20 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   }
 
   Future<void> _loadOpponentCharacterData(String opponentId) async {
-    print('🎭 DUO CHALLENGE: Loading character data for opponent: $opponentId');
+    debugPrint(
+        '🎭 DUO CHALLENGE: Loading character data for opponent: $opponentId');
 
     try {
       _opponentCharacterData =
           await _characterDataService.getUserCharacterData(opponentId);
-      print(
+      debugPrint(
           '✅ DUO CHALLENGE: Loaded opponent character data: ${_opponentCharacterData!['currentCharacter']}');
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Opponent sprite sheets: ${_opponentCharacterData!['spriteSheets']}');
 
       // Verify the opponent sprite sheets are properly loaded from Firestore
       if (_opponentCharacterData!['spriteSheets'] == null) {
-        print(
+        debugPrint(
             '⚠️ DUO CHALLENGE: Opponent sprite sheets are null, using fallback');
         _opponentCharacterData!['spriteSheets'] = {
           'idle': 'images/sprite_sheets/MyCharacter_idle.json',
@@ -1175,18 +1186,19 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       final opponentCharacterId =
           '${opponentId}_${_opponentCharacterData!['currentCharacter']}';
 
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Preloading opponent animations for ID: $opponentCharacterId');
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Opponent sprite sheets to load: ${_opponentCharacterData!['spriteSheets']}');
 
       await animationService.preloadAnimationsForCharacterWithData(
           opponentCharacterId, _opponentCharacterData!);
-      print(
+      debugPrint(
           '✅ DUO CHALLENGE: Preloaded opponent character animations for ${_opponentCharacterData!['currentCharacter']}');
     } catch (e) {
-      print('❌ DUO CHALLENGE: Error loading opponent character data: $e');
-      print('❌ DUO CHALLENGE: Stack trace: ${StackTrace.current}');
+      debugPrint('❌ DUO CHALLENGE: Error loading opponent character data: $e');
+      debugPrint(
+          '❌ DUO CHALLENGE: Stack trace: ${StackTrace.current.toString()}');
 
       // Use fallback character data
       _opponentCharacterData = {
@@ -1205,15 +1217,15 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       setState(() {
         // Force rebuild to show the new opponent character
       });
-      print('🎭 DUO CHALLENGE: Opponent character data updated in UI');
-      print(
+      debugPrint('🎭 DUO CHALLENGE: Opponent character data updated in UI');
+      debugPrint(
           '🎭 DUO CHALLENGE: Final opponent sprite sheets after update: ${_opponentCharacterData!['spriteSheets']}');
     }
   }
 
   // NEW: Force reload character data if loading fails
   Future<void> _forceReloadCharacterData() async {
-    print('🔄 DUO CHALLENGE: Force reloading character data...');
+    debugPrint('🔄 DUO CHALLENGE: Force reloading character data...');
 
     try {
       // Clear existing data
@@ -1224,14 +1236,15 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       // Reload character data
       await _preloadCharacters();
 
-      print('✅ DUO CHALLENGE: Character data force reload completed');
+      debugPrint('✅ DUO CHALLENGE: Character data force reload completed');
     } catch (e) {
-      print('❌ DUO CHALLENGE: Error in force reload: $e');
+      debugPrint('❌ DUO CHALLENGE: Error in force reload: $e');
     }
   }
 
   Future<void> _preloadCharacters() async {
-    print('🎭 DUO CHALLENGE: Preloading character data for both players...');
+    debugPrint(
+        '🎭 DUO CHALLENGE: Preloading character data for both players...');
 
     // Load current user's character data in background (don't block UI)
     _loadUserCharacterDataInBackground();
@@ -1246,26 +1259,28 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   // Load user character data in background
   Future<void> _loadUserCharacterDataInBackground() async {
     try {
-      print('🎭 DUO CHALLENGE: Loading user character data from Firestore...');
+      debugPrint(
+          '🎭 DUO CHALLENGE: Loading user character data from Firestore...');
       final userData =
           await _characterDataService.getCurrentUserCharacterData();
-      print(
+      debugPrint(
           '✅ DUO CHALLENGE: Loaded user character data: ${userData['currentCharacter']}');
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: User sprite sheets from Firestore: ${userData['spriteSheets']}');
-      print('🎭 DUO CHALLENGE: User owned items: ${userData['owned_items']}');
+      debugPrint(
+          '🎭 DUO CHALLENGE: User owned items: ${userData['owned_items']}');
 
       if (mounted) {
         setState(() {
           _userCharacterData = userData;
         });
-        print('✅ DUO CHALLENGE: Updated user character data in UI');
-        print(
+        debugPrint('✅ DUO CHALLENGE: Updated user character data in UI');
+        debugPrint(
             '🎭 DUO CHALLENGE: Current user sprite sheets in UI: ${_userCharacterData!['spriteSheets']}');
       }
     } catch (e) {
-      print('❌ DUO CHALLENGE: Error loading user character data: $e');
-      print(
+      debugPrint('❌ DUO CHALLENGE: Error loading user character data: $e');
+      debugPrint(
           '🎭 DUO CHALLENGE: Keeping fallback user sprite sheets: ${_userCharacterData!['spriteSheets']}');
       // Keep existing fallback data
     }
@@ -1275,33 +1290,34 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   Future<void> _loadOpponentCharacterDataInBackground() async {
     if (_otherPlayerId != null && _otherPlayerId != 'waiting_for_opponent') {
       try {
-        print(
+        debugPrint(
             '🎭 DUO CHALLENGE: Loading opponent character data from Firestore for ID: $_otherPlayerId');
         final opponentData =
             await _characterDataService.getUserCharacterData(_otherPlayerId!);
-        print(
+        debugPrint(
             '✅ DUO CHALLENGE: Loaded opponent character data: ${opponentData['currentCharacter']}');
-        print(
+        debugPrint(
             '🎭 DUO CHALLENGE: Opponent sprite sheets from Firestore: ${opponentData['spriteSheets']}');
-        print(
+        debugPrint(
             '🎭 DUO CHALLENGE: Opponent owned items: ${opponentData['owned_items']}');
 
         if (mounted) {
           setState(() {
             _opponentCharacterData = opponentData;
           });
-          print('✅ DUO CHALLENGE: Updated opponent character data in UI');
-          print(
+          debugPrint('✅ DUO CHALLENGE: Updated opponent character data in UI');
+          debugPrint(
               '🎭 DUO CHALLENGE: Current opponent sprite sheets in UI: ${_opponentCharacterData!['spriteSheets']}');
         }
       } catch (e) {
-        print('❌ DUO CHALLENGE: Error loading opponent character data: $e');
-        print(
+        debugPrint(
+            '❌ DUO CHALLENGE: Error loading opponent character data: $e');
+        debugPrint(
             '🎭 DUO CHALLENGE: Keeping fallback opponent sprite sheets: ${_opponentCharacterData!['spriteSheets']}');
         // Keep existing fallback data
       }
     } else {
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: No opponent ID available, keeping fallback opponent sprite sheets: ${_opponentCharacterData!['spriteSheets']}');
     }
   }
@@ -1314,46 +1330,46 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       // Preload user character animations
       final userCharacterId =
           '${_userId}_${_userCharacterData!['currentCharacter']}';
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Preloading user animations for ID: $userCharacterId');
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: User sprite sheets for animation: ${_userCharacterData!['spriteSheets']}');
       await animationService.preloadAnimationsForCharacterWithData(
           userCharacterId, _userCharacterData!);
-      print('✅ DUO CHALLENGE: Preloaded user character animations');
+      debugPrint('✅ DUO CHALLENGE: Preloaded user character animations');
 
       // Preload opponent character animations
       final opponentCharacterId =
           '${_otherPlayerId ?? 'opponent'}_${_opponentCharacterData!['currentCharacter']}';
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Preloading opponent animations for ID: $opponentCharacterId');
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Opponent sprite sheets for animation: ${_opponentCharacterData!['spriteSheets']}');
       await animationService.preloadAnimationsForCharacterWithData(
           opponentCharacterId, _opponentCharacterData!);
-      print('✅ DUO CHALLENGE: Preloaded opponent character animations');
+      debugPrint('✅ DUO CHALLENGE: Preloaded opponent character animations');
     } catch (e) {
-      print('❌ DUO CHALLENGE: Error preloading character animations: $e');
-      print(
+      debugPrint('❌ DUO CHALLENGE: Error preloading character animations: $e');
+      debugPrint(
           '🎭 DUO CHALLENGE: User sprite sheets at error: ${_userCharacterData!['spriteSheets']}');
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Opponent sprite sheets at error: ${_opponentCharacterData!['spriteSheets']}');
     }
 
     // Final summary of sprite sheets
-    print('🎭 DUO CHALLENGE: SPRITE SHEET SUMMARY:');
-    print(
+    debugPrint('🎭 DUO CHALLENGE: SPRITE SHEET SUMMARY:');
+    debugPrint(
         '🎭 DUO CHALLENGE: User character: ${_userCharacterData!['currentCharacter']}');
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE: User sprite sheets: ${_userCharacterData!['spriteSheets']}');
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE: Opponent character: ${_opponentCharacterData!['currentCharacter']}');
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE: Opponent sprite sheets: ${_opponentCharacterData!['spriteSheets']}');
   }
 
   void _initializeStepTracking() async {
-    print(
+    debugPrint(
       '🏁 DUO CHALLENGE: Initializing StepCounterService-based step tracking for challenge...',
     );
 
@@ -1377,31 +1393,33 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
           _isUserWalking = false;
         });
       }
-      print('🔄 DUO CHALLENGE: Force reset walking state after initialization');
+      debugPrint(
+          '🔄 DUO CHALLENGE: Force reset walking state after initialization');
 
       // Force character to idle state during initialization
       if (_userGameInstance?.character != null) {
         _userGameInstance!.character!.isWalking = false;
         _userGameInstance!.character!.updateAnimation(false);
-        print('🎬 DUO CHALLENGE: Forced character to idle state');
+        debugPrint('🎬 DUO CHALLENGE: Forced character to idle state');
       }
 
       // Start continuous monitoring for idle detection
       _startContinuousMonitoring();
 
-      print(
+      debugPrint(
         '✅ DUO CHALLENGE: StepCounterService-based step tracking initialized',
       );
-      print('🎯 DUO CHALLENGE: Step goal set to: $_stepGoal steps');
+      debugPrint('🎯 DUO CHALLENGE: Step goal set to: $_stepGoal steps');
     } catch (e) {
-      print('❌ DUO CHALLENGE: Error initializing step tracking: $e');
+      debugPrint('❌ DUO CHALLENGE: Error initializing step tracking: $e');
       // Fallback to periodic polling
       _startPeriodicUpdates();
     }
   }
 
   void _setupStepCounterServiceListener() {
-    print('📱 DUO CHALLENGE: Setting up StepCounterService stream listener...');
+    debugPrint(
+        '📱 DUO CHALLENGE: Setting up StepCounterService stream listener...');
 
     _stepSubscription = StepCounterService.stepStream.listen(
       (data) async {
@@ -1429,17 +1447,17 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
             await _updateStepsInFirestore(); // Firestore sync
           }
 
-          print(
+          debugPrint(
             '🏥 DUO CHALLENGE StepCounterService update: Device Steps: $currentSteps, Challenge Steps: $challengeSteps (Baseline: $_userInitialStepCount)',
           );
         }
       },
       onError: (error) {
-        print('❌ DUO CHALLENGE: Error in step stream: $error');
+        debugPrint('❌ DUO CHALLENGE: Error in step stream: $error');
       },
     );
 
-    print(
+    debugPrint(
       '✅ DUO CHALLENGE: StepCounterService stream listener set up with Firestore baseline tracking',
     );
   }
@@ -1453,7 +1471,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       'rawSteps.$_userId':
           _userRawSteps, // Update raw steps for opponent calculation
     });
-    print(
+    debugPrint(
       '📊 DUO CHALLENGE: Updated steps in Firestore: $_steps (raw: $_userRawSteps)',
     );
   }
@@ -1469,22 +1487,22 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         if (_isUserWalking && _lastStepUpdate != null) {
           final timeSinceLastStep =
               DateTime.now().difference(_lastStepUpdate!).inSeconds;
-          print(
+          debugPrint(
             '🔄 DUO CHALLENGE PERIODIC CHECK: Time since last step: ${timeSinceLastStep}s',
           );
 
           if (timeSinceLastStep >= 5) {
             // Force idle after 5 seconds of no steps (proper idle detection)
-            print(
+            debugPrint(
               '⏰ DUO CHALLENGE PERIODIC 5-SECOND TIMEOUT: No steps for ${timeSinceLastStep}s - FORCING IDLE',
             );
-            print(
+            debugPrint(
               '⏰ DUO CHALLENGE PERIODIC 5-SECOND TIMEOUT: User definitely stopped walking',
             );
             _setWalkingState(false);
             _forceCharacterAnimationSync(); // Force immediate sync
           } else if (timeSinceLastStep >= 7) {
-            print(
+            debugPrint(
               '⚠️ DUO CHALLENGE PERIODIC WARNING: No steps for ${timeSinceLastStep}s - will force idle soon',
             );
           }
@@ -1502,7 +1520,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
               DateTime.now().difference(_lastStepUpdate!).inSeconds;
 
           if (timeSinceLastStep >= 5) {
-            print(
+            debugPrint(
               '⏰ DUO CHALLENGE PERIODIC 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle',
             );
             _setWalkingState(false);
@@ -1520,7 +1538,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (_userGameInstance?.character != null) {
       final characterIsWalking = _userGameInstance!.character!.isWalking;
       if (characterIsWalking != _isUserWalking) {
-        print(
+        debugPrint(
           '🛡️ DUO CHALLENGE Force character state correction: character=$characterIsWalking, should=$_isUserWalking',
         );
         _userGameInstance!.updateWalkingState(_isUserWalking);
@@ -1528,7 +1546,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
       // APPROACH 11: AGGRESSIVE CHARACTER STATE FORCE (like Solo Mode)
       if (_isUserWalking == false && characterIsWalking == true) {
-        print(
+        debugPrint(
           '🚨 DUO CHALLENGE AGGRESSIVE: Character is walking but should be idle - FORCING',
         );
         _userGameInstance!.character!.isWalking = false;
@@ -1553,7 +1571,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (_opponentGameInstance?.character != null) {
       final characterIsWalking = _opponentGameInstance!.character!.isWalking;
       if (characterIsWalking != _isOpponentWalking) {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE OPPONENT SYNC: Character walking ($characterIsWalking) != Opponent walking ($_isOpponentWalking) - FORCING SYNC',
         );
 
@@ -1564,18 +1582,18 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Force animation directly if still not synced
         if (!_isOpponentWalking &&
             _opponentGameInstance!.character!.idleAnimation != null) {
-          print(
+          debugPrint(
             '🎬 DUO CHALLENGE OPPONENT FORCE: Directly setting opponent idle animation',
           );
           _opponentGameInstance!.character!.animation =
               _opponentGameInstance!.character!.idleAnimation;
         }
 
-        print(
+        debugPrint(
           '✅ DUO CHALLENGE OPPONENT SYNC: Opponent character animation synced',
         );
       } else {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE OPPONENT SYNC: Animation already in sync, no update needed',
         );
       }
@@ -1583,7 +1601,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   }
 
   void _startContinuousMonitoring() {
-    print('🔄 DUO CHALLENGE: Starting continuous monitoring system...');
+    debugPrint('🔄 DUO CHALLENGE: Starting continuous monitoring system...');
 
     // Monitor every 1 second for immediate response
     _startFrequentMonitoring();
@@ -1631,12 +1649,12 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (_isUserWalking && _lastStepUpdate != null) {
       final timeSinceLastStep =
           DateTime.now().difference(_lastStepUpdate!).inSeconds;
-      print(
+      debugPrint(
         '⚡ DUO CHALLENGE: FREQUENT CHECK: Time since last step: ${timeSinceLastStep}s',
       );
 
       if (timeSinceLastStep >= 5) {
-        print(
+        debugPrint(
           '⏰ DUO CHALLENGE: FREQUENT 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW',
         );
         _setWalkingState(false);
@@ -1649,7 +1667,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (mounted && _userGameInstance?.character != null) {
       final characterIsWalking = _userGameInstance!.character!.isWalking;
       if (characterIsWalking != _isUserWalking) {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE: FREQUENT SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC',
         );
 
@@ -1660,7 +1678,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Force animation directly if still not synced
         if (!_isUserWalking &&
             _userGameInstance!.character!.idleAnimation != null) {
-          print(
+          debugPrint(
             '🎬 DUO CHALLENGE: FREQUENT FORCE: Directly setting idle animation',
           );
           _userGameInstance!.character!.animation =
@@ -1679,12 +1697,12 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (_isUserWalking && _lastStepUpdate != null) {
       final timeSinceLastStep =
           DateTime.now().difference(_lastStepUpdate!).inSeconds;
-      print(
+      debugPrint(
         '🔄 DUO CHALLENGE: BACKUP CHECK: Time since last step: ${timeSinceLastStep}s',
       );
 
       if (timeSinceLastStep >= 5) {
-        print(
+        debugPrint(
           '⏰ DUO CHALLENGE: BACKUP 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW',
         );
         _setWalkingState(false);
@@ -1696,7 +1714,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (mounted && _userGameInstance?.character != null) {
       final characterIsWalking = _userGameInstance!.character!.isWalking;
       if (characterIsWalking != _isUserWalking) {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE: BACKUP SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC',
         );
 
@@ -1707,7 +1725,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Force animation directly if still not synced
         if (!_isUserWalking &&
             _userGameInstance!.character!.idleAnimation != null) {
-          print(
+          debugPrint(
             '🎬 DUO CHALLENGE: BACKUP FORCE: Directly setting idle animation',
           );
           _userGameInstance!.character!.animation =
@@ -1726,12 +1744,12 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (_isUserWalking && _lastStepUpdate != null) {
       final timeSinceLastStep =
           DateTime.now().difference(_lastStepUpdate!).inSeconds;
-      print(
+      debugPrint(
         '🛡️ DUO CHALLENGE: SAFETY CHECK: Time since last step: ${timeSinceLastStep}s',
       );
 
       if (timeSinceLastStep >= 5) {
-        print(
+        debugPrint(
           '⏰ DUO CHALLENGE: SAFETY 5-SECOND IDLE: No steps for ${timeSinceLastStep}s - FORCING IDLE NOW',
         );
         _setWalkingState(false);
@@ -1743,7 +1761,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (mounted && _userGameInstance?.character != null) {
       final characterIsWalking = _userGameInstance!.character!.isWalking;
       if (characterIsWalking != _isUserWalking) {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE: SAFETY SYNC: Character walking ($characterIsWalking) != User walking ($_isUserWalking) - FORCING SYNC',
         );
 
@@ -1754,7 +1772,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Force animation directly if still not synced
         if (!_isUserWalking &&
             _userGameInstance!.character!.idleAnimation != null) {
-          print(
+          debugPrint(
             '🎬 DUO CHALLENGE: SAFETY FORCE: Directly setting idle animation',
           );
           _userGameInstance!.character!.animation =
@@ -1772,7 +1790,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         });
       }
       walking ? _startCharacterWalking() : _stopCharacterWalking();
-      print(
+      debugPrint(
         walking
             ? '🚶‍♂️ DUO CHALLENGE: User started walking'
             : '🛑 DUO CHALLENGE: User stopped walking',
@@ -1783,7 +1801,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         if (mounted && _userGameInstance?.character != null) {
           final characterIsWalking = _userGameInstance!.character!.isWalking;
           if (characterIsWalking != walking) {
-            print(
+            debugPrint(
               '🛡️ DUO CHALLENGE: Safety check: Character state mismatch, forcing correction',
             );
             _userGameInstance!.updateWalkingState(walking);
@@ -1796,7 +1814,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // When stopping walking, force idle animation immediately
         Future.delayed(const Duration(milliseconds: 50), () {
           if (mounted && _userGameInstance?.character != null) {
-            print('🎬 DUO CHALLENGE: IMMEDIATE: Forcing idle animation');
+            debugPrint('🎬 DUO CHALLENGE: IMMEDIATE: Forcing idle animation');
             _userGameInstance!.character!.updateAnimation(false);
           }
         });
@@ -1806,13 +1824,14 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       if (mounted && _userGameInstance?.character != null) {
         final characterIsWalking = _userGameInstance!.character!.isWalking;
         if (characterIsWalking != walking) {
-          print(
+          debugPrint(
             '🔄 DUO CHALLENGE: Animation mismatch detected, forcing sync to ${walking ? "walking" : "idle"}',
           );
           walking ? _startCharacterWalking() : _stopCharacterWalking();
           _userGameInstance!.character!.updateAnimation(walking);
         } else {
-          print('🎬 DUO CHALLENGE: Animation already correct, no force needed');
+          debugPrint(
+              '🎬 DUO CHALLENGE: Animation already correct, no force needed');
         }
       }
     }
@@ -1851,13 +1870,13 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   void _checkUserWalkingWithTiming(DateTime timestamp) {
     final now = DateTime.now();
 
-    print(
+    debugPrint(
       '🔍 DUO CHALLENGE: Checking walking state: previous=$_previousSteps, current=$_steps, isWalking=$_isUserWalking, initialized=$_isInitialized',
     );
 
     // GRACE PERIOD: Don't detect walking during initialization (like Solo Mode)
     if (!_isInitialized) {
-      print(
+      debugPrint(
         '🎯 DUO CHALLENGE: GRACE PERIOD: Screen not fully initialized, ignoring walking detection',
       );
       return;
@@ -1868,7 +1887,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         _steps >= _stepGoal &&
         !_gameEnded &&
         !_showingWinnerDialog) {
-      print('🏆 DUO CHALLENGE: User reached step goal! User wins!');
+      debugPrint('🏆 DUO CHALLENGE: User reached step goal! User wins!');
       _handleUserWin();
       return;
     }
@@ -1880,7 +1899,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     if (_steps > _previousSteps) {
       shouldBeWalking = true;
       _lastStepUpdate = now;
-      print(
+      debugPrint(
         '🚶‍♂️ DUO CHALLENGE: Steps increased: $_previousSteps -> $_steps, user is walking',
       );
 
@@ -1890,30 +1909,32 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       // APPROACH 23: UPDATE PREVIOUS STEPS WHEN WALKING (like Solo Mode)
       // Update previous steps to current steps for next comparison
       _previousSteps = _steps;
-      print('📊 DUO CHALLENGE: Updated previous steps to: $_previousSteps');
+      debugPrint(
+          '📊 DUO CHALLENGE: Updated previous steps to: $_previousSteps');
     } else {
       // Steps didn't increase - user should be idle
       shouldBeWalking = false;
-      print('🛑 DUO CHALLENGE: Steps unchanged: $_steps, user should be idle');
+      debugPrint(
+          '🛑 DUO CHALLENGE: Steps unchanged: $_steps, user should be idle');
     }
 
     // APPROACH 2: Force state change if different (like Solo Mode)
     if (_isUserWalking != shouldBeWalking) {
-      print(
+      debugPrint(
         '🔄 DUO CHALLENGE: State change needed: $_isUserWalking -> $shouldBeWalking',
       );
       _setWalkingState(shouldBeWalking);
     } else {
-      print('✅ DUO CHALLENGE: State is correct: $_isUserWalking');
+      debugPrint('✅ DUO CHALLENGE: State is correct: $_isUserWalking');
     }
 
     // APPROACH 27: AGGRESSIVE WALKING FORCE (like Solo Mode)
     // If steps are increasing but user is not marked as walking, force it
     if (_steps > _previousSteps && !_isUserWalking) {
-      print(
+      debugPrint(
         '🚨 DUO CHALLENGE: AGGRESSIVE WALKING FORCE: Steps increasing but user not walking - FORCING WALKING',
       );
-      print(
+      debugPrint(
         '🚨 DUO CHALLENGE: AGGRESSIVE WALKING FORCE: $_previousSteps -> $_steps, forcing _isUserWalking = true',
       );
       _setWalkingState(true);
@@ -1922,17 +1943,18 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     // 5-SECOND IDLE DETECTION: Only check timeout if currently walking
     if (_isUserWalking && _lastStepUpdate != null) {
       final timeSinceLastStep = now.difference(_lastStepUpdate!).inSeconds;
-      print('⏰ DUO CHALLENGE: Time since last step: ${timeSinceLastStep}s');
+      debugPrint(
+          '⏰ DUO CHALLENGE: Time since last step: ${timeSinceLastStep}s');
 
       if (timeSinceLastStep >= 5) {
         // Force idle after exactly 5 seconds of no steps
-        print(
+        debugPrint(
           '⏰ DUO CHALLENGE: 5-SECOND TIMEOUT: No steps for ${timeSinceLastStep}s, FORCING IDLE',
         );
         _setWalkingState(false);
         _forceCharacterAnimationSync();
       } else {
-        print(
+        debugPrint(
           '👀 DUO CHALLENGE: MONITORING: ${timeSinceLastStep}s since last step - still in walking window',
         );
       }
@@ -1940,13 +1962,13 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
     // APPROACH 16: DEBUG CHARACTER STATE (like Solo Mode)
     if (_userGameInstance?.character != null) {
-      print(
+      debugPrint(
         '🎬 DUO CHALLENGE: Character state: isWalking=${_userGameInstance!.character!.isWalking}, animation=${_userGameInstance!.character!.animation == _userGameInstance!.character!.walkingAnimation ? "walking" : "idle"}',
       );
 
       // APPROACH 20: FORCE CHARACTER IDLE IF STEPS UNCHANGED (like Solo Mode)
       if (_steps == _previousSteps && _userGameInstance!.character!.isWalking) {
-        print(
+        debugPrint(
           '🚨 DUO CHALLENGE: CHARACTER FORCE: Steps unchanged but character is walking - FORCING IDLE',
         );
         _userGameInstance!.character!.isWalking = false;
@@ -1954,7 +1976,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         if (_userGameInstance!.character!.idleAnimation != null) {
           _userGameInstance!.character!.animation =
               _userGameInstance!.character!.idleAnimation;
-          print('🎬 DUO CHALLENGE: CHARACTER FORCE: Animation set to idle');
+          debugPrint(
+              '🎬 DUO CHALLENGE: CHARACTER FORCE: Animation set to idle');
         }
       }
     }
@@ -1969,7 +1992,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       _gameEnded = true;
     });
 
-    print('🏆 DUO CHALLENGE: User won the challenge!');
+    debugPrint('🏆 DUO CHALLENGE: User won the challenge!');
 
     // Award coins to winner
     const int winnerCoins = 50;
@@ -2005,7 +2028,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       _gameEnded = true;
     });
 
-    print('😢 DUO CHALLENGE: Opponent won the challenge');
+    debugPrint('😢 DUO CHALLENGE: Opponent won the challenge');
 
     // Show loser dialog
     _showLoserDialog();
@@ -2035,7 +2058,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
                 try {
                   Navigator.of(context).pop();
                 } catch (e) {
-                  print('🎮 DUO CHALLENGE: Error closing loser dialog: $e');
+                  debugPrint(
+                      '🎮 DUO CHALLENGE: Error closing loser dialog: $e');
                 }
                 _returnToHome();
               },
@@ -2070,7 +2094,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
                 try {
                   Navigator.of(context).pop();
                 } catch (e) {
-                  print(
+                  debugPrint(
                     '🎮 DUO CHALLENGE: Error closing quit confirmation dialog: $e',
                   );
                 }
@@ -2085,7 +2109,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
                 try {
                   Navigator.of(context).pop();
                 } catch (e) {
-                  print(
+                  debugPrint(
                     '🎮 DUO CHALLENGE: Error closing quit confirmation dialog: $e',
                   );
                 }
@@ -2105,7 +2129,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
   // NEW: Handle user quit
   Future<void> _handleUserQuit() async {
-    print('🚪 DUO CHALLENGE: User quit the challenge');
+    debugPrint('🚪 DUO CHALLENGE: User quit the challenge');
 
     // Award coins to opponent
     const int winnerCoins = 50;
@@ -2148,7 +2172,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
                 try {
                   Navigator.of(context).pop();
                 } catch (e) {
-                  print(
+                  debugPrint(
                     '🎮 DUO CHALLENGE: Error closing quit confirmation dialog: $e',
                   );
                 }
@@ -2167,12 +2191,12 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     try {
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
-      print('🎮 DUO CHALLENGE: Error returning to home: $e');
+      debugPrint('🎮 DUO CHALLENGE: Error returning to home: $e');
       // Fallback: try to pop once
       try {
         Navigator.of(context).pop();
       } catch (e2) {
-        print('🎮 DUO CHALLENGE: Error with fallback pop: $e2');
+        debugPrint('🎮 DUO CHALLENGE: Error with fallback pop: $e2');
       }
     }
   }
@@ -2180,7 +2204,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   void _forceCharacterAnimationSync() {
     // APPROACH 8: Force immediate character animation sync (like Solo Mode)
     if (_userGameInstance?.character != null) {
-      print('🔄 DUO CHALLENGE: FORCING character animation sync to IDLE');
+      debugPrint('🔄 DUO CHALLENGE: FORCING character animation sync to IDLE');
 
       // APPROACH 37: ULTRA AGGRESSIVE CHARACTER FORCE (like Solo Mode)
       _userGameInstance!.character!.isWalking = false;
@@ -2189,14 +2213,14 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
       // Force idle animation directly
       if (_userGameInstance!.character!.idleAnimation != null) {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE: ULTRA FORCE: Setting animation to idleAnimation',
         );
         _userGameInstance!.character!.animation =
             _userGameInstance!.character!.idleAnimation;
 
         // Force animation restart by reassignment
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE: ULTRA FORCE: Animation reassigned to force restart',
         );
       }
@@ -2206,7 +2230,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         if (mounted && _userGameInstance?.character != null) {
           final isWalking = _userGameInstance!.character!.isWalking;
           if (isWalking) {
-            print(
+            debugPrint(
               '🎬 DUO CHALLENGE: ULTRA FORCE: Character still walking after force, trying again',
             );
             _userGameInstance!.character!.isWalking = false;
@@ -2227,7 +2251,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       if (_userGameInstance!.character != null) {
         final characterIsWalking = _userGameInstance!.character!.isWalking;
         if (characterIsWalking != _isUserWalking) {
-          print(
+          debugPrint(
             '🔄 DUO CHALLENGE: Character state mismatch: character=$characterIsWalking, should=$_isUserWalking',
           );
           // Force correct state
@@ -2235,11 +2259,12 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         }
       }
 
-      print(
+      debugPrint(
         '✅ DUO CHALLENGE: Character animation synced (Solo Mode style): ${_isUserWalking ? "Walking" : "Idle"}',
       );
     } else {
-      print('⚠️ DUO CHALLENGE: Game instance not available for animation sync');
+      debugPrint(
+          '⚠️ DUO CHALLENGE: Game instance not available for animation sync');
     }
 
     // Also sync opponent character animation
@@ -2256,7 +2281,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       if (_opponentGameInstance!.character != null) {
         final characterIsWalking = _opponentGameInstance!.character!.isWalking;
         if (characterIsWalking != _isOpponentWalking) {
-          print(
+          debugPrint(
             '🔄 DUO CHALLENGE: Opponent character state mismatch: character=$characterIsWalking, should=$_isOpponentWalking',
           );
           // Force correct state
@@ -2264,11 +2289,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         }
       }
 
-      print(
+      debugPrint(
         '✅ DUO CHALLENGE: Opponent character animation synced (Solo Mode style): ${_isOpponentWalking ? "Walking" : "Idle"}',
       );
     } else {
-      print(
+      debugPrint(
         '⚠️ DUO CHALLENGE: Opponent game instance not available for animation sync',
       );
     }
@@ -2277,13 +2302,13 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   void _startCharacterWalking() {
     // Start character walking animation with proper error handling (like Solo Mode)
     _userGameInstance?.updateWalkingState(true);
-    print('🎬 DUO CHALLENGE: Character walking animation started');
+    debugPrint('🎬 DUO CHALLENGE: Character walking animation started');
   }
 
   void _stopCharacterWalking() {
     // Stop character walking animation with proper error handling (like Solo Mode)
     _userGameInstance?.updateWalkingState(false);
-    print('🎬 DUO CHALLENGE: Character walking animation stopped');
+    debugPrint('🎬 DUO CHALLENGE: Character walking animation stopped');
   }
 
   void _updateOpponentCharacterAnimation(bool walking) {
@@ -2294,7 +2319,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       if (_lastOpponentAnimationUpdate != null &&
           now.difference(_lastOpponentAnimationUpdate!) <
               _animationDebounceTime) {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE: Opponent animation update debounced to prevent flickering',
         );
         return;
@@ -2302,7 +2327,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
       // Only update if the walking state actually changed to prevent blinking
       if (_opponentGameInstance!.character!.isWalking != walking) {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE: Updating opponent character animation to ${walking ? "walking" : "idle"}',
         );
 
@@ -2314,22 +2339,22 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         // Force animation sync like Solo Mode (but only if needed)
         if (!walking &&
             _opponentGameInstance!.character!.idleAnimation != null) {
-          print('🎬 DUO CHALLENGE: Force setting opponent idle animation');
+          debugPrint('🎬 DUO CHALLENGE: Force setting opponent idle animation');
           _opponentGameInstance!.character!.animation =
               _opponentGameInstance!.character!.idleAnimation;
         }
 
         _lastOpponentAnimationUpdate = now;
-        print(
+        debugPrint(
           '✅ DUO CHALLENGE: Opponent character animation updated successfully',
         );
       } else {
-        print(
+        debugPrint(
           '🎬 DUO CHALLENGE: Opponent animation state unchanged, skipping update to prevent blinking',
         );
       }
     } else {
-      print(
+      debugPrint(
         '⚠️ DUO CHALLENGE: Opponent game instance or character not available for animation update',
       );
     }
@@ -2339,11 +2364,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   bool _isCharacterDataReady() {
     // Since we always provide fallback data in initState, this should always be true
     if (!_characterDataLoaded) {
-      print('⚠️ DUO CHALLENGE: Character data not loaded yet');
+      debugPrint('⚠️ DUO CHALLENGE: Character data not loaded yet');
       return false;
     }
 
-    print('✅ DUO CHALLENGE: Character data is ready');
+    debugPrint('✅ DUO CHALLENGE: Character data is ready');
     return true;
   }
 
@@ -2359,21 +2384,22 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
     Map<String, dynamic>? characterData;
     if (isUser) {
       characterData = _userCharacterData;
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Building user character widget with data: ${characterData?['currentCharacter'] ?? 'null'}');
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: User sprite sheets in widget build: ${characterData?['spriteSheets']}');
     } else {
       characterData = _opponentCharacterData;
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Building opponent character widget with data: ${characterData?['currentCharacter'] ?? 'null'}');
-      print(
+      debugPrint(
           '🎭 DUO CHALLENGE: Opponent sprite sheets in widget build: ${characterData?['spriteSheets']}');
     }
 
     // Ensure character data is available, use fallback if not
     if (characterData == null) {
-      print('⚠️ DUO CHALLENGE: Character data is null, using fallback data');
+      debugPrint(
+          '⚠️ DUO CHALLENGE: Character data is null, using fallback data');
       characterData = {
         'owned_items': ['MyCharacter'],
         'currentCharacter': 'MyCharacter',
@@ -2387,7 +2413,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
     // Ensure sprite sheets are available
     if (characterData['spriteSheets'] == null) {
-      print('⚠️ DUO CHALLENGE: Sprite sheets missing, using fallback');
+      debugPrint('⚠️ DUO CHALLENGE: Sprite sheets missing, using fallback');
       characterData['spriteSheets'] = {
         'idle': 'images/sprite_sheets/MyCharacter_idle.json',
         'walking': 'images/sprite_sheets/MyCharacter_walking.json',
@@ -2396,15 +2422,15 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
     // Ensure currentCharacter is available
     if (characterData['currentCharacter'] == null) {
-      print('⚠️ DUO CHALLENGE: currentCharacter missing, using fallback');
+      debugPrint('⚠️ DUO CHALLENGE: currentCharacter missing, using fallback');
       characterData['currentCharacter'] = 'MyCharacter';
     }
 
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE: Final character data for widget: ${characterData['currentCharacter']}');
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE: Final sprite sheets: ${characterData['spriteSheets']}');
-    print(
+    debugPrint(
         '🎭 DUO CHALLENGE: Widget build complete for ${isUser ? 'user' : 'opponent'} character');
 
     final game = CharacterDisplayGame(
@@ -2419,13 +2445,14 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
 
     // Store the game instance
     if (isUser) {
-      print('🎮 DUO CHALLENGE: Setting _userGameInstance for user character');
+      debugPrint(
+          '🎮 DUO CHALLENGE: Setting _userGameInstance for user character');
       _userGameInstance = game;
 
       // Ensure user character starts with correct animation state
       Future.delayed(const Duration(milliseconds: 50), () {
         if (mounted && _userGameInstance?.character != null) {
-          print(
+          debugPrint(
             '🎬 DUO CHALLENGE: Initializing user character animation state',
           );
           _userGameInstance!.character!.isWalking = _isUserWalking;
@@ -2433,7 +2460,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         }
       });
     } else {
-      print(
+      debugPrint(
         '🎮 DUO CHALLENGE: Setting _opponentGameInstance for opponent character',
       );
       _opponentGameInstance = game;
@@ -2441,7 +2468,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
       // Ensure opponent character starts with correct animation state
       Future.delayed(const Duration(milliseconds: 50), () {
         if (mounted && _opponentGameInstance?.character != null) {
-          print(
+          debugPrint(
             '🎬 DUO CHALLENGE: Initializing opponent character animation state',
           );
           _opponentGameInstance!.character!.isWalking = _isOpponentWalking;
@@ -2537,7 +2564,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
                 try {
                   Navigator.of(context).pop(); // Close dialog
                 } catch (e) {
-                  print('🎮 DUO CHALLENGE: Error closing winner dialog: $e');
+                  debugPrint(
+                      '🎮 DUO CHALLENGE: Error closing winner dialog: $e');
                 }
                 _returnToHome();
               },
@@ -2554,7 +2582,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
         try {
           Navigator.of(context).pop(); // Close dialog
         } catch (e) {
-          print('🎮 DUO CHALLENGE: Error auto-closing winner dialog: $e');
+          debugPrint('🎮 DUO CHALLENGE: Error auto-closing winner dialog: $e');
         }
         _returnToHome();
       }
@@ -3008,7 +3036,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen> {
   // NEW: Force reload character data if not ready
   Future<void> _ensureCharacterDataReady() async {
     if (!_isCharacterDataReady()) {
-      print('🔄 DUO CHALLENGE: Character data not ready, forcing reload...');
+      debugPrint(
+          '🔄 DUO CHALLENGE: Character data not ready, forcing reload...');
       await _forceReloadCharacterData();
     }
   }
@@ -3048,7 +3077,7 @@ class CharacterDisplayGame extends FlameGame with KeyboardEvents {
 
   @override
   Future<void> onLoad() async {
-    print('DUO CharacterDisplayGame onLoad start');
+    debugPrint('DUO CharacterDisplayGame onLoad start');
     await super.onLoad();
     final screenWidth = size.x;
     final screenHeight = size.y;
@@ -3078,15 +3107,15 @@ class CharacterDisplayGame extends FlameGame with KeyboardEvents {
       // Ensure character starts in idle state during initialization (like Solo Mode)
       character!.isWalking = false;
       character!.updateAnimation(false);
-      print('🎬 DUO GAME INITIALIZATION: Character forced to idle state');
+      debugPrint('🎬 DUO GAME INITIALIZATION: Character forced to idle state');
 
       add(character!);
-      print(
+      debugPrint(
         'DUO CharacterDisplayGame: Character added with smooth Solo Mode system',
       );
     } catch (e, st) {
-      print('DUO CharacterDisplayGame onLoad error: $e');
-      print(st);
+      debugPrint('DUO CharacterDisplayGame onLoad error: $e');
+      debugPrint(st.toString());
     }
   }
 
@@ -3095,11 +3124,12 @@ class CharacterDisplayGame extends FlameGame with KeyboardEvents {
     if (character != null) {
       character!.isWalking = walking;
       character!.updateAnimation(walking);
-      print(
+      debugPrint(
         '🎮 DUO Game: Character ${walking ? "started" : "stopped"} walking',
       );
     } else {
-      print('⚠️ DUO Game: Character not available for walking state update');
+      debugPrint(
+          '⚠️ DUO Game: Character not available for walking state update');
     }
   }
 
@@ -3108,7 +3138,7 @@ class CharacterDisplayGame extends FlameGame with KeyboardEvents {
     super.update(dt);
     if (character?.isWalking == true) {
       // APPROACH 3: Add debug logging for character movement (like Solo Mode)
-      print('🎮 DUO Game: Character walking - smooth animation active');
+      debugPrint('🎮 DUO Game: Character walking - smooth animation active');
 
       // APPROACH 3: Add subtle character movement feedback (like Solo Mode)
       // This provides visual feedback without affecting the main racing track
@@ -3125,7 +3155,7 @@ class CharacterDisplayGame extends FlameGame with KeyboardEvents {
     } else {
       // APPROACH 4: Debug when character is not walking (like Solo Mode)
       if (character != null) {
-        print('🎮 DUO Game: Character idle - smooth animation active');
+        debugPrint('🎮 DUO Game: Character idle - smooth animation active');
       }
     }
   }
@@ -3151,7 +3181,7 @@ class CharacterDisplayGame extends FlameGame with KeyboardEvents {
 // Character component for display - Updated to match Solo Mode smoothness
 class Character extends SpriteAnimationComponent with KeyboardHandler {
   final String userId;
-  final Map<String, dynamic>? characterData;
+  Map<String, dynamic>? characterData;
   SpriteAnimation? idleAnimation;
   SpriteAnimation? walkingAnimation;
   bool isWalking = false;
@@ -3166,20 +3196,20 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
 
   @override
   Future<void> onLoad() async {
-    print('DUO Character onLoad start for userId: $userId');
-    print('DUO Character onLoad: characterData: $characterData');
-    print(
+    debugPrint('DUO Character onLoad start for userId: $userId');
+    debugPrint('DUO Character onLoad: characterData: $characterData');
+    debugPrint(
         'DUO Character onLoad: characterData spriteSheets: ${characterData?['spriteSheets']}');
-    print(
+    debugPrint(
         'DUO Character onLoad: characterData currentCharacter: ${characterData?['currentCharacter']}');
 
     try {
       // Ensure character data is available
       if (characterData == null) {
-        print(
+        debugPrint(
             '⚠️ DUO Character onLoad: Character data is null, using fallback');
         // Create a fallback character data
-        final fallbackData = {
+        characterData = {
           'owned_items': ['MyCharacter'],
           'currentCharacter': 'MyCharacter',
           'homeGlbPath': 'assets/web/home/MyCharacter_home.glb',
@@ -3199,7 +3229,7 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
 
         if (_animationsLoaded && idleAnimation != null) {
           animation = idleAnimation;
-          print(
+          debugPrint(
               'DUO Character onLoad: Fallback animations loaded successfully');
         }
         return;
@@ -3212,28 +3242,28 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
       final characterId =
           '${userId}_${characterData!['currentCharacter'] ?? 'default'}';
 
-      print('DUO Character onLoad: Character ID: $characterId');
-      print(
+      debugPrint('DUO Character onLoad: Character ID: $characterId');
+      debugPrint(
           'DUO Character onLoad: Character sprite sheets: ${characterData!['spriteSheets']}');
 
       try {
         // Load animations for this specific character using the character data
         if (characterData!['currentCharacter'] != null) {
-          print(
+          debugPrint(
               'DUO Character onLoad: Preloading animations for ${characterData!['currentCharacter']}');
           await animationService.preloadAnimationsForCharacterWithData(
               characterId, characterData!);
-          print(
+          debugPrint(
               'DUO Character onLoad: Preloaded character-specific animations for ${characterData!['currentCharacter']} (ID: $characterId)');
         } else {
           // Use default animations for current user
-          print(
+          debugPrint(
               'DUO Character onLoad: Using default animations for current user');
           await animationService.preloadAnimations();
         }
 
         // Get animations for this specific character
-        print(
+        debugPrint(
             'DUO Character onLoad: Getting animations for character ID: $characterId');
         final animations =
             await animationService.getAnimationsForCharacter(characterId);
@@ -3241,36 +3271,37 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
         walkingAnimation = animations['walking'];
         _animationsLoaded = true;
 
-        print(
+        debugPrint(
             'DUO Character onLoad: Loaded character-specific animations for ${characterData!['currentCharacter'] ?? 'default'} (ID: $characterId)');
-        print(
+        debugPrint(
             'DUO Character onLoad: Idle animation loaded: ${idleAnimation != null}');
-        print(
+        debugPrint(
             'DUO Character onLoad: Walking animation loaded: ${walkingAnimation != null}');
-        print(
+        debugPrint(
             'DUO Character onLoad: Final sprite sheets used: ${characterData!['spriteSheets']}');
       } catch (e) {
-        print('DUO Character onLoad: Error loading character animations: $e');
-        print('DUO Character onLoad: Stack trace: ${StackTrace.current}');
+        debugPrint(
+            'DUO Character onLoad: Error loading character animations: $e');
+        debugPrint('DUO Character onLoad: Stack trace: ${StackTrace.current}');
 
         // Fallback to default animations
         try {
-          print(
+          debugPrint(
               'DUO Character onLoad: Trying fallback to default animations...');
           await animationService.preloadAnimations();
           final defaultAnimations = await animationService.getAnimations();
           idleAnimation = defaultAnimations['idle'];
           walkingAnimation = defaultAnimations['walking'];
           _animationsLoaded = true;
-          print('DUO Character onLoad: Using fallback default animations');
-          print(
+          debugPrint('DUO Character onLoad: Using fallback default animations');
+          debugPrint(
               'DUO Character onLoad: Fallback idle animation loaded: ${idleAnimation != null}');
-          print(
+          debugPrint(
               'DUO Character onLoad: Fallback walking animation loaded: ${walkingAnimation != null}');
         } catch (fallbackError) {
-          print(
+          debugPrint(
               'DUO Character onLoad: Fallback animation loading also failed: $fallbackError');
-          print(
+          debugPrint(
               'DUO Character onLoad: Fallback stack trace: ${StackTrace.current}');
           _animationsLoaded = false;
         }
@@ -3278,19 +3309,20 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
 
       if (_animationsLoaded && idleAnimation != null) {
         animation = idleAnimation;
-        print('DUO Character onLoad: Animation set to idle animation');
+        debugPrint('DUO Character onLoad: Animation set to idle animation');
       } else {
-        print(
+        debugPrint(
             'DUO Character onLoad: WARNING - No animations loaded, character may not display properly');
-        print('DUO Character onLoad: _animationsLoaded: $_animationsLoaded');
-        print('DUO Character onLoad: idleAnimation: $idleAnimation');
-        print('DUO Character onLoad: walkingAnimation: $walkingAnimation');
+        debugPrint(
+            'DUO Character onLoad: _animationsLoaded: $_animationsLoaded');
+        debugPrint('DUO Character onLoad: idleAnimation: $idleAnimation');
+        debugPrint('DUO Character onLoad: walkingAnimation: $walkingAnimation');
       }
 
-      print('DUO Character onLoad success');
+      debugPrint('DUO Character onLoad success');
     } catch (e, st) {
-      print('DUO Character onLoad error: $e');
-      print('DUO Character onLoad stack trace: $st');
+      debugPrint('DUO Character onLoad error: $e');
+      debugPrint('DUO Character onLoad stack trace: $st');
 
       // Final fallback - try to load default animations even if everything else fails
       try {
@@ -3303,10 +3335,11 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
 
         if (_animationsLoaded && idleAnimation != null) {
           animation = idleAnimation;
-          print('DUO Character onLoad: Final fallback animations loaded');
+          debugPrint('DUO Character onLoad: Final fallback animations loaded');
         }
       } catch (finalError) {
-        print('DUO Character onLoad: Final fallback also failed: $finalError');
+        debugPrint(
+            'DUO Character onLoad: Final fallback also failed: $finalError');
         _animationsLoaded = false;
       }
     }
@@ -3316,11 +3349,12 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
     if (!_animationsLoaded ||
         idleAnimation == null ||
         walkingAnimation == null) {
-      print('⚠️ DUO Character updateAnimation: Animations not loaded');
-      print(
+      debugPrint('⚠️ DUO Character updateAnimation: Animations not loaded');
+      debugPrint(
           '⚠️ DUO Character updateAnimation: _animationsLoaded: $_animationsLoaded');
-      print('⚠️ DUO Character updateAnimation: idleAnimation: $idleAnimation');
-      print(
+      debugPrint(
+          '⚠️ DUO Character updateAnimation: idleAnimation: $idleAnimation');
+      debugPrint(
           '⚠️ DUO Character updateAnimation: walkingAnimation: $walkingAnimation');
       return;
     }
@@ -3329,26 +3363,27 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
 
     // Only switch animation if it's actually different to prevent flickering
     if (animation != newAnimation) {
-      print(
+      debugPrint(
         '🔄 DUO Character: Switching animation to ${walking ? "walking" : "idle"}',
       );
       animation = newAnimation;
       // Force animation restart by reassigning
-      print('🎬 DUO Animation switched and will restart');
+      debugPrint('🎬 DUO Animation switched and will restart');
     } else {
       // Animation is already correct, no need to restart
-      print('🎬 DUO Character: Animation already correct, no restart needed');
+      debugPrint(
+          '🎬 DUO Character: Animation already correct, no restart needed');
     }
   }
 
   void startWalking() {
-    print('🎬 DUO Character startWalking called');
+    debugPrint('🎬 DUO Character startWalking called');
     isWalking = true;
     updateAnimation(true);
   }
 
   void stopWalking() {
-    print('🎬 DUO Character stopWalking called');
+    debugPrint('🎬 DUO Character stopWalking called');
     isWalking = false;
     updateAnimation(false);
   }

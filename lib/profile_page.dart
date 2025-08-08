@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/username_service.dart';
-import 'services/user_deletion_service.dart';
 
-import 'services/coin_service.dart';
 import 'services/health_service.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -18,16 +17,12 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   // Removed unused field _formKey
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
 
   // User data variables
   String _userName = 'User';
   String _userEmail = '';
-  String _userPhone = '';
-  String _userLocation = '';
+
   bool _isLoading = true;
-  final UserDeletionService _userDeletionService = UserDeletionService();
 
   // New variables for real user data
   int _userLevel = 1;
@@ -62,8 +57,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 user.email?.split('@')[0] ??
                 'User';
             _userEmail = user.email ?? '';
-            _userPhone = userData['phone'] ?? '+1 (555) 123-4567';
-            _userLocation = userData['location'] ?? 'San Francisco, CA';
+
             _userLevel = userData['level'] ?? 1;
             _userCoins = userData['coins'] ?? 0;
             _challengesWon = userData['challenges_won'] ?? 0;
@@ -83,15 +77,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
           // Initialize controllers with actual user data
           _nameController.text = _userName;
-          _phoneController.text = _userPhone;
-          _locationController.text = _userLocation;
         } else {
           // Fallback to Firebase Auth data
           setState(() {
             _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
             _userEmail = user.email ?? '';
-            _userPhone = '+1 (555) 123-4567';
-            _userLocation = 'San Francisco, CA';
+
             _userLevel = 1;
             _userCoins = 0;
             _challengesWon = 0;
@@ -102,15 +93,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
           // Initialize controllers
           _nameController.text = _userName;
-          _phoneController.text = _userPhone;
-          _locationController.text = _userLocation;
         }
 
         // Load today's steps
         await _loadTodaySteps();
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      debugPrint('Error loading user data: $e');
       setState(() {
         _isLoading = false;
       });
@@ -124,7 +113,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _todaySteps = todaySteps;
       });
     } catch (e) {
-      print('Error loading today steps: $e');
+      debugPrint('Error loading today steps: $e');
       setState(() {
         _todaySteps = 0;
       });
@@ -152,8 +141,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _phoneController.dispose();
-    _locationController.dispose();
+
     super.dispose();
   }
 
@@ -223,7 +211,7 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       }
     } catch (e) {
-      print('Error saving profile changes: $e');
+      debugPrint('Error saving profile changes: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -309,7 +297,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.orange.withValues(alpha: 0.2),
+                    color: Colors.orange.withAlpha((0.2 * 255).round()),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -368,7 +356,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withAlpha((0.2 * 255).round()),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -449,7 +437,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withAlpha((0.1 * 255).round()),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -535,7 +523,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       if (shouldLogout != true) return;
 
                       try {
-                        print('🚪 Profile page logout started');
+                        debugPrint('🚪 Profile page logout started');
 
                         // Clear any cached data
                         setState(() {
@@ -551,7 +539,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                         // Sign out from Firebase
                         await FirebaseAuth.instance.signOut();
-                        print('✅ Firebase sign out completed');
+                        debugPrint('✅ Firebase sign out completed');
 
                         if (context.mounted) {
                           Navigator.pushAndRemoveUntil(
@@ -560,10 +548,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                 builder: (context) => const LoginScreen()),
                             (route) => false,
                           );
-                          print('✅ Navigation to login screen completed');
+                          debugPrint('✅ Navigation to login screen completed');
                         }
                       } catch (e) {
-                        print('❌ Profile logout error: $e');
+                        debugPrint('❌ Profile logout error: $e');
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -617,7 +605,7 @@ class _ProfilePageState extends State<ProfilePage> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: color.withOpacity(0.8),
+              color: color.withAlpha((0.8 * 255).round()),
             ),
           ),
         ],
@@ -637,7 +625,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withAlpha((0.1 * 255).round()),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: 24),
@@ -814,7 +802,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.orange.withOpacity(0.3),
+                                    color: Colors.orange
+                                        .withAlpha((0.3 * 255).round()),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),

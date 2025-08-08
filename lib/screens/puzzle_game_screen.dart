@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:math';
 import '../services/coin_service.dart';
@@ -128,9 +129,9 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
       // Award 50 coins when user wins
       _coinService.addCoins(50).then((success) {
         if (success) {
-          print('Successfully awarded 50 coins for puzzle completion');
+          debugPrint('Successfully awarded 50 coins for puzzle completion');
         } else {
-          print('Failed to award coins for puzzle completion');
+          debugPrint('Failed to award coins for puzzle completion');
         }
       });
 
@@ -193,8 +194,6 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
     super.dispose();
   }
 
-  int get _points => _seconds <= 300 ? 10 : 5;
-
   String _formatTime() {
     if (_seconds < 60) {
       return '${_seconds}s';
@@ -227,7 +226,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.07),
+                    color: Colors.black.withAlpha((0.07 * 255).round()),
                     blurRadius: 16,
                     spreadRadius: 2,
                   ),
@@ -246,7 +245,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                   itemCount: 9,
                   itemBuilder: (context, index) {
                     final isEmpty = _tiles[index] == 0;
-                    final isMovable = _getPossibleMoves().contains(index);
+
                     return GestureDetector(
                       onTap: () => _moveTile(index),
                       child: AnimatedContainer(
@@ -268,7 +267,8 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                               ? []
                               : [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
+                                    color: Colors.black
+                                        .withAlpha((0.04 * 255).round()),
                                     blurRadius: 4,
                                     offset: const Offset(1, 2),
                                   ),
@@ -302,7 +302,7 @@ class _PuzzleGameScreenState extends State<PuzzleGameScreen> {
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.07),
+                    color: Colors.black.withAlpha((0.07 * 255).round()),
                     blurRadius: 12,
                     spreadRadius: 1,
                   ),

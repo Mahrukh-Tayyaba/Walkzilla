@@ -2,7 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
 import 'dart:convert';
 import 'dart:ui' as ui;
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+
 import 'character_data_service.dart';
 
 class CharacterAnimationService {
@@ -12,7 +13,6 @@ class CharacterAnimationService {
   CharacterAnimationService._internal();
 
   final CharacterDataService _characterDataService = CharacterDataService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Cache for loaded animations per character ID
   final Map<String, SpriteAnimation> _cachedIdleAnimations = {};
@@ -53,7 +53,7 @@ class CharacterAnimationService {
     if (_isLoading[characterId] == true) return;
 
     _isLoading[characterId] = true;
-    print(
+    debugPrint(
         'CharacterAnimationService: Starting preload for character: $characterId');
 
     try {
@@ -71,7 +71,7 @@ class CharacterAnimationService {
             'Use preloadAnimationsForCharacterWithData for opponent characters');
       }
 
-      print(
+      debugPrint(
           'CharacterAnimationService: Sprite sheets for $characterId: $spriteSheets');
 
       // Load animations using the character's paths
@@ -84,12 +84,13 @@ class CharacterAnimationService {
       _isLoading[characterId] = false;
       _lastLoadTime[characterId] = DateTime.now();
 
-      print(
+      debugPrint(
           'CharacterAnimationService: Preload completed successfully for $characterId');
     } catch (e, st) {
       _isLoading[characterId] = false;
-      print('CharacterAnimationService: Preload failed for $characterId: $e');
-      print('Stack trace: $st');
+      debugPrint(
+          'CharacterAnimationService: Preload failed for $characterId: $e');
+      debugPrint('Stack trace: $st');
       rethrow;
     }
   }
@@ -99,15 +100,17 @@ class CharacterAnimationService {
     try {
       for (final entry in spriteSheets.entries) {
         final path = entry.value;
-        print('CharacterAnimationService: Verifying sprite sheet path: $path');
+        debugPrint(
+            'CharacterAnimationService: Verifying sprite sheet path: $path');
 
         // Try to read the JSON file to verify it exists
         await Flame.assets.readFile(path);
-        print('CharacterAnimationService: ✅ Sprite sheet path verified: $path');
+        debugPrint(
+            'CharacterAnimationService: ✅ Sprite sheet path verified: $path');
       }
       return true;
     } catch (e) {
-      print(
+      debugPrint(
           'CharacterAnimationService: ❌ Sprite sheet path verification failed: $e');
       return false;
     }
@@ -119,7 +122,7 @@ class CharacterAnimationService {
     if (_isLoading[characterId] == true) return;
 
     _isLoading[characterId] = true;
-    print(
+    debugPrint(
         'CharacterAnimationService: Starting preload for character: $characterId with data: ${characterData['currentCharacter']}');
 
     try {
@@ -128,7 +131,7 @@ class CharacterAnimationService {
           Map<String, String>.from(characterData['spriteSheets'] as Map);
       _lastLoadedCharacterId[characterId] = characterData['currentCharacter'];
 
-      print(
+      debugPrint(
           'CharacterAnimationService: Sprite sheets for $characterId: $spriteSheets');
 
       // Verify sprite sheet paths exist before loading
@@ -148,19 +151,20 @@ class CharacterAnimationService {
       _isLoading[characterId] = false;
       _lastLoadTime[characterId] = DateTime.now();
 
-      print(
+      debugPrint(
           'CharacterAnimationService: Preload completed successfully for $characterId (${characterData['currentCharacter']})');
     } catch (e, st) {
       _isLoading[characterId] = false;
-      print('CharacterAnimationService: Preload failed for $characterId: $e');
-      print('Stack trace: $st');
+      debugPrint(
+          'CharacterAnimationService: Preload failed for $characterId: $e');
+      debugPrint('Stack trace: $st');
       rethrow;
     }
   }
 
   /// Reload animations when character changes
   Future<void> reloadAnimationsForCurrentCharacter() async {
-    print(
+    debugPrint(
         'CharacterAnimationService: Reloading animations for current character...');
 
     // Clear existing cache for current user
@@ -179,7 +183,8 @@ class CharacterAnimationService {
           await _characterDataService.getCurrentCharacter();
       return _lastLoadedCharacterId['current_user'] != currentCharacter;
     } catch (e) {
-      print('CharacterAnimationService: Error checking if reload needed: $e');
+      debugPrint(
+          'CharacterAnimationService: Error checking if reload needed: $e');
       return true;
     }
   }
@@ -187,7 +192,8 @@ class CharacterAnimationService {
   /// Auto-reload if character changed
   Future<void> autoReloadIfNeeded() async {
     if (await needsReload()) {
-      print('CharacterAnimationService: Character changed, auto-reloading...');
+      debugPrint(
+          'CharacterAnimationService: Character changed, auto-reloading...');
       await reloadAnimationsForCurrentCharacter();
     }
   }
@@ -196,23 +202,23 @@ class CharacterAnimationService {
   Future<SpriteAnimation> _loadTexturePackerAnimation(
       String jsonPath, double stepTime, String characterId) async {
     try {
-      print(
+      debugPrint(
           'CharacterAnimationService: Loading animation from: $jsonPath for character: $characterId');
 
       // Load JSON first
-      print('CharacterAnimationService: Reading JSON file: $jsonPath');
+      debugPrint('CharacterAnimationService: Reading JSON file: $jsonPath');
       final jsonStr = await Flame.assets.readFile(jsonPath);
-      print(
+      debugPrint(
           'CharacterAnimationService: JSON file read successfully, length: ${jsonStr.length}');
 
       final Map<String, dynamic> data = json.decode(jsonStr);
       final Map<String, dynamic> frames = data['frames'];
-      print(
+      debugPrint(
           'CharacterAnimationService: Parsed JSON, found ${frames.length} frames');
 
       // Load image with caching per character
       final String imageName = data['meta']['image'];
-      print('CharacterAnimationService: Image name from JSON: $imageName');
+      debugPrint('CharacterAnimationService: Image name from JSON: $imageName');
 
       ui.Image image;
 
@@ -222,27 +228,27 @@ class CharacterAnimationService {
       if (jsonPath.contains('idle') &&
           _cachedIdleImages.containsKey(idleImageKey)) {
         image = _cachedIdleImages[idleImageKey]!;
-        print(
+        debugPrint(
             'CharacterAnimationService: Using cached idle image for $characterId');
       } else if (jsonPath.contains('walking') &&
           _cachedWalkingImages.containsKey(walkingImageKey)) {
         image = _cachedWalkingImages[walkingImageKey]!;
-        print(
+        debugPrint(
             'CharacterAnimationService: Using cached walking image for $characterId');
       } else {
-        print('CharacterAnimationService: Loading image: $imageName');
+        debugPrint('CharacterAnimationService: Loading image: $imageName');
         image = await Flame.images.load(imageName);
-        print(
+        debugPrint(
             'CharacterAnimationService: Image loaded successfully, size: ${image.width}x${image.height}');
 
         // Cache the image per character
         if (jsonPath.contains('idle')) {
           _cachedIdleImages[idleImageKey] = image;
-          print(
+          debugPrint(
               'CharacterAnimationService: Cached idle image for $characterId');
         } else if (jsonPath.contains('walking')) {
           _cachedWalkingImages[walkingImageKey] = image;
-          print(
+          debugPrint(
               'CharacterAnimationService: Cached walking image for $characterId');
         }
       }
@@ -250,8 +256,9 @@ class CharacterAnimationService {
       final List<Sprite> spriteList = [];
       final frameKeys = frames.keys.toList()..sort();
 
-      // Create sprites with reduced memory footprint
-      print('CharacterAnimationService: Creating ${frameKeys.length} sprites');
+      // Create sprites with reduced memory footdebugPrint
+      debugPrint(
+          'CharacterAnimationService: Creating ${frameKeys.length} sprites');
       for (final frameKey in frameKeys) {
         final frame = frames[frameKey]['frame'];
         final sprite = Sprite(
@@ -262,13 +269,13 @@ class CharacterAnimationService {
         spriteList.add(sprite);
       }
 
-      print(
+      debugPrint(
           'CharacterAnimationService: Loaded ${spriteList.length} frames for $jsonPath (character: $characterId)');
       return SpriteAnimation.spriteList(spriteList, stepTime: stepTime);
     } catch (e, st) {
-      print(
+      debugPrint(
           'CharacterAnimationService: Error loading animation from $jsonPath for character $characterId: $e');
-      print('CharacterAnimationService: Stack trace: $st');
+      debugPrint('CharacterAnimationService: Stack trace: $st');
       rethrow;
     }
   }
@@ -283,7 +290,7 @@ class CharacterAnimationService {
       String characterId) async {
     // Check if we need to reload due to character change (only for current user)
     if (characterId == 'current_user' && await needsReload()) {
-      print(
+      debugPrint(
           'CharacterAnimationService: Character changed, reloading animations...');
       await reloadAnimationsForCurrentCharacter();
     }
@@ -310,7 +317,7 @@ class CharacterAnimationService {
   Future<void> waitForLoadForCharacter(String characterId) async {
     // Check if we need to reload due to character change (only for current user)
     if (characterId == 'current_user' && await needsReload()) {
-      print(
+      debugPrint(
           'CharacterAnimationService: Character changed during wait, reloading...');
       await reloadAnimationsForCurrentCharacter();
       return;
@@ -375,7 +382,7 @@ class CharacterAnimationService {
       _cachedWalkingImages.remove(key);
     }
 
-    print(
+    debugPrint(
         'CharacterAnimationService: Cache cleared for character: $characterId');
   }
 
@@ -389,7 +396,7 @@ class CharacterAnimationService {
   /// Refresh cache if stale
   Future<void> refreshIfStale(Duration maxAge) async {
     if (isCacheStale(maxAge)) {
-      print('CharacterAnimationService: Cache is stale, refreshing...');
+      debugPrint('CharacterAnimationService: Cache is stale, refreshing...');
       clearCache();
       await preloadAnimations();
     }
@@ -406,9 +413,9 @@ class CharacterAnimationService {
     // Force garbage collection if available
     try {
       // This is a best-effort approach to free memory
-      print('CharacterAnimationService: Forcing memory cleanup');
+      debugPrint('CharacterAnimationService: Forcing memory cleanup');
     } catch (e) {
-      print('CharacterAnimationService: Memory cleanup failed: $e');
+      debugPrint('CharacterAnimationService: Memory cleanup failed: $e');
     }
   }
 
@@ -418,7 +425,7 @@ class CharacterAnimationService {
     if (lastLoad != null) {
       final age = DateTime.now().difference(lastLoad);
       if (age.inMinutes > 5) {
-        print('CharacterAnimationService: Cache is old, cleaning up...');
+        debugPrint('CharacterAnimationService: Cache is old, cleaning up...');
         clearCache();
       }
     }
@@ -426,7 +433,8 @@ class CharacterAnimationService {
 
   /// Handle character change event (called when user wears a different character)
   Future<void> onCharacterChanged(String newCharacterId) async {
-    print('CharacterAnimationService: Character changed to: $newCharacterId');
+    debugPrint(
+        'CharacterAnimationService: Character changed to: $newCharacterId');
 
     // Clear cache and reload animations for the new character
     await reloadAnimationsForCurrentCharacter();

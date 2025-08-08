@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'services/health_service.dart';
-import 'package:health/health.dart';
+
 import 'package:provider/provider.dart';
 import 'providers/step_goal_provider.dart';
 import 'services/daily_content_service.dart';
@@ -18,7 +18,6 @@ class CaloriesScreen extends StatefulWidget {
 class _CaloriesScreenState extends State<CaloriesScreen> {
   double _currentCalories = 0.0;
   double _yesterdayCalories = 0.0;
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -51,45 +50,46 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
           DateTime(yesterday.year, yesterday.month, yesterday.day);
       final endOfYesterday = startOfYesterday.add(const Duration(days: 1));
 
-      print("📅 Date ranges:");
-      print(
+      debugPrint("📅 Date ranges:");
+      debugPrint(
           "  Today: ${startOfToday.toIso8601String()} to ${endOfToday.toIso8601String()}");
-      print(
+      debugPrint(
           "  Yesterday: ${startOfYesterday.toIso8601String()} to ${endOfYesterday.toIso8601String()}");
 
       // Fetch today's steps and convert to calories
       double todayCalories = 0.0;
       try {
-        print("🔄 Fetching today's steps...");
+        debugPrint("🔄 Fetching today's steps...");
         int todaySteps = await healthService.health.getTotalStepsInInterval(
               startOfToday,
               endOfToday,
             ) ??
             0;
 
-        print("📊 Today's steps: $todaySteps");
+        debugPrint("📊 Today's steps: $todaySteps");
         todayCalories = _calculateCaloriesFromSteps(todaySteps);
-        print("✅ Today's calculated calories: $todayCalories kcal");
+        debugPrint("✅ Today's calculated calories: $todayCalories kcal");
       } catch (e) {
-        print("❌ Error fetching today's steps: $e");
+        debugPrint("❌ Error fetching today's steps: $e");
         todayCalories = 0.0;
       }
 
       // Fetch yesterday's steps and convert to calories
       double yesterdayCalories = 0.0;
       try {
-        print("🔄 Fetching yesterday's steps...");
+        debugPrint("🔄 Fetching yesterday's steps...");
         int yesterdaySteps = await healthService.health.getTotalStepsInInterval(
               startOfYesterday,
               endOfYesterday,
             ) ??
             0;
 
-        print("📊 Yesterday's steps: $yesterdaySteps");
+        debugPrint("📊 Yesterday's steps: $yesterdaySteps");
         yesterdayCalories = _calculateCaloriesFromSteps(yesterdaySteps);
-        print("✅ Yesterday's calculated calories: $yesterdayCalories kcal");
+        debugPrint(
+            "✅ Yesterday's calculated calories: $yesterdayCalories kcal");
       } catch (e) {
-        print("❌ Error fetching yesterday's steps: $e");
+        debugPrint("❌ Error fetching yesterday's steps: $e");
         yesterdayCalories = 0.0;
       }
 
@@ -100,10 +100,10 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
         });
       }
 
-      print(
+      debugPrint(
           "✅ Calories data calculated - Today: $todayCalories kcal, Yesterday: $yesterdayCalories kcal");
     } catch (e) {
-      print("❌ Error calculating calories data: $e");
+      debugPrint("❌ Error calculating calories data: $e");
       if (mounted) {
         setState(() {
           _currentCalories = 0.0;
@@ -177,7 +177,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
                     ],
                   ),
                   progressColor: Colors.orange,
-                  backgroundColor: Colors.orange.withOpacity(0.2),
+                  backgroundColor: Colors.orange.withAlpha((0.2 * 255).round()),
                   circularStrokeCap: CircularStrokeCap.round,
                 ),
               ),
@@ -347,7 +347,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.orange.withOpacity(0.08),
+                    color: Colors.orange.withAlpha((0.08 * 255).round()),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -398,7 +398,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withAlpha((0.03 * 255).round()),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -463,7 +463,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
             Container(
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.2),
+                color: Colors.orange.withAlpha((0.2 * 255).round()),
                 borderRadius: BorderRadius.circular(2),
               ),
               child: FractionallySizedBox(
@@ -514,7 +514,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withAlpha((0.03 * 255).round()),
             blurRadius: 15,
             offset: const Offset(0, 4),
           ),
@@ -529,7 +529,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
                 key: Key('{key.toString()}_icon_container'),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withAlpha((0.1 * 255).round()),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: iconColor, size: 18),

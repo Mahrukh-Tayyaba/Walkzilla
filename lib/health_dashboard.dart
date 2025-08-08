@@ -33,7 +33,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
   @override
   void initState() {
     super.initState();
-    print("🚀 Health Dashboard initState called");
+    debugPrint("🚀 Health Dashboard initState called");
     // Load data in background without blocking UI
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeHealth();
@@ -56,12 +56,12 @@ class _HealthDashboardState extends State<HealthDashboard> {
   }
 
   Future<void> _initializeHealth() async {
-    print("🔧 _initializeHealth called");
+    debugPrint("🔧 _initializeHealth called");
     try {
-      print("🔄 Proceeding directly to fetchHealthData()");
+      debugPrint("🔄 Proceeding directly to fetchHealthData()");
       await fetchHealthData();
     } catch (e) {
-      print("Error initializing health: $e");
+      debugPrint("Error initializing health: $e");
       // Show error state instead of simulated data
       if (mounted) {
         setState(() {
@@ -82,20 +82,20 @@ class _HealthDashboardState extends State<HealthDashboard> {
     if (!mounted) return;
 
     try {
-      print("🏥 Starting health data fetch for dashboard...");
+      debugPrint("🏥 Starting health data fetch for dashboard...");
 
       // Check permissions using the same method as calories screen
       bool hasPermissions =
           await _healthService.checkHealthConnectPermissions();
-      print("🔐 Health Connect permissions status: $hasPermissions");
+      debugPrint("🔐 Health Connect permissions status: $hasPermissions");
 
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions, requesting them...");
+        debugPrint("❌ No Health Connect permissions, requesting them...");
         bool granted = await _healthService.requestHealthConnectPermissions();
-        print("🔐 Permission request result: $granted");
+        debugPrint("🔐 Permission request result: $granted");
 
         if (!granted) {
-          print("❌ Health Connect permissions not granted");
+          debugPrint("❌ Health Connect permissions not granted");
           if (mounted) {
             setState(() {
               _steps = 0;
@@ -107,7 +107,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
         }
       }
 
-      print("🔄 Fetching today's steps for dashboard...");
+      debugPrint("🔄 Fetching today's steps for dashboard...");
 
       // Use the hybrid approach same as home.dart for real-time updated data
       int todaySteps = await _healthService.fetchHybridRealTimeSteps();
@@ -115,7 +115,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
       double calculatedCalories = _calculateCaloriesFromSteps(todaySteps);
 
       // Fetch today's distance using the same method as distance_screen.dart
-      print("🔄 Fetching today's distance for dashboard...");
+      debugPrint("🔄 Fetching today's distance for dashboard...");
       final now = DateTime.now();
       final startOfToday = DateTime(now.year, now.month, now.day);
       double todayDistance = 0.0;
@@ -124,16 +124,18 @@ class _HealthDashboardState extends State<HealthDashboard> {
           start: startOfToday,
           end: now,
         );
-        print("📏 Dashboard - Distance fetch successful: $todayDistance");
+        debugPrint("📏 Dashboard - Distance fetch successful: $todayDistance");
       } catch (distanceError) {
-        print("❌ Dashboard - Distance fetch failed: $distanceError");
+        debugPrint("❌ Dashboard - Distance fetch failed: $distanceError");
         todayDistance = 0.0;
       }
 
-      print("📊 Dashboard - Today's steps: $todaySteps");
-      print("🔥 Dashboard - Calculated calories: $calculatedCalories kcal");
-      print("📏 Dashboard - Raw distance: $todayDistance");
-      print("📏 Dashboard - Distance: ${todayDistance.toStringAsFixed(0)} m");
+      debugPrint("📊 Dashboard - Today's steps: $todaySteps");
+      debugPrint(
+          "🔥 Dashboard - Calculated calories: $calculatedCalories kcal");
+      debugPrint("📏 Dashboard - Raw distance: $todayDistance");
+      debugPrint(
+          "📏 Dashboard - Distance: ${todayDistance.toStringAsFixed(0)} m");
 
       if (mounted) {
         setState(() {
@@ -146,9 +148,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
       // Update streak system based on today's steps and goal
       await _updateStreakIfNeeded(todaySteps);
 
-      print("✅ Dashboard updated - Steps: $_steps, Calories: $_calories");
+      debugPrint("✅ Dashboard updated - Steps: $_steps, Calories: $_calories");
     } catch (e) {
-      print("❌ Error fetching health data for dashboard: $e");
+      debugPrint("❌ Error fetching health data for dashboard: $e");
       if (mounted) {
         setState(() {
           _steps = 0;
@@ -178,15 +180,19 @@ class _HealthDashboardState extends State<HealthDashboard> {
       final streakProvider = context.read<StreakProvider>();
       final goalSteps = stepGoalProvider.goalSteps;
 
-      print(
+      debugPrint(
           "🔥 Checking streak - Today's steps: $todaySteps, Goal: $goalSteps");
 
-      // Use the new method from streak provider
-      await streakProvider.checkAndUpdateTodayStreak(todaySteps, goalSteps);
+      // Get the goal set date from StepGoalProvider
+      final goalSetDate = stepGoalProvider.getGoalSetDateForCurrentMonth();
 
-      print("✅ Streak check completed");
+      // Use the new method from streak provider
+      await streakProvider.checkAndUpdateTodayStreak(
+          todaySteps, goalSteps, goalSetDate);
+
+      debugPrint("✅ Streak check completed");
     } catch (e) {
-      print("❌ Error updating streak: $e");
+      debugPrint("❌ Error updating streak: $e");
     }
   }
 
@@ -195,7 +201,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
     if (!mounted) return;
 
     try {
-      print("🔄 Refreshing dashboard data with hybrid approach...");
+      debugPrint("🔄 Refreshing dashboard data with hybrid approach...");
 
       // Use hybrid approach for real-time updated steps
       final todaySteps = await _healthService.fetchHybridRealTimeSteps();
@@ -211,7 +217,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
           end: now,
         );
       } catch (e) {
-        print("❌ Distance fetch failed during refresh: $e");
+        debugPrint("❌ Distance fetch failed during refresh: $e");
       }
 
       if (mounted) {
@@ -225,9 +231,10 @@ class _HealthDashboardState extends State<HealthDashboard> {
       // Update streak with fresh data
       await _updateStreakIfNeeded(todaySteps);
 
-      print("✅ Dashboard refreshed - Steps: $_steps, Calories: $_calories");
+      debugPrint(
+          "✅ Dashboard refreshed - Steps: $_steps, Calories: $_calories");
     } catch (e) {
-      print("❌ Error refreshing dashboard data: $e");
+      debugPrint("❌ Error refreshing dashboard data: $e");
     }
   }
 
@@ -242,7 +249,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
       // Then refresh with current step data
       await _refreshStreakData();
     } catch (e) {
-      print("❌ Error loading and refreshing streak data: $e");
+      debugPrint("❌ Error loading and refreshing streak data: $e");
     }
   }
 
@@ -256,77 +263,20 @@ class _HealthDashboardState extends State<HealthDashboard> {
       // Get today's steps to check if goal is met using hybrid approach
       final todaySteps = await _healthService.fetchHybridRealTimeSteps();
 
-      print(
+      debugPrint(
           "🔄 Refreshing streak data - Today's steps: $todaySteps, Goal: $goalSteps");
 
+      // Get the goal set date from StepGoalProvider
+      final goalSetDate = stepGoalProvider.getGoalSetDateForCurrentMonth();
+
       // Use the new method from streak provider
-      await streakProvider.checkAndUpdateTodayStreak(todaySteps, goalSteps);
+      await streakProvider.checkAndUpdateTodayStreak(
+          todaySteps, goalSteps, goalSetDate);
 
-      print("✅ Streak data refreshed");
+      debugPrint("✅ Streak data refreshed");
     } catch (e) {
-      print("❌ Error refreshing streak data: $e");
+      debugPrint("❌ Error refreshing streak data: $e");
     }
-  }
-
-  void _showHealthConnectInstallDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Health Connect Required'),
-          content: const Text(
-            'This app requires Health Connect to track your health data. '
-            'Please install Health Connect from the Play Store to continue.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                // Open device settings since there's no direct method to open Health Connect settings
-                await health.requestAuthorization([
-                  HealthDataType.STEPS,
-                  HealthDataType.ACTIVE_ENERGY_BURNED,
-                  HealthDataType.DISTANCE_DELTA,
-                ]);
-              },
-              child: const Text('Grant Access'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showPermissionRequestDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Health Permissions Required'),
-          content: const Text(
-            'This app needs access to your health data to track your activities. '
-            'Please grant the necessary permissions to continue.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await fetchHealthData();
-              },
-              child: const Text('Grant Permissions'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _onItemTapped(int index) {
@@ -343,9 +293,12 @@ class _HealthDashboardState extends State<HealthDashboard> {
     }
   }
 
-  void _showStepGoalDialog() {
+  void _showMonthlyGoalDialog() {
     final stepGoalProvider = context.read<StepGoalProvider>();
-    int tempGoalSteps = stepGoalProvider.goalSteps;
+    final now = DateTime.now();
+    final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final hasCurrentGoal = stepGoalProvider.hasCurrentMonthGoal;
+    int tempGoalSteps = hasCurrentGoal ? stepGoalProvider.goalSteps : 10000;
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -381,6 +334,32 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       ],
                     ),
                     const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.calendar_month,
+                              color: Colors.blue, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Setting goal for ${DateFormat('MMMM yyyy').format(now)}',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -416,21 +395,35 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
-                          stepGoalProvider.setGoal(tempGoalSteps);
-                          Navigator.pop(context);
+                          try {
+                            stepGoalProvider.setCurrentMonthGoal(tempGoalSteps);
+                            Navigator.pop(context);
 
-                          // Update streak after goal change
-                          await _updateStreakIfNeeded(_steps);
+                            // Update streak after goal change
+                            await _updateStreakIfNeeded(_steps);
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Step goal updated!'),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Monthly step goal set!'),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    e.toString().replaceAll('Exception: ', '')),
+                                backgroundColor: Colors.red,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A237E),
@@ -440,8 +433,8 @@ class _HealthDashboardState extends State<HealthDashboard> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text(
-                          'Set Goal',
+                        child: Text(
+                          hasCurrentGoal ? 'Update Goal' : 'Set Goal',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -970,7 +963,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
       goalSteps: goalSteps,
       isGoalEnabled: _isGoalEnabled,
       isEditable: true,
-      onEdit: _showStepGoalDialog,
       onToggle: (value) => setState(() => _isGoalEnabled = value),
     );
   }

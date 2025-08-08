@@ -34,7 +34,7 @@ class RewardNotificationWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withAlpha((0.2 * 255).round()),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -57,7 +57,7 @@ class RewardNotificationWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withAlpha((0.2 * 255).round()),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -84,7 +84,7 @@ class RewardNotificationWidget extends StatelessWidget {
                     Text(
                       message,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withAlpha((0.9 * 255).round()),
                         fontSize: 14,
                       ),
                       textAlign: TextAlign.center,
@@ -113,7 +113,8 @@ class RewardNotificationWidget extends StatelessWidget {
                     TextButton(
                       onPressed: onDismiss,
                       style: TextButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor:
+                            Colors.white.withAlpha((0.2 * 255).round()),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -140,7 +141,7 @@ class RewardNotificationWidget extends StatelessWidget {
                   width: 28,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withAlpha((0.3 * 255).round()),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -165,7 +166,7 @@ class RewardNotificationWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withAlpha((0.2 * 255).round()),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -179,7 +180,7 @@ class RewardNotificationWidget extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withAlpha((0.8 * 255).round()),
               fontSize: 12,
             ),
           ),

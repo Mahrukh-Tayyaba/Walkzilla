@@ -37,12 +37,12 @@ class _SoloModeState extends State<SoloMode> {
   void initState() {
     super.initState();
     _focusNode.addListener(() {
-      print('Game focus changed: ${_focusNode.hasFocus}');
+      debugPrint('Game focus changed: ${_focusNode.hasFocus}');
     });
 
     // Set initialization time and start grace period
     _initializationTime = DateTime.now();
-    print('🎯 SOLO MODE: Initialization started at $_initializationTime');
+    debugPrint('🎯 SOLO MODE: Initialization started at $_initializationTime');
 
     // Initialize with walking state as false
     _isUserWalking = false;
@@ -52,7 +52,7 @@ class _SoloModeState extends State<SoloMode> {
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         _isInitialized = true;
-        print(
+        debugPrint(
             '🎯 SOLO MODE: Grace period ended, now accepting walking detection');
       }
     });
@@ -74,20 +74,20 @@ class _SoloModeState extends State<SoloMode> {
       setState(() {
         _previousSteps = _steps;
       });
-      print(
+      debugPrint(
           '📊 Initialized step tracking: previous=$_previousSteps, current=$_steps');
 
       // Force walking state to false after initial fetch
       setState(() {
         _isUserWalking = false;
       });
-      print('🔄 Force reset walking state after initial fetch');
+      debugPrint('🔄 Force reset walking state after initial fetch');
 
       // Force character to idle state during initialization
       if (_game?.character != null) {
         _game!.character!.isWalking = false;
         _game!.character!.updateAnimation(false);
-        print('🎬 INITIALIZATION: Forced character to idle state');
+        debugPrint('🎬 INITIALIZATION: Forced character to idle state');
       }
 
       // APPROACH 26: START CONTINUOUS MONITORING
@@ -104,10 +104,10 @@ class _SoloModeState extends State<SoloMode> {
         // Set up Health Connect listener
         _setupHealthConnectListener();
 
-        print('✅ Health Connect monitoring started');
+        debugPrint('✅ Health Connect monitoring started');
       } else {
         // Fallback to periodic polling if no permissions
-        print('⚠️ No Health Connect permissions, using periodic polling');
+        debugPrint('⚠️ No Health Connect permissions, using periodic polling');
         _startPeriodicUpdates();
       }
 
@@ -120,7 +120,7 @@ class _SoloModeState extends State<SoloMode> {
         }
       });
     } catch (e) {
-      print('❌ Error initializing real-time tracking: $e');
+      debugPrint('❌ Error initializing real-time tracking: $e');
       // Fallback to periodic polling
       _startPeriodicUpdates();
     }
@@ -145,7 +145,7 @@ class _SoloModeState extends State<SoloMode> {
 
         // IMMEDIATE MILESTONE CHECK: Check for milestone achievement immediately when steps are fetched
         if (_steps > _previousSteps) {
-          print(
+          debugPrint(
               '🎯 FETCH STEPS: Steps increased from $_previousSteps to $_steps - checking milestones immediately');
           _checkMilestoneAchievementRealTime();
         }
@@ -163,15 +163,15 @@ class _SoloModeState extends State<SoloMode> {
         // Real-time cleanup of milestones that just went out of range
         _cleanupOutOfRangeMilestonesRealTime();
 
-        print(
+        debugPrint(
             '📱 SENSOR-OPTIMIZED: Fetched accurate steps: $stepsCount (previous: $_previousSteps)');
 
         // APPROACH 22: DEBUG STEP TRACKING
-        print(
+        debugPrint(
             '📊 Step tracking: previous=$_previousSteps, current=$_steps, difference=${_steps - _previousSteps}');
       }
     } catch (e) {
-      print('❌ Error in animation-safe step fetch: $e');
+      debugPrint('❌ Error in animation-safe step fetch: $e');
       if (mounted) {
         setState(() {
           _steps = 0;
@@ -199,7 +199,7 @@ class _SoloModeState extends State<SoloMode> {
 
         // IMMEDIATE MILESTONE CHECK: Check for milestone achievement immediately when steps update
         if (_steps > _previousSteps) {
-          print(
+          debugPrint(
               '🎯 HEALTH CONNECT: Steps increased from $_previousSteps to $_steps - checking milestones immediately');
           _checkMilestoneAchievementRealTime();
         }
@@ -208,7 +208,7 @@ class _SoloModeState extends State<SoloMode> {
         _checkUserWalkingWithTiming(DateTime.now());
 
         // 🎯 REAL-TIME MILESTONE CHECK: Check for milestone achievement on EVERY step update
-        print(
+        debugPrint(
             '🎯 REAL-TIME MILESTONE CHECK: Steps=$_steps, Previous=$_previousSteps');
         _checkMilestoneAchievementRealTime();
 
@@ -222,7 +222,7 @@ class _SoloModeState extends State<SoloMode> {
         // Sync character animation
         _syncCharacterAnimation();
 
-        print(
+        debugPrint(
             '🏥 Health Connect update: +$stepIncrease steps (Accurate Total: $accurateSteps)');
       }
     });
@@ -230,7 +230,7 @@ class _SoloModeState extends State<SoloMode> {
 
   // SIMPLIFIED MONITORING: Single monitoring system to prevent jitter
   void _startContinuousMonitoring() {
-    print('🔄 Starting simplified monitoring system...');
+    debugPrint('🔄 Starting simplified monitoring system...');
 
     // Single monitoring system every 2 seconds
     _startSingleMonitoring();
@@ -257,7 +257,7 @@ class _SoloModeState extends State<SoloMode> {
           DateTime.now().difference(_lastStepUpdate!).inSeconds;
 
       if (timeSinceLastStep >= 5) {
-        print(
+        debugPrint(
             '⏰ 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle');
         _setWalkingState(false);
       }
@@ -265,7 +265,8 @@ class _SoloModeState extends State<SoloMode> {
 
     // ENHANCED MILESTONE CHECK: Check for milestone achievements during continuous monitoring
     if (_isUserWalking) {
-      print('🎯 CONTINUOUS MONITORING: User is walking, checking milestones');
+      debugPrint(
+          '🎯 CONTINUOUS MONITORING: User is walking, checking milestones');
       _checkMilestoneAchievementRealTime();
     }
   }
@@ -276,21 +277,22 @@ class _SoloModeState extends State<SoloMode> {
         _isUserWalking = walking;
       });
       walking ? _startCharacterWalking() : _stopCharacterWalking();
-      print(walking ? '🚶‍♂️ User started walking' : '🛑 User stopped walking');
+      debugPrint(
+          walking ? '🚶‍♂️ User started walking' : '🛑 User stopped walking');
     } else {
-      print('✅ State already correct: $walking');
+      debugPrint('✅ State already correct: $walking');
     }
   }
 
   void _checkUserWalkingWithTiming(DateTime timestamp) {
     final now = DateTime.now();
 
-    print(
+    debugPrint(
         '🔍 Checking walking state: previous=$_previousSteps, current=$_steps, isWalking=$_isUserWalking, initialized=$_isInitialized');
 
     // GRACE PERIOD: Don't detect walking during initialization
     if (!_isInitialized) {
-      print(
+      debugPrint(
           '🎯 GRACE PERIOD: Screen not fully initialized, ignoring walking detection');
       return;
     }
@@ -305,17 +307,17 @@ class _SoloModeState extends State<SoloMode> {
     if (_steps > _previousSteps) {
       shouldBeWalking = true;
       _lastStepUpdate = now;
-      print(
+      debugPrint(
           '🚶‍♂️ Steps increased: $_previousSteps -> $_steps, user is walking');
 
       // IMMEDIATE MILESTONE CHECK: Check for milestone achievement when steps increase
-      print(
+      debugPrint(
           '🎯 IMMEDIATE MILESTONE CHECK: Steps increased, checking milestones');
       _checkMilestoneAchievementRealTime();
 
       // Update previous steps to current steps for next comparison
       _previousSteps = _steps;
-      print('📊 Updated previous steps to: $_previousSteps');
+      debugPrint('📊 Updated previous steps to: $_previousSteps');
     } else {
       // Steps didn't increase - check if we should go idle
       if (_isUserWalking && _lastStepUpdate != null) {
@@ -324,12 +326,12 @@ class _SoloModeState extends State<SoloMode> {
         if (timeSinceLastStep >= 5) {
           // Force idle after 5 seconds of no steps
           shouldBeWalking = false;
-          print(
+          debugPrint(
               '⏰ 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle');
         } else {
           // Still in walking window, keep walking
           shouldBeWalking = true;
-          print('👀 Still walking: ${timeSinceLastStep}s since last step');
+          debugPrint('👀 Still walking: ${timeSinceLastStep}s since last step');
         }
       } else {
         // Not walking, stay idle
@@ -339,10 +341,10 @@ class _SoloModeState extends State<SoloMode> {
 
     // Only change state if it's actually different
     if (_isUserWalking != shouldBeWalking) {
-      print('🔄 State change needed: $_isUserWalking -> $shouldBeWalking');
+      debugPrint('🔄 State change needed: $_isUserWalking -> $shouldBeWalking');
       _setWalkingState(shouldBeWalking);
     } else {
-      print('✅ State is correct: $_isUserWalking');
+      debugPrint('✅ State is correct: $_isUserWalking');
     }
   }
 
@@ -350,7 +352,7 @@ class _SoloModeState extends State<SoloMode> {
     // APPROACH 8: Force immediate character animation sync
     try {
       if (_game?.character != null) {
-        print('🔄 FORCING character animation sync to IDLE');
+        debugPrint('🔄 FORCING character animation sync to IDLE');
 
         // APPROACH 37: ULTRA AGGRESSIVE CHARACTER FORCE
         _game!.character!.isWalking = false;
@@ -359,11 +361,11 @@ class _SoloModeState extends State<SoloMode> {
 
         // Force idle animation directly
         if (_game!.character!.idleAnimation != null) {
-          print('🎬 ULTRA FORCE: Setting animation to idleAnimation');
+          debugPrint('🎬 ULTRA FORCE: Setting animation to idleAnimation');
           _game!.character!.animation = _game!.character!.idleAnimation;
 
           // Force animation restart by reassignment
-          print('🎬 ULTRA FORCE: Animation reassigned to force restart');
+          debugPrint('🎬 ULTRA FORCE: Animation reassigned to force restart');
         }
 
         // Double-check state after forcing
@@ -371,7 +373,7 @@ class _SoloModeState extends State<SoloMode> {
           if (mounted && _game?.character != null) {
             final isWalking = _game!.character!.isWalking;
             if (isWalking) {
-              print(
+              debugPrint(
                   '🎬 ULTRA FORCE: Character still walking after force, trying again');
               _game!.character!.isWalking = false;
               _game!.character!.updateAnimation(false);
@@ -380,7 +382,7 @@ class _SoloModeState extends State<SoloMode> {
         });
       }
     } catch (e) {
-      print('❌ Error forcing character animation sync: $e');
+      debugPrint('❌ Error forcing character animation sync: $e');
     }
   }
 
@@ -396,9 +398,9 @@ class _SoloModeState extends State<SoloMode> {
     if (currentDate.day != _lastKnownDate!.day ||
         currentDate.month != _lastKnownDate!.month ||
         currentDate.year != _lastKnownDate!.year) {
-      print('📅 DAY CHANGE DETECTED! Forcing step refresh...');
-      print('📅 Previous date: ${_lastKnownDate!.toIso8601String()}');
-      print('📅 Current date: ${currentDate.toIso8601String()}');
+      debugPrint('📅 DAY CHANGE DETECTED! Forcing step refresh...');
+      debugPrint('📅 Previous date: ${_lastKnownDate!.toIso8601String()}');
+      debugPrint('📅 Current date: ${currentDate.toIso8601String()}');
 
       // Force immediate refresh when day changes
       _fetchStepsFromHomeMethod();
@@ -424,7 +426,7 @@ class _SoloModeState extends State<SoloMode> {
 
   // Force check and show milestones that should be visible
   void _forceCheckVisibleMilestones() async {
-    print('🔧 FORCE CHECKING VISIBLE MILESTONES: Current steps: $_steps');
+    debugPrint('🔧 FORCE CHECKING VISIBLE MILESTONES: Current steps: $_steps');
 
     try {
       for (final milestone in MilestoneHelper.milestones) {
@@ -435,12 +437,12 @@ class _SoloModeState extends State<SoloMode> {
                 false;
         bool boardExists = _game?.milestoneBoards[milestone] != null;
 
-        print(
+        debugPrint(
             '🔧 MILESTONE $milestone: inRange=$isInRange, alreadyShown=$alreadyShown, isInGame=$isInGame, boardExists=$boardExists');
 
         // If milestone should be visible but not in game, add it
         if (isInRange && alreadyShown && !isInGame && boardExists) {
-          print(
+          debugPrint(
               '🔧 FORCE ADDING: $milestone milestone should be visible but not in game');
 
           final board = _game!.milestoneBoards[milestone]!;
@@ -450,7 +452,8 @@ class _SoloModeState extends State<SoloMode> {
 
           // Use addAll for proper batching in Flame
           _game!.addAll([board]);
-          print('✅ FORCE ADDED: $milestone milestone to game with addAll()');
+          debugPrint(
+              '✅ FORCE ADDED: $milestone milestone to game with addAll()');
 
           // Ensure character stays on top by re-adding it
           if (_game?.character != null) {
@@ -462,18 +465,18 @@ class _SoloModeState extends State<SoloMode> {
             setState(() {});
           }
         } else if (isInRange && !boardExists) {
-          print('❌ MILESTONE $milestone: Board does not exist!');
+          debugPrint('❌ MILESTONE $milestone: Board does not exist!');
         }
       }
     } catch (e) {
-      print('❌ Error in force checking visible milestones: $e');
+      debugPrint('❌ Error in force checking visible milestones: $e');
     }
   }
 
   // Enhanced real-time milestone check for immediate response
   void _checkMilestoneAchievementRealTime() async {
     // Debug milestone check
-    print(
+    debugPrint(
         '🔍 REAL-TIME MILESTONE CHECK: Steps=$_steps, Previous=$_previousSteps, Walking=$_isUserWalking');
 
     try {
@@ -490,20 +493,20 @@ class _SoloModeState extends State<SoloMode> {
         // Check if we're currently walking and just reached the milestone
         bool walkingAndReached = _isUserWalking && justCrossedMilestone;
 
-        print(
+        debugPrint(
             '🔍 MILESTONE $milestone: wasBelowRange=$wasBelowRange, isInRange=$isInRange, justCrossedMilestone=$justCrossedMilestone, walkingAndReached=$walkingAndReached');
 
         // Enhanced condition: Show milestone if we just crossed it OR if we're walking and just entered range
         if (justCrossedMilestone ||
             (walkingAndReached && wasBelowRange && isInRange)) {
-          print(
+          debugPrint(
               '🎯 REAL-TIME: Just entered milestone range for $milestone! (Crossed: $justCrossedMilestone, Walking: $_isUserWalking)');
 
           // Check if this milestone has already been shown
           bool alreadyShown = await MilestoneHelper.isShown(milestone);
 
           if (!alreadyShown) {
-            print(
+            debugPrint(
                 '🏆 REAL-TIME: $milestone milestone reached! Showing milestone board immediately');
 
             // Mark milestone as shown in SharedPreferences
@@ -518,14 +521,14 @@ class _SoloModeState extends State<SoloMode> {
 
               // Use addAll for proper batching in Flame
               _game!.addAll([board]);
-              print(
+              debugPrint(
                   '✅ REAL-TIME: $milestone milestone board added to game with addAll()');
 
               // Ensure character stays on top by re-adding it
               if (_game?.character != null) {
                 _game!.remove(_game!.character!);
                 _game!.add(_game!.character!);
-                print('🎬 Character re-added to ensure it stays on top');
+                debugPrint('🎬 Character re-added to ensure it stays on top');
               }
 
               // Force a visual update immediately
@@ -533,37 +536,39 @@ class _SoloModeState extends State<SoloMode> {
                 setState(() {});
               }
 
-              print('🎯 REAL-TIME MILESTONE $milestone SHOULD BE VISIBLE NOW!');
+              debugPrint(
+                  '🎯 REAL-TIME MILESTONE $milestone SHOULD BE VISIBLE NOW!');
             } else {
-              print('❌ REAL-TIME: Milestone board for $milestone is null!');
+              debugPrint(
+                  '❌ REAL-TIME: Milestone board for $milestone is null!');
             }
           } else {
-            print('ℹ️ REAL-TIME: $milestone milestone already shown');
+            debugPrint('ℹ️ REAL-TIME: $milestone milestone already shown');
           }
         }
       }
     } catch (e) {
-      print('❌ Error in real-time milestone achievement check: $e');
+      debugPrint('❌ Error in real-time milestone achievement check: $e');
     }
   }
 
   // Milestone display detection using MilestoneHelper
   void _checkMilestoneAchievement() async {
     // Debug milestone check
-    print('🔍 MILESTONE CHECK: Steps=$_steps, Game=${_game != null}');
+    debugPrint('🔍 MILESTONE CHECK: Steps=$_steps, Game=${_game != null}');
 
     try {
       // Check for current milestone using MilestoneHelper
       int? currentMilestone = await MilestoneHelper.getCurrentMilestone(_steps);
 
       if (currentMilestone != null) {
-        print('🎯 Found milestone: $currentMilestone');
+        debugPrint('🎯 Found milestone: $currentMilestone');
 
         // Check if this milestone has already been shown
         bool alreadyShown = await MilestoneHelper.isShown(currentMilestone);
 
         if (!alreadyShown) {
-          print(
+          debugPrint(
               '🏆 $currentMilestone milestone reached! Showing milestone board');
 
           // Mark milestone as shown in SharedPreferences
@@ -578,14 +583,14 @@ class _SoloModeState extends State<SoloMode> {
 
             // Use addAll for proper batching in Flame
             _game!.addAll([board]);
-            print(
+            debugPrint(
                 '✅ $currentMilestone milestone board added to game with addAll()');
 
             // Ensure character stays on top by re-adding it
             if (_game?.character != null) {
               _game!.remove(_game!.character!);
               _game!.add(_game!.character!);
-              print('🎬 Character re-added to ensure it stays on top');
+              debugPrint('🎬 Character re-added to ensure it stays on top');
             }
 
             // Force a visual update
@@ -593,14 +598,14 @@ class _SoloModeState extends State<SoloMode> {
               setState(() {});
             }
 
-            print('🎯 MILESTONE $currentMilestone SHOULD BE VISIBLE NOW!');
+            debugPrint('🎯 MILESTONE $currentMilestone SHOULD BE VISIBLE NOW!');
           }
         } else {
-          print('ℹ️ $currentMilestone milestone already shown');
+          debugPrint('ℹ️ $currentMilestone milestone already shown');
         }
       }
     } catch (e) {
-      print('❌ Error in milestone achievement check: $e');
+      debugPrint('❌ Error in milestone achievement check: $e');
     }
 
     // Debug: Show all milestone statuses (only if needed)
@@ -624,19 +629,19 @@ class _SoloModeState extends State<SoloMode> {
         if (_isUserWalking && _lastStepUpdate != null) {
           final timeSinceLastStep =
               DateTime.now().difference(_lastStepUpdate!).inSeconds;
-          print(
+          debugPrint(
               '🔄 PERIODIC CHECK: Time since last step: ${timeSinceLastStep}s');
 
           if (timeSinceLastStep >= 5) {
             // Force idle after 5 seconds of no steps (proper idle detection)
-            print(
+            debugPrint(
                 '⏰ PERIODIC 5-SECOND TIMEOUT: No steps for ${timeSinceLastStep}s - FORCING IDLE');
-            print(
+            debugPrint(
                 '⏰ PERIODIC 5-SECOND TIMEOUT: User definitely stopped walking');
             _setWalkingState(false);
             _forceCharacterAnimationSync(); // Force immediate sync
           } else if (timeSinceLastStep >= 7) {
-            print(
+            debugPrint(
                 '⚠️ PERIODIC WARNING: No steps for ${timeSinceLastStep}s - will force idle soon');
           }
         }
@@ -653,7 +658,7 @@ class _SoloModeState extends State<SoloMode> {
               DateTime.now().difference(_lastStepUpdate!).inSeconds;
 
           if (timeSinceLastStep >= 5) {
-            print(
+            debugPrint(
                 '⏰ PERIODIC 5-SECOND IDLE: No steps for ${timeSinceLastStep}s, forcing idle');
             _setWalkingState(false);
             _forceCharacterAnimationSync();
@@ -670,14 +675,14 @@ class _SoloModeState extends State<SoloMode> {
     if (_game?.character != null) {
       final characterIsWalking = _game!.character!.isWalking;
       if (characterIsWalking != _isUserWalking) {
-        print(
+        debugPrint(
             '🛡️ Force character state correction: character=$characterIsWalking, should=$_isUserWalking');
         _game!.updateWalkingState(_isUserWalking);
       }
 
       // APPROACH 11: AGGRESSIVE CHARACTER STATE FORCE
       if (_isUserWalking == false && characterIsWalking == true) {
-        print(
+        debugPrint(
             '🚨 AGGRESSIVE: Character is walking but should be idle - FORCING');
         _game!.character!.isWalking = false;
         _game!.character!.updateAnimation(false);
@@ -693,17 +698,17 @@ class _SoloModeState extends State<SoloMode> {
         ? now.difference(_lastStepUpdate!).inSeconds
         : 'No step history';
 
-    print('🔍 DEBUG WALKING STATE:');
-    print('  - Current steps: $_steps');
-    print('  - Previous steps: $_previousSteps');
-    print('  - Is walking: $_isUserWalking');
-    print('  - Last step update: $_lastStepUpdate');
-    print('  - Time since last step: $timeSinceLastStep seconds');
-    print('  - Character walking: ${_game?.character?.isWalking}');
+    debugPrint('🔍 DEBUG WALKING STATE:');
+    debugPrint('  - Current steps: $_steps');
+    debugPrint('  - Previous steps: $_previousSteps');
+    debugPrint('  - Is walking: $_isUserWalking');
+    debugPrint('  - Last step update: $_lastStepUpdate');
+    debugPrint('  - Time since last step: $timeSinceLastStep seconds');
+    debugPrint('  - Character walking: ${_game?.character?.isWalking}');
 
     // APPROACH 25: RESET STEP TRACKING IF NEEDED
     if (_steps != _previousSteps) {
-      print('🔄 Resetting step tracking to current steps');
+      debugPrint('🔄 Resetting step tracking to current steps');
       setState(() {
         _previousSteps = _steps;
       });
@@ -712,8 +717,8 @@ class _SoloModeState extends State<SoloMode> {
 
   // Real-time cleanup of milestones that just went out of range
   void _cleanupOutOfRangeMilestonesRealTime() async {
-    print('🧹 REAL-TIME CLEANUP: Checking for out-of-range milestones');
-    print('Current Steps: $_steps, Previous: $_previousSteps');
+    debugPrint('🧹 REAL-TIME CLEANUP: Checking for out-of-range milestones');
+    debugPrint('Current Steps: $_steps, Previous: $_previousSteps');
 
     try {
       for (final threshold in MilestoneHelper.milestones) {
@@ -726,10 +731,11 @@ class _SoloModeState extends State<SoloMode> {
 
         // Remove milestone if it was in range before but is out of range now
         if (isInGame && wasInRange && !isInRange) {
-          print(
+          debugPrint(
               '🗑️ REAL-TIME CLEANUP: Removing $threshold milestone (just went out of range: $_previousSteps → $_steps)');
           _game!.remove(_game!.milestoneBoards[threshold]!);
-          print('✅ REAL-TIME: $threshold milestone board removed from game');
+          debugPrint(
+              '✅ REAL-TIME: $threshold milestone board removed from game');
 
           // Force a visual update immediately
           if (mounted) {
@@ -738,14 +744,14 @@ class _SoloModeState extends State<SoloMode> {
         }
       }
     } catch (e) {
-      print('❌ Error in real-time cleanup of out-of-range milestones: $e');
+      debugPrint('❌ Error in real-time cleanup of out-of-range milestones: $e');
     }
   }
 
   // Clean up milestones that are out of range
   void _cleanupOutOfRangeMilestones() async {
-    print('🧹 CLEANING UP OUT-OF-RANGE MILESTONES');
-    print('Current Steps: $_steps');
+    debugPrint('🧹 CLEANING UP OUT-OF-RANGE MILESTONES');
+    debugPrint('Current Steps: $_steps');
 
     try {
       for (final threshold in MilestoneHelper.milestones) {
@@ -756,24 +762,24 @@ class _SoloModeState extends State<SoloMode> {
 
         // Remove milestone if it's in game but out of range
         if (isInGame && !isInRange) {
-          print(
+          debugPrint(
               '🗑️ CLEANUP: Removing $threshold milestone (out of range: $_steps steps)');
           _game!.remove(_game!.milestoneBoards[threshold]!);
-          print('✅ $threshold milestone board removed from game');
+          debugPrint('✅ $threshold milestone board removed from game');
         }
       }
     } catch (e) {
-      print('❌ Error cleaning up out-of-range milestones: $e');
+      debugPrint('❌ Error cleaning up out-of-range milestones: $e');
     }
 
-    print('✅ Out-of-range milestone cleanup completed');
+    debugPrint('✅ Out-of-range milestone cleanup completed');
   }
 
   // Restore milestones that should be visible based on current steps
   void _restoreMilestones() async {
-    print('🔄 RESTORING MILESTONES');
-    print('=======================');
-    print('Current Steps: $_steps');
+    debugPrint('🔄 RESTORING MILESTONES');
+    debugPrint('=======================');
+    debugPrint('Current Steps: $_steps');
 
     try {
       for (final threshold in MilestoneHelper.milestones) {
@@ -787,7 +793,7 @@ class _SoloModeState extends State<SoloMode> {
 
         // If milestone should be shown (reached, marked as shown, and in range) but not in game
         if (hasReached && isShown && isInRange && !isInGame && isAvailable) {
-          print(
+          debugPrint(
               '🔄 RESTORING: $threshold milestone (reached, shown, and in range)');
 
           // Add the milestone board back to the game using addAll for proper batching
@@ -798,20 +804,21 @@ class _SoloModeState extends State<SoloMode> {
 
           // Use addAll for proper batching in Flame
           _game!.addAll([board]);
-          print('✅ $threshold milestone board restored to game with addAll()');
+          debugPrint(
+              '✅ $threshold milestone board restored to game with addAll()');
         } else if (hasReached && isShown && !isInRange && isInGame) {
           // Remove milestone if it's out of range but still in game
-          print(
+          debugPrint(
               '🗑️ REMOVING: $threshold milestone (out of range: $_steps steps)');
           _game!.remove(_game!.milestoneBoards[threshold]!);
-          print('✅ $threshold milestone board removed from game');
+          debugPrint('✅ $threshold milestone board removed from game');
         }
       }
     } catch (e) {
-      print('❌ Error restoring milestones: $e');
+      debugPrint('❌ Error restoring milestones: $e');
     }
 
-    print('✅ Milestone restoration completed');
+    debugPrint('✅ Milestone restoration completed');
   }
 
   void _syncCharacterAnimation() {
@@ -825,7 +832,7 @@ class _SoloModeState extends State<SoloMode> {
         if (_game!.character != null) {
           final characterIsWalking = _game!.character!.isWalking;
           if (characterIsWalking != _isUserWalking) {
-            print(
+            debugPrint(
                 '🔄 Character state mismatch: character=$characterIsWalking, should=$_isUserWalking');
             // Force correct state
             _game!.updateWalkingState(_isUserWalking);
@@ -833,12 +840,12 @@ class _SoloModeState extends State<SoloMode> {
         }
 
         // Reduced debug logging to prevent performance issues
-        // print('✅ Character animation synced: ${_isUserWalking ? "Walking" : "Idle"}');
+        // debugPrint('✅ Character animation synced: ${_isUserWalking ? "Walking" : "Idle"}');
       } catch (e) {
-        print('❌ Error syncing character animation: $e');
+        debugPrint('❌ Error syncing character animation: $e');
       }
     } else {
-      print('⚠️ Game instance not available for animation sync');
+      debugPrint('⚠️ Game instance not available for animation sync');
     }
   }
 
@@ -846,9 +853,9 @@ class _SoloModeState extends State<SoloMode> {
     // Start character walking animation with proper error handling
     try {
       _game?.updateWalkingState(true);
-      print('🎬 Character walking animation started');
+      debugPrint('🎬 Character walking animation started');
     } catch (e) {
-      print('❌ Error starting character walking: $e');
+      debugPrint('❌ Error starting character walking: $e');
     }
   }
 
@@ -856,9 +863,9 @@ class _SoloModeState extends State<SoloMode> {
     // Stop character walking animation with proper error handling
     try {
       _game?.updateWalkingState(false);
-      print('🎬 Character walking animation stopped');
+      debugPrint('🎬 Character walking animation stopped');
     } catch (e) {
-      print('❌ Error stopping character walking: $e');
+      debugPrint('❌ Error stopping character walking: $e');
     }
   }
 
@@ -866,11 +873,11 @@ class _SoloModeState extends State<SoloMode> {
   void _ensureCharacterAnimation() {
     // Make sure the game instance and character are available
     if (_game?.character != null) {
-      print('✅ Character animation system ready');
+      debugPrint('✅ Character animation system ready');
       // Ensure character starts in idle state
       _game!.updateWalkingState(false);
     } else {
-      print('⚠️ Character animation system not ready yet');
+      debugPrint('⚠️ Character animation system not ready yet');
     }
   }
 
@@ -941,13 +948,13 @@ class _SoloModeState extends State<SoloMode> {
                       _debugWalkingState();
 
                       // APPROACH 18: MANUAL FORCE IDLE FOR TESTING
-                      print('🔧 Manual force idle triggered');
+                      debugPrint('🔧 Manual force idle triggered');
                       _setWalkingState(false);
                       _forceCharacterAnimationSync();
 
                       // Force character to idle immediately
                       if (_game?.character != null) {
-                        print('🎬 MANUAL: Forcing character to idle');
+                        debugPrint('🎬 MANUAL: Forcing character to idle');
                         _game!.character!.isWalking = false;
                         _game!.character!.updateAnimation(false);
                         if (_game!.character!.idleAnimation != null) {
@@ -957,24 +964,25 @@ class _SoloModeState extends State<SoloMode> {
                       }
 
                       // MANUAL MILESTONE CHECK: Force check milestone achievement (real-time)
-                      print('🔧 Manual milestone check triggered');
+                      debugPrint('🔧 Manual milestone check triggered');
                       _checkMilestoneAchievementRealTime();
 
                       // FORCE CHECK: Check for milestones that should be visible
-                      print('🔧 Force checking visible milestones');
+                      debugPrint('🔧 Force checking visible milestones');
                       _forceCheckVisibleMilestones();
 
                       // TEST: Reset 2000 milestone for testing
-                      print('🧪 Resetting 2000 milestone for testing');
+                      debugPrint('🧪 Resetting 2000 milestone for testing');
                       await MilestoneHelper.resetSpecificMilestone(2000);
 
                       // DEBUG: Check available milestone boards
-                      print('🔍 DEBUG: Checking available milestone boards');
+                      debugPrint(
+                          '🔍 DEBUG: Checking available milestone boards');
                       if (_game != null) {
-                        print(
+                        debugPrint(
                             '🔍 Game milestone boards: ${_game!.milestoneBoards.keys.toList()}');
                       } else {
-                        print('❌ Game is null!');
+                        debugPrint('❌ Game is null!');
                       }
 
                       // RESTORE MILESTONES: Restore milestones that should be visible and clean up out-of-range ones
@@ -1065,7 +1073,7 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
 
   @override
   Future<void> onLoad() async {
-    print('Character onLoad start');
+    debugPrint('Character onLoad start');
     try {
       // Use preloaded animations from service
       final animationService = CharacterAnimationService();
@@ -1075,23 +1083,23 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
         idleAnimation = animationService.idleAnimation;
         walkingAnimation = animationService.walkingAnimation;
         _animationsLoaded = true;
-        print('Character onLoad: Using cached animations');
+        debugPrint('Character onLoad: Using cached animations');
       } else {
         // Wait for animations to load or load them now
-        print('Character onLoad: Loading animations from service...');
+        debugPrint('Character onLoad: Loading animations from service...');
         final animations = await animationService.getAnimations();
         idleAnimation = animations['idle'];
         walkingAnimation = animations['walking'];
         _animationsLoaded = true;
-        print('Character onLoad: Animations loaded from service');
+        debugPrint('Character onLoad: Animations loaded from service');
       }
 
       animation = idleAnimation;
       // position = Vector2(20, 250);
-      print('Character onLoad success');
+      debugPrint('Character onLoad success');
     } catch (e, st) {
-      print('Character onLoad error: $e');
-      print(st);
+      debugPrint('Character onLoad error: $e');
+      debugPrint(st.toString());
     }
   }
 
@@ -1116,7 +1124,7 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
     if (!_animationsLoaded ||
         idleAnimation == null ||
         walkingAnimation == null) {
-      print('⚠️ Character updateAnimation: Animations not loaded');
+      debugPrint('⚠️ Character updateAnimation: Animations not loaded');
       return;
     }
 
@@ -1129,10 +1137,10 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
       final newAnimation = walking ? walkingAnimation : idleAnimation;
 
       if (animation != newAnimation) {
-        print(
+        debugPrint(
             '🔄 Character: Switching animation to ${walking ? "walking" : "idle"}');
         animation = newAnimation;
-        print('🎬 Animation switched and will restart');
+        debugPrint('🎬 Animation switched and will restart');
       } else {
         // Animation is already correct - don't restart it
         // This prevents jittery restarts when the same animation is already playing
@@ -1141,27 +1149,27 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
       // Update the last animation state
       _lastAnimationState = walking;
     } catch (e) {
-      print('❌ Error updating character animation: $e');
+      debugPrint('❌ Error updating character animation: $e');
     }
   }
 
   void startWalking() {
-    print('🎬 Character startWalking called');
+    debugPrint('🎬 Character startWalking called');
     try {
       isWalking = true;
       updateAnimation(true);
     } catch (e) {
-      print('❌ Error starting character walking: $e');
+      debugPrint('❌ Error starting character walking: $e');
     }
   }
 
   void stopWalking() {
-    print('🎬 Character stopWalking called');
+    debugPrint('🎬 Character stopWalking called');
     try {
       isWalking = false;
       updateAnimation(false);
     } catch (e) {
-      print('❌ Error stopping character walking: $e');
+      debugPrint('❌ Error stopping character walking: $e');
     }
   }
 }
@@ -1193,18 +1201,19 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
       if (character != null) {
         character!.isWalking = walking;
         character!.updateAnimation(walking);
-        print('🎮 Game: Character ${walking ? "started" : "stopped"} walking');
+        debugPrint(
+            '🎮 Game: Character ${walking ? "started" : "stopped"} walking');
       } else {
-        print('⚠️ Game: Character not available for walking state update');
+        debugPrint('⚠️ Game: Character not available for walking state update');
       }
     } catch (e) {
-      print('❌ Error updating walking state: $e');
+      debugPrint('❌ Error updating walking state: $e');
     }
   }
 
   @override
   Future<void> onLoad() async {
-    print('SoloModeGame onLoad start');
+    debugPrint('SoloModeGame onLoad start');
     await super.onLoad();
     final screenWidth = size.x;
     final screenHeight = size.y;
@@ -1305,16 +1314,16 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
           milestoneBoards[stepThreshold] = milestoneBoard;
           milestoneShown[stepThreshold] = false; // Initialize as not shown
 
-          print(
+          debugPrint(
               '🏆 MILESTONE: Created $stepThreshold milestone board at position ($milestoneX, $milestoneY)');
         } catch (e) {
-          print('❌ Error loading milestone $stepThreshold: $e');
+          debugPrint('❌ Error loading milestone $stepThreshold: $e');
         }
       }
 
       // Set the default milestone board for backward compatibility
       milestoneBoard = milestoneBoards[500];
-      print('🏆 MILESTONE: All milestone boards created successfully');
+      debugPrint('🏆 MILESTONE: All milestone boards created successfully');
       // Don't add to the game initially - will be added when respective steps are reached
 
       // Layer 3: Character (on top of path)
@@ -1337,12 +1346,12 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
       // Ensure character starts in idle state during initialization
       character!.isWalking = false;
       character!.updateAnimation(false);
-      print('🎬 GAME INITIALIZATION: Character forced to idle state');
+      debugPrint('🎬 GAME INITIALIZATION: Character forced to idle state');
 
-      print('SoloModeGame onLoad success');
+      debugPrint('SoloModeGame onLoad success');
     } catch (e, st) {
-      print('SoloModeGame onLoad error: $e');
-      print(st);
+      debugPrint('SoloModeGame onLoad error: $e');
+      debugPrint(st.toString());
     }
   }
 
@@ -1352,7 +1361,7 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
     if (character?.isWalking == true) {
       final double dx = walkSpeed * dt;
       // Reduced debug logging to prevent performance issues
-      // print('🎮 Game: Moving background (character walking)');
+      // debugPrint('🎮 Game: Moving background (character walking)');
 
       // Sky
       skyA?.x -= dx;
@@ -1398,7 +1407,7 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
     } else {
       // Reduced debug logging to prevent performance issues
       // if (character != null) {
-      //   print('🎮 Game: Background stopped (character idle)');
+      //   debugPrint('🎮 Game: Background stopped (character idle)');
       // }
     }
   }

@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'home.dart';
-import 'services/health_service.dart';
+
 import 'services/username_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/user_login_service.dart';
@@ -30,7 +29,6 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class EmailVerificationScreenState extends State<EmailVerificationScreen> {
-  final HealthService _healthService = HealthService();
   final UsernameService _usernameService = UsernameService();
   final UserLoginService _userLoginService = UserLoginService();
   bool _isVerifying = false;
@@ -275,7 +273,7 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEB14C).withOpacity(0.1),
+                  color: const Color(0xFFFEB14C).withAlpha((0.1 * 255).round()),
                   borderRadius: BorderRadius.circular(40),
                 ),
                 child: const Icon(
@@ -361,7 +359,7 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withAlpha((0.1 * 255).round()),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(

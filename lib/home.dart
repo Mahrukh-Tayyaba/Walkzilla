@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'providers/step_goal_provider.dart';
+import 'providers/streak_provider.dart';
+
 import 'package:health/health.dart';
 import 'health_dashboard.dart'; // Import the health dashboard screen
 import 'login_screen.dart';
@@ -12,12 +16,11 @@ import 'services/leaderboard_migration_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
 import 'services/network_service.dart';
-import 'services/character_data_service.dart';
+
 import 'widgets/daily_challenge_spin.dart';
 import 'widgets/reward_notification_widget.dart';
 import 'widgets/connection_status_widget.dart';
-import 'widgets/level_up_notification.dart';
-import 'services/leveling_service.dart';
+
 import 'services/leveling_migration_service.dart';
 import 'challenges_screen.dart';
 import 'notification_page.dart';
@@ -47,7 +50,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final CoinService _coinService = CoinService();
   final NetworkService _networkService = NetworkService();
-  final CharacterDataService _characterDataService = CharacterDataService();
+
   int _steps = 0;
   double _calories = 0.0;
 
@@ -124,8 +127,313 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         _startRewardListener();
         _startConnectionStatusMonitoring();
         _initializeLevelingData();
+
+        // Check for monthly goal after a delay to ensure providers are loaded
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _refreshProvidersAndCheckGoal();
+          }
+        });
       }
     });
+  }
+
+  // Goal checking methods
+  Future<void> _refreshProvidersAndCheckGoal() async {
+    try {
+      final stepGoalProvider = context.read<StepGoalProvider>();
+      final streakProvider = context.read<StreakProvider>();
+
+      print("🔄 Home: Refreshing providers...");
+
+      // Refresh both providers to ensure latest data
+      await stepGoalProvider.refreshGoals();
+      await streakProvider.reloadStreaks();
+
+      print("✅ Home: Providers refreshed, checking goal...");
+      _checkAndShowGoalDialog();
+    } catch (e) {
+      debugPrint('Error refreshing providers: $e');
+    }
+  }
+
+  void _checkAndShowGoalDialog() {
+    try {
+      final stepGoalProvider = context.read<StepGoalProvider>();
+      print("🔍 Home: Checking if must set goal...");
+
+      if (stepGoalProvider.mustSetGoal()) {
+        print("🔍 Home: Must set goal - showing dialog");
+        _showMonthlyGoalDialog();
+      } else {
+        print("🔍 Home: No need to set goal");
+      }
+    } catch (e) {
+      debugPrint('Error checking goal: $e');
+    }
+  }
+
+  void _showMonthlyGoalDialog() {
+    final stepGoalProvider = context.read<StepGoalProvider>();
+    final now = DateTime.now();
+    final hasCurrentGoal = stepGoalProvider.hasCurrentMonthGoal;
+    int stepGoal = hasCurrentGoal ? stepGoalProvider.goalSteps : 10000;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 380),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+                color: Colors.white,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 22),
+                          onPressed: () => Navigator.of(context).pop(),
+                          splashRadius: 20,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Set Your Daily Streak Goal!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.1,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Set your daily step target to keep your streak alive!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: Color(0xFF6B7280),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.calendar_month,
+                              color: Colors.blue, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Setting goal for ${DateFormat('MMMM yyyy').format(now)}',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: const Color(0xFFF1F1F1), width: 0.8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFE0EDFF),
+                                  shape: BoxShape.circle,
+                                ),
+                                padding: const EdgeInsets.all(4),
+                                child: const Icon(Icons.star,
+                                    color: Color(0xFF2563EB), size: 16),
+                              ),
+                              const SizedBox(width: 8),
+                              const Padding(
+                                padding: EdgeInsets.only(top: 1),
+                                child: Text(
+                                  'Daily Step Goal',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13.5,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              InkWell(
+                                borderRadius: BorderRadius.circular(32),
+                                onTap: () {
+                                  setState(() {
+                                    if (stepGoal > 1000) stepGoal -= 1000;
+                                  });
+                                },
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: const Color(0xFFF3F4F6),
+                                  ),
+                                  child: Icon(Icons.remove,
+                                      size: 18, color: const Color(0xFF6B7280)),
+                                ),
+                              ),
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    '${stepGoal.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")} steps',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black,
+                                      letterSpacing: 1.05,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(32),
+                                onTap: () {
+                                  setState(() {
+                                    stepGoal += 1000;
+                                  });
+                                },
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: const Color(0xFFF3F4F6),
+                                  ),
+                                  child: Icon(Icons.add,
+                                      size: 18, color: const Color(0xFF6B7280)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: const BorderSide(color: Color(0xFFE5E7EB)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              try {
+                                stepGoalProvider.setCurrentMonthGoal(stepGoal);
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(hasCurrentGoal
+                                        ? 'Monthly goal updated!'
+                                        : 'Monthly goal set successfully!'),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(e
+                                        .toString()
+                                        .replaceAll('Exception: ', '')),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF111827),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              hasCurrentGoal ? 'Update Goal' : 'Save Goal',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   /// Start monitoring connection status
@@ -139,10 +447,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         });
 
         if (isOnline) {
-          print('✅ Connection restored - refreshing data');
+          debugPrint('✅ Connection restored - refreshing data');
           _refreshDataOnReconnection();
         } else {
-          print('❌ Connection lost');
+          debugPrint('❌ Connection lost');
           _showConnectionWarning();
         }
       }
@@ -177,7 +485,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     try {
       // Check if navigatorKey is available
       if (navigatorKey.currentContext == null) {
-        print('Navigator key not ready, delaying initialization');
+        debugPrint('Navigator key not ready, delaying initialization');
         // Retry after a short delay
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted) {
@@ -198,7 +506,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // Check for existing pending invites
       _duoChallengeService?.checkForExistingInvites();
     } catch (e) {
-      print('Error initializing duo challenge service: $e');
+      debugPrint('Error initializing duo challenge service: $e');
       _duoChallengeService = null;
     }
   }
@@ -207,7 +515,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void _startUserDataListener() {
     // Don't start listeners if logging out
     if (_isLoggingOut) {
-      print('⚠️ Skipping user data listener setup - logging out');
+      debugPrint('⚠️ Skipping user data listener setup - logging out');
       return;
     }
 
@@ -216,11 +524,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
     // Prevent multiple listeners
     if (_userDataListenerStarted) {
-      print("🎯 User data listener already started, skipping...");
+      debugPrint("🎯 User data listener already started, skipping...");
       return;
     }
 
-    print("🎯 Starting user data listener for GLB path updates...");
+    debugPrint("🎯 Starting user data listener for GLB path updates...");
     _userDataListener?.cancel();
 
     try {
@@ -238,7 +546,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             // Only update if the GLB path has actually changed and is different from last processed
             if (homeGlbPath != _currentGlbPath &&
                 homeGlbPath != _lastProcessedGlbPath) {
-              print(
+              debugPrint(
                   "🔄 GLB path update detected: $_currentGlbPath -> $homeGlbPath");
 
               // Cancel any pending update
@@ -247,28 +555,28 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               // Debounce the update to prevent rapid changes
               _glbUpdateTimer = Timer(const Duration(milliseconds: 500), () {
                 if (mounted && homeGlbPath != _currentGlbPath) {
-                  print("✅ Applying GLB path update: $homeGlbPath");
+                  debugPrint("✅ Applying GLB path update: $homeGlbPath");
                   setState(() {
                     _currentGlbPath = homeGlbPath;
                     _lastProcessedGlbPath = homeGlbPath;
-                    print("📁 State updated - new GLB path: $homeGlbPath");
+                    debugPrint("📁 State updated - new GLB path: $homeGlbPath");
                   });
-                  print("✅ ModelViewer will now display: $homeGlbPath");
+                  debugPrint("✅ ModelViewer will now display: $homeGlbPath");
                 }
               });
             }
           }
         } catch (e) {
-          print("❌ Error in user data listener callback: $e");
+          debugPrint("❌ Error in user data listener callback: $e");
         }
       }, onError: (error) {
-        print("❌ Error in user data listener: $error");
+        debugPrint("❌ Error in user data listener: $error");
         _userDataListenerStarted = false; // Reset flag on error
       });
 
       _userDataListenerStarted = true;
     } catch (e) {
-      print("❌ Error setting up user data listener: $e");
+      debugPrint("❌ Error setting up user data listener: $e");
       _userDataListenerStarted = false;
     }
   }
@@ -281,8 +589,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       final user = _auth.currentUser;
       if (user != null) {
-        print("Loading user data for: ${user.uid}");
-        print("User email: ${user.email}");
+        debugPrint("Loading user data for: ${user.uid}");
+        debugPrint("User email: ${user.email}");
 
         // Get user data from Firestore (username is stored here)
         final userDoc =
@@ -294,9 +602,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           final homeGlbPath =
               userData['homeGlbPath'] ?? 'assets/web/home/MyCharacter_home.glb';
           final userLevel = userData['level'] ?? 1;
-          print("Username from Firestore: $username");
-          print("Home GLB path from Firestore: $homeGlbPath");
-          print("User level from Firestore: $userLevel");
+          debugPrint("Username from Firestore: $username");
+          debugPrint("Home GLB path from Firestore: $homeGlbPath");
+          debugPrint("User level from Firestore: $userLevel");
 
           setState(() {
             _userName = username.isNotEmpty ? username : 'User';
@@ -316,7 +624,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           // Start listening for user data changes (including GLB path updates)
           _startUserDataListener();
         } else {
-          print("No user document found in Firestore");
+          debugPrint("No user document found in Firestore");
           setState(() {
             _userName = 'User';
             _currentGlbPath = 'assets/web/home/MyCharacter_home.glb';
@@ -327,13 +635,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           });
         }
       } else {
-        print("No user logged in");
+        debugPrint("No user logged in");
         setState(() {
           _isUserDataLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      debugPrint('Error loading user data: $e');
       setState(() {
         _isUserDataLoading = false;
       });
@@ -344,19 +652,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (!mounted) return;
 
     try {
-      print("🏥 Starting full health data fetch...");
+      debugPrint("🏥 Starting full health data fetch...");
 
       // First check if we have Health Connect permissions
       bool hasPermissions =
           await _healthService.checkHealthConnectPermissions();
-      print("🔐 Health Connect permissions status: $hasPermissions");
+      debugPrint("🔐 Health Connect permissions status: $hasPermissions");
 
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions, requesting permissions...");
+        debugPrint(
+            "❌ No Health Connect permissions, requesting permissions...");
         // Request permissions if not granted
         bool granted = await _healthService.requestHealthConnectPermissions();
         if (!granted) {
-          print("❌ Health Connect permissions not granted");
+          debugPrint("❌ Health Connect permissions not granted");
           if (!mounted) return;
           setState(() {
             _steps = 0;
@@ -368,7 +677,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         }
       }
 
-      print("📊 Fetching real health data from Health Connect...");
+      debugPrint("📊 Fetching real health data from Health Connect...");
 
       // Fetch hybrid real-time steps for immediate feedback + accuracy
       final stepsCount = await _healthService.fetchHybridRealTimeSteps();
@@ -383,16 +692,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       final caloriesSource =
           caloriesData['metadata']['device']['manufacturer'] as String;
 
-      print(
+      debugPrint(
           "🏥 Steps data source: ${hasRealStepsData ? 'Health Connect' : 'No Data'}");
-      print("🔥 Calories data source: $caloriesSource");
+      debugPrint("🔥 Calories data source: $caloriesSource");
 
       // Determine if we're using real Health Connect data
       bool isRealData = hasRealStepsData && caloriesSource == "Health Connect";
 
-      print("✅ Is real Health Connect data: $isRealData");
-      print("📈 Steps count: $stepsCount");
-      print("🔥 Calories: $calories kcal");
+      debugPrint("✅ Is real Health Connect data: $isRealData");
+      debugPrint("📈 Steps count: $stepsCount");
+      debugPrint("🔥 Calories: $calories kcal");
 
       if (!mounted) return;
 
@@ -402,15 +711,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         _isUsingRealData = isRealData;
       });
 
-      print(
+      debugPrint(
           "✅ Updated UI with health data: Steps: $_steps, Calories: $_calories");
 
       if (!isRealData) {
-        print(
+        debugPrint(
             "⚠️ No real health data available (Health Connect not available or no permissions)");
       }
     } catch (e) {
-      print("❌ Error fetching health data: $e");
+      debugPrint("❌ Error fetching health data: $e");
       if (!mounted) return;
       setState(() {
         _isUsingRealData = false;
@@ -525,7 +834,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   // Start real-time step monitoring
   void _startRealTimeStepMonitoring() {
     try {
-      print("🔄 Starting real-time step monitoring...");
+      debugPrint("🔄 Starting real-time step monitoring...");
 
       // Set up step update callback
       _healthService.setStepUpdateCallback((totalSteps, stepIncrease) {
@@ -540,7 +849,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             _showStepIncreaseNotification(stepIncrease);
           }
 
-          print(
+          debugPrint(
               "🎉 Real-time step update: +$stepIncrease steps (Total: $totalSteps)");
         }
       });
@@ -548,14 +857,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // Start the aggressive sync monitoring (more effective for Google Fit sync issues)
       _healthService.startAggressiveSyncMonitoring();
     } catch (e) {
-      print("❌ Error starting real-time step monitoring: $e");
+      debugPrint("❌ Error starting real-time step monitoring: $e");
     }
   }
 
   // Start hybrid step monitoring (combines Health Connect and real-time sensor)
   void _startHybridStepMonitoring() {
     try {
-      print("🚀 Starting hybrid step monitoring...");
+      debugPrint("🚀 Starting hybrid step monitoring...");
 
       // Initialize hybrid tracking system
       _healthService.initializeHybridTracking().then((initialized) {
@@ -576,18 +885,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 _showStepIncreaseNotification(stepIncrease);
               }
 
-              print(
+              debugPrint(
                   "🎉 Hybrid step update: +$stepIncrease steps (Total: $totalSteps)");
             }
           });
         } else {
-          print(
+          debugPrint(
               "❌ Hybrid tracking initialization failed, falling back to Health Connect only");
           _startRealTimeStepMonitoring();
         }
       });
     } catch (e) {
-      print("❌ Error starting hybrid step monitoring: $e");
+      debugPrint("❌ Error starting hybrid step monitoring: $e");
       // Fallback to original method
       _startRealTimeStepMonitoring();
     }
@@ -613,14 +922,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (!mounted) return;
 
     try {
-      print("🔄 Fetching steps data...");
+      debugPrint("🔄 Fetching steps data...");
 
       // Check Health Connect permissions
       bool hasPermissions =
           await _healthService.checkHealthConnectPermissions();
 
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions for steps");
+        debugPrint("❌ No Health Connect permissions for steps");
         setState(() {
           _steps = 0;
           _isUsingRealData = false;
@@ -633,17 +942,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       // Fetch Google Fit sync steps data to ensure accuracy
       int stepsCount = await _healthService.fetchHybridRealTimeSteps();
-      print("📱 GOOGLE FIT SYNC: Steps synced with Google Fit: $stepsCount");
+      debugPrint(
+          "📱 GOOGLE FIT SYNC: Steps synced with Google Fit: $stepsCount");
 
       if (mounted) {
         setState(() {
           _steps = stepsCount;
           _isUsingRealData = true;
         });
-        print("✅ Updated UI with steps: $_steps");
+        debugPrint("✅ Updated UI with steps: $_steps");
       }
     } catch (e) {
-      print("❌ Error fetching steps data: $e");
+      debugPrint("❌ Error fetching steps data: $e");
       if (mounted) {
         setState(() {
           _steps = 0;
@@ -658,7 +968,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (!mounted) return;
 
     try {
-      print("🔄 Force syncing steps...");
+      debugPrint("🔄 Force syncing steps...");
 
       // Show a message to the user
       _showInfoMessage("Syncing steps from Google Fit...");
@@ -677,7 +987,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         _showSuccessMessage("Steps synced successfully!");
       }
     } catch (e) {
-      print("❌ Error force syncing steps: $e");
+      debugPrint("❌ Error force syncing steps: $e");
       _showWarningMessage(
           "Failed to sync steps. Try opening Google Fit first.");
     }
@@ -686,7 +996,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   // Add a method to handle Health Connect permission rationale
   Future<void> _handlePermissionRationale() async {
     try {
-      print("📋 Showing permission rationale...");
+      debugPrint("📋 Showing permission rationale...");
 
       bool? result = await showDialog<bool>(
         context: context,
@@ -721,26 +1031,26 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       );
 
       if (result == true) {
-        print("✅ User accepted permission rationale");
+        debugPrint("✅ User accepted permission rationale");
         // Proceed with permission request
         await _requestPermissionsManually();
       } else {
-        print("❌ User declined permission rationale");
+        debugPrint("❌ User declined permission rationale");
       }
     } catch (e) {
-      print("❌ Error showing permission rationale: $e");
+      debugPrint("❌ Error showing permission rationale: $e");
     }
   }
 
   // Update the permission check method to handle rationale
   Future<void> _checkHealthConnectPermissions() async {
     try {
-      print("🔐 Checking Health Connect permissions on startup...");
+      debugPrint("🔐 Checking Health Connect permissions on startup...");
 
       // First check if Health Connect is available
       bool isAvailable = await _checkHealthConnectAvailability();
       if (!isAvailable) {
-        print("❌ Health Connect not available");
+        debugPrint("❌ Health Connect not available");
         _showWarningMessage(
             "Health Connect is not available. Please install it from the Play Store.");
         return;
@@ -750,15 +1060,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       bool hasPermissions = await _healthService.forceRefreshPermissions();
 
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions, showing rationale...");
+        debugPrint("❌ No Health Connect permissions, showing rationale...");
 
         // Show permission rationale first
         await _handlePermissionRationale();
       } else {
-        print("✅ Health Connect permissions already granted");
+        debugPrint("✅ Health Connect permissions already granted");
       }
     } catch (e) {
-      print("❌ Error checking Health Connect permissions: $e");
+      debugPrint("❌ Error checking Health Connect permissions: $e");
     }
   }
 
@@ -767,7 +1077,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   // Add a method to manually request permissions
   Future<void> _requestPermissionsManually() async {
-    print("🔐 Manual permission request triggered");
+    debugPrint("🔐 Manual permission request triggered");
 
     try {
       // First check if Health Connect is available
@@ -778,30 +1088,30 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       ]);
 
       if (isAvailable == null) {
-        print("❌ Health Connect not available on this device");
+        debugPrint("❌ Health Connect not available on this device");
         _showWarningMessage(
             "Health Connect is not available on this device. Please install it from the Play Store.");
         return;
       }
 
-      print(
+      debugPrint(
           "✅ Health Connect is available, proceeding with permission request");
 
       // Request permissions
       bool granted = await _healthService.requestHealthConnectPermissions();
 
       if (granted) {
-        print("✅ Manual permission request successful");
+        debugPrint("✅ Manual permission request successful");
         _showSuccessMessage("Health Connect access granted!");
         // Refresh steps data immediately
         await _fetchStepsData();
       } else {
-        print("❌ Manual permission request failed");
+        debugPrint("❌ Manual permission request failed");
         _showWarningMessage(
             "Health Connect access denied. You can grant permissions manually in device settings.");
       }
     } catch (e) {
-      print("❌ Error in manual permission request: $e");
+      debugPrint("❌ Error in manual permission request: $e");
       _showWarningMessage("Error requesting permissions. Please try again.");
     }
   }
@@ -811,7 +1121,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   // Add a direct permission request method
   Future<void> _directPermissionRequest() async {
     try {
-      print("🎯 === DIRECT PERMISSION REQUEST ===");
+      debugPrint("🎯 === DIRECT PERMISSION REQUEST ===");
 
       // Show a clear dialog to the user
       bool? userWantsPermissions = await showDialog<bool>(
@@ -841,11 +1151,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       );
 
       if (userWantsPermissions != true) {
-        print("❌ User declined permission request");
+        debugPrint("❌ User declined permission request");
         return;
       }
 
-      print("✅ User accepted, requesting Health Connect permissions...");
+      debugPrint("✅ User accepted, requesting Health Connect permissions...");
 
       // Direct permission request
       bool granted = await _healthService.health.requestAuthorization([
@@ -854,10 +1164,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         HealthDataType.DISTANCE_DELTA,
       ]);
 
-      print("🎯 Direct permission request result: $granted");
+      debugPrint("🎯 Direct permission request result: $granted");
 
       if (granted) {
-        print("✅ Direct permission request successful!");
+        debugPrint("✅ Direct permission request successful!");
 
         // Wait a moment and verify
         await Future.delayed(const Duration(seconds: 2));
@@ -868,7 +1178,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           HealthDataType.DISTANCE_DELTA,
         ]);
 
-        print("🎯 Verification after direct request: $verified");
+        debugPrint("🎯 Verification after direct request: $verified");
 
         if (verified == true) {
           _showSuccessMessage(
@@ -890,14 +1200,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               "Permissions not verified. Please check Health Connect settings.");
         }
       } else {
-        print("❌ Direct permission request failed");
+        debugPrint("❌ Direct permission request failed");
         _showWarningMessage(
             "Permission request failed. Please check Health Connect settings.");
       }
 
-      print("🎯 === END DIRECT PERMISSION REQUEST ===");
+      debugPrint("🎯 === END DIRECT PERMISSION REQUEST ===");
     } catch (e) {
-      print("❌ Error in direct permission request: $e");
+      debugPrint("❌ Error in direct permission request: $e");
       _showWarningMessage("Error requesting permissions: $e");
     }
   }
@@ -905,13 +1215,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   // Add a method to manually verify permissions and refresh data
   Future<void> _verifyAndRefreshPermissions() async {
     try {
-      print("🔄 === VERIFY AND REFRESH PERMISSIONS ===");
+      debugPrint("🔄 === VERIFY AND REFRESH PERMISSIONS ===");
 
       // Manually verify permissions
       bool hasPermissions = await _healthService.manuallyVerifyPermissions();
 
       if (hasPermissions) {
-        print("✅ Permissions verified, refreshing data...");
+        debugPrint("✅ Permissions verified, refreshing data...");
         _showSuccessMessage(
             "Health Connect permissions verified! Refreshing data...");
 
@@ -921,16 +1231,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         // Also refresh steps data specifically
         await _fetchStepsData();
 
-        print("✅ Data refresh complete");
+        debugPrint("✅ Data refresh complete");
       } else {
-        print("❌ Permissions not verified");
+        debugPrint("❌ Permissions not verified");
         _showWarningMessage(
             "Health Connect permissions not found. Please check device settings.");
       }
 
-      print("🔄 === END VERIFY AND REFRESH ===");
+      debugPrint("🔄 === END VERIFY AND REFRESH ===");
     } catch (e) {
-      print("❌ Error in verify and refresh: $e");
+      debugPrint("❌ Error in verify and refresh: $e");
       _showWarningMessage("Error verifying permissions: $e");
     }
   }
@@ -1052,7 +1362,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void _startRewardListener() {
     // Don't start listeners if logging out
     if (_isLoggingOut) {
-      print('⚠️ Skipping reward listener setup - logging out');
+      debugPrint('⚠️ Skipping reward listener setup - logging out');
       return;
     }
 
@@ -1228,45 +1538,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   /// Handle FCM notifications for rewards
-  void _handleRewardNotification(Map<String, dynamic> data) {
-    try {
-      final type = data['type'];
-      final rank = int.tryParse(data['rank'] ?? '0') ?? 0;
-      final coins = int.tryParse(data['coins'] ?? '0') ?? 0;
-
-      if (type == 'daily_reward') {
-        final rankText = rank == 1
-            ? '1st'
-            : rank == 2
-                ? '2nd'
-                : '3rd';
-        showRewardNotification(
-          context: context,
-          title: 'Daily Winner! 🏆',
-          message: '$rankText Place - $coins coins earned!',
-          coins: coins,
-          rank: rank,
-          period: 'daily',
-        );
-      } else if (type == 'weekly_reward') {
-        final rankText = rank == 1
-            ? '1st'
-            : rank == 2
-                ? '2nd'
-                : '3rd';
-        showRewardNotification(
-          context: context,
-          title: 'Weekly Winner! 🏆',
-          message: '$rankText Place - $coins coins earned!',
-          coins: coins,
-          rank: rank,
-          period: 'weekly',
-        );
-      }
-    } catch (e) {
-      print('Error handling reward notification: $e');
-    }
-  }
 
   Future<void> _logout() async {
     try {
@@ -1298,7 +1569,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       if (shouldLogout != true) return;
 
-      print('🚪 Starting logout process...');
+      debugPrint('🚪 Starting logout process...');
 
       // Set logout flag to prevent new operations
       setState(() {
@@ -1310,10 +1581,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       // Sign out from Firebase
       await _auth.signOut();
-      print('✅ Firebase sign out completed');
+      debugPrint('✅ Firebase sign out completed');
 
       if (!mounted) {
-        print('⚠️ Widget not mounted after sign out');
+        debugPrint('⚠️ Widget not mounted after sign out');
         return;
       }
 
@@ -1324,16 +1595,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           MaterialPageRoute(builder: (context) => const LoginScreen()),
           (route) => false,
         );
-        print('✅ Navigation to login screen completed');
+        debugPrint('✅ Navigation to login screen completed');
       } catch (navigationError) {
-        print('❌ Navigation error: $navigationError');
+        debugPrint('❌ Navigation error: $navigationError');
         // Fallback navigation
         if (mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         }
       }
     } catch (e) {
-      print('❌ Logout error: $e');
+      debugPrint('❌ Logout error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1347,62 +1618,62 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> _cleanupBeforeLogout() async {
     try {
-      print('🧹 Starting logout cleanup...');
+      debugPrint('🧹 Starting logout cleanup...');
 
       // Cancel all active listeners and timers
       if (_userDataListener != null) {
         _userDataListener!.cancel();
         _userDataListener = null;
-        print('✅ User data listener cancelled');
+        debugPrint('✅ User data listener cancelled');
       }
 
       if (_acceptedInviteListener != null) {
         _acceptedInviteListener!.cancel();
         _acceptedInviteListener = null;
-        print('✅ Accepted invite listener cancelled');
+        debugPrint('✅ Accepted invite listener cancelled');
       }
 
       if (_declinedInviteListener != null) {
         _declinedInviteListener!.cancel();
         _declinedInviteListener = null;
-        print('✅ Declined invite listener cancelled');
+        debugPrint('✅ Declined invite listener cancelled');
       }
 
       if (_connectionStatusTimer != null) {
         _connectionStatusTimer!.cancel();
         _connectionStatusTimer = null;
-        print('✅ Connection status timer cancelled');
+        debugPrint('✅ Connection status timer cancelled');
       }
 
       if (_glbUpdateTimer != null) {
         _glbUpdateTimer!.cancel();
         _glbUpdateTimer = null;
-        print('✅ GLB update timer cancelled');
+        debugPrint('✅ GLB update timer cancelled');
       }
 
       if (_weeklyRewardListener != null) {
         _weeklyRewardListener!.cancel();
         _weeklyRewardListener = null;
-        print('✅ Weekly reward listener cancelled');
+        debugPrint('✅ Weekly reward listener cancelled');
       }
 
       if (_dailyRewardListener != null) {
         _dailyRewardListener!.cancel();
         _dailyRewardListener = null;
-        print('✅ Daily reward listener cancelled');
+        debugPrint('✅ Daily reward listener cancelled');
       }
 
       // Stop health monitoring
       try {
         _healthService.stopAllMonitoring();
-        print('✅ Health monitoring stopped');
+        debugPrint('✅ Health monitoring stopped');
       } catch (e) {
-        print('⚠️ Error stopping health monitoring: $e');
+        debugPrint('⚠️ Error stopping health monitoring: $e');
       }
 
       // Clean up duo challenge service
       _duoChallengeService = null;
-      print('✅ Duo challenge service cleaned');
+      debugPrint('✅ Duo challenge service cleaned');
 
       // Clear any cached data and reset state
       if (mounted) {
@@ -1420,15 +1691,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           _userDataListenerStarted = false;
           _isLoggingOut = false; // Reset logout flag
         });
-        print('✅ State reset completed');
+        debugPrint('✅ State reset completed');
       }
 
       // Force garbage collection if possible
       await Future.delayed(const Duration(milliseconds: 100));
 
-      print('✅ Logout cleanup completed successfully');
+      debugPrint('✅ Logout cleanup completed successfully');
     } catch (e) {
-      print('❌ Error during logout cleanup: $e');
+      debugPrint('❌ Error during logout cleanup: $e');
     }
   }
 
@@ -1436,7 +1707,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void _startCharacterPreloading() {
     // Start preloading animations in the background
     CharacterService().preloadCurrentUserAnimations().catchError((error) {
-      print('Failed to preload character animations: $error');
+      debugPrint('Failed to preload character animations: $error');
     });
   }
 
@@ -1445,8 +1716,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     CharacterMigrationService()
         .migrateCurrentUserCharacterData()
         .catchError((error) {
-      print('Failed to migrate character data: $error');
-      return false; // Return a value to satisfy the warning
+      debugPrint('Failed to migrate character data: $error');
+      return false;
     });
   }
 
@@ -1454,15 +1725,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     LeaderboardMigrationService()
         .initializeUserLeaderboardData(_auth.currentUser?.uid ?? '')
         .catchError((error) {
-      print('Failed to initialize leaderboard data: $error');
-      return false; // Return a value to satisfy the warning
+      debugPrint('Failed to initialize leaderboard data: $error');
     });
   }
 
   void _listenForAcceptedInvitesAsSender() {
     // Don't start listeners if logging out
     if (_isLoggingOut) {
-      print('⚠️ Skipping accepted invite listener setup - logging out');
+      debugPrint('⚠️ Skipping accepted invite listener setup - logging out');
       return;
     }
 
@@ -1534,7 +1804,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void _listenForDeclinedInvitesAsSender() {
     // Don't start listeners if logging out
     if (_isLoggingOut) {
-      print('⚠️ Skipping declined invite listener setup - logging out');
+      debugPrint('⚠️ Skipping declined invite listener setup - logging out');
       return;
     }
 
@@ -1611,7 +1881,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _duoChallengeService = null;
     _userDataListenerStarted = false; // Reset listener flag
 
-    print('🧹 Home screen disposed - all connections cleaned up');
+    debugPrint('🧹 Home screen disposed - all connections cleaned up');
     super.dispose();
   }
 
@@ -1621,7 +1891,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
     switch (state) {
       case AppLifecycleState.resumed:
-        print("🔄 App resumed - refreshing step data");
+        debugPrint("🔄 App resumed - refreshing step data");
         _healthService.forceRefreshStepCount().then((newSteps) {
           if (mounted) {
             setState(() {
@@ -1632,10 +1902,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         });
         break;
       case AppLifecycleState.paused:
-        print("⏸️ App paused - continuing background monitoring");
+        debugPrint("⏸️ App paused - continuing background monitoring");
         break;
       case AppLifecycleState.detached:
-        print("🔌 App detached - stopping monitoring");
+        debugPrint("🔌 App detached - stopping monitoring");
         _healthService.stopRealTimeStepMonitoring();
         break;
       default:
@@ -1685,7 +1955,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            print("🔄 Pull-to-refresh triggered");
+            debugPrint("🔄 Pull-to-refresh triggered");
             await _fetchStepsData();
             await _fetchHealthData();
           },
@@ -1799,10 +2069,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               // Only rebuild if the path has actually changed
                               if (_currentGlbPath == _lastProcessedGlbPath &&
                                   _currentGlbPath.isNotEmpty) {
-                                print(
+                                debugPrint(
                                     "🎨 Using cached ModelViewer for path: $_currentGlbPath");
                               } else {
-                                print(
+                                debugPrint(
                                     "🎨 Building new ModelViewer with path: $_currentGlbPath");
                               }
 
@@ -1861,7 +2131,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                                   fieldOfView: "45deg",
                                                 );
                                               } catch (e) {
-                                                print(
+                                                debugPrint(
                                                     "❌ Error creating ModelViewer: $e");
                                                 return Container(
                                                   decoration: BoxDecoration(
@@ -2413,65 +2683,65 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   // Add a comprehensive debug method to check Health Connect status
   Future<void> _debugHealthConnectStatus() async {
     try {
-      print("🔍 === COMPREHENSIVE HEALTH CONNECT DEBUG ===");
+      debugPrint("🔍 === COMPREHENSIVE HEALTH CONNECT DEBUG ===");
 
       // 1. Check if Health Connect is available
-      print("1️⃣ Checking Health Connect availability...");
+      debugPrint("1️⃣ Checking Health Connect availability...");
       bool? isAvailable = await _healthService.health.hasPermissions([
         HealthDataType.STEPS,
         HealthDataType.ACTIVE_ENERGY_BURNED,
         HealthDataType.BASAL_ENERGY_BURNED,
         HealthDataType.DISTANCE_DELTA,
       ]);
-      print("   Health Connect available: ${isAvailable != null}");
-      print("   Availability result: $isAvailable");
+      debugPrint("   Health Connect available: ${isAvailable != null}");
+      debugPrint("   Availability result: $isAvailable");
 
       // 2. Check current permissions
-      print("2️⃣ Checking current permissions...");
+      debugPrint("2️⃣ Checking current permissions...");
       bool hasPermissions =
           await _healthService.checkHealthConnectPermissions();
-      print("   Current permissions: $hasPermissions");
+      debugPrint("   Current permissions: $hasPermissions");
 
       // 3. Check Firestore status
-      print("3️⃣ Checking Firestore status...");
+      debugPrint("3️⃣ Checking Firestore status...");
       final user = _auth.currentUser;
       if (user != null) {
         final userDoc =
             await _firestore.collection('users').doc(user.uid).get();
         final hasHealthPerms = userDoc.data()?['hasHealthPermissions'] ?? false;
-        print("   Firestore health permissions: $hasHealthPerms");
+        debugPrint("   Firestore health permissions: $hasHealthPerms");
       } else {
-        print("   No user logged in");
+        debugPrint("   No user logged in");
       }
 
       // 4. Test permission request
-      print("4️⃣ Testing permission request...");
+      debugPrint("4️⃣ Testing permission request...");
       if (!hasPermissions) {
-        print("   Attempting permission request...");
+        debugPrint("   Attempting permission request...");
         bool granted = await _healthService.requestHealthConnectPermissions();
-        print("   Permission request result: $granted");
+        debugPrint("   Permission request result: $granted");
 
         // 5. Check permissions again after request
-        print("5️⃣ Checking permissions after request...");
+        debugPrint("5️⃣ Checking permissions after request...");
         bool? afterRequest = await _healthService.health.hasPermissions([
           HealthDataType.STEPS,
           HealthDataType.ACTIVE_ENERGY_BURNED,
           HealthDataType.DISTANCE_DELTA,
         ]);
-        print("   Permissions after request: $afterRequest");
+        debugPrint("   Permissions after request: $afterRequest");
       }
 
       // 6. Check if we can fetch data
-      print("6️⃣ Testing data fetch...");
+      debugPrint("6️⃣ Testing data fetch...");
       try {
         final stepsCount = await _healthService.fetchHybridRealTimeSteps();
-        print("   Steps count: $stepsCount");
-        print("   Steps data type: ${stepsCount.runtimeType}");
+        debugPrint("   Steps count: $stepsCount");
+        debugPrint("   Steps data type: ${stepsCount.runtimeType}");
       } catch (e) {
-        print("   Error fetching steps data: $e");
+        debugPrint("   Error fetching steps data: $e");
       }
 
-      print("🔍 === END HEALTH CONNECT DEBUG ===");
+      debugPrint("🔍 === END HEALTH CONNECT DEBUG ===");
 
       // Show summary to user
       String summary = "Health Connect Debug Complete\n";
@@ -2481,7 +2751,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       _showDebugMessage(summary);
     } catch (e) {
-      print("❌ Error in comprehensive debug: $e");
+      debugPrint("❌ Error in comprehensive debug: $e");
       _showDebugMessage("Debug Error: $e");
     }
   }
@@ -2498,7 +2768,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             label: 'Copy',
             onPressed: () {
               // You can add clipboard functionality here
-              print("Debug message: $message");
+              debugPrint("Debug message: $message");
             },
           ),
         ),
@@ -2510,16 +2780,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   void _initializeLevelingData() async {
     try {
       await LevelingMigrationService.initializeCurrentUserLevelingData();
-      print('✅ Leveling data initialization completed');
+      debugPrint('✅ Leveling data initialization completed');
     } catch (e) {
-      print('❌ Error initializing leveling data: $e');
+      debugPrint('❌ Error initializing leveling data: $e');
     }
   }
 
   // Add a method to check Health Connect availability
   Future<bool> _checkHealthConnectAvailability() async {
     try {
-      print("🔍 Checking Health Connect availability...");
+      debugPrint("🔍 Checking Health Connect availability...");
 
       // Try to get permissions to check if Health Connect is available
       bool? isAvailable = await _healthService.health.hasPermissions([
@@ -2527,125 +2797,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         HealthDataType.ACTIVE_ENERGY_BURNED,
       ]);
 
-      print("🔍 Health Connect available: ${isAvailable != null}");
+      debugPrint("🔍 Health Connect available: ${isAvailable != null}");
 
       if (isAvailable == null) {
-        print("❌ Health Connect not available - needs to be installed");
+        debugPrint("❌ Health Connect not available - needs to be installed");
         return false;
       }
 
       return true;
     } catch (e) {
-      print("❌ Error checking Health Connect availability: $e");
+      debugPrint("❌ Error checking Health Connect availability: $e");
       return false;
-    }
-  }
-
-  /// Test GLB functionality and debug the issue
-  Future<void> _testGlbFunctionality() async {
-    try {
-      print("🔍 === GLB FUNCTIONALITY DEBUG ===");
-
-      final user = _auth.currentUser;
-      if (user == null) {
-        print("❌ No user logged in");
-        _showDebugMessage("No user logged in");
-        return;
-      }
-
-      print("👤 User: ${user.email} (${user.uid})");
-      print("📁 Current GLB path in state: $_currentGlbPath");
-
-      // 1. Check raw Firestore data
-      print("\n1️⃣ Checking raw Firestore data...");
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) {
-        print("❌ User document not found");
-        _showDebugMessage("User document not found");
-        return;
-      }
-
-      final userData = userDoc.data()!;
-      final firestoreGlbPath = userData['homeGlbPath'] ?? 'not_set';
-      final currentCharacter = userData['currentCharacter'] ?? 'not_set';
-
-      print("   Firestore homeGlbPath: $firestoreGlbPath");
-      print("   Firestore currentCharacter: $currentCharacter");
-      print("   State _currentGlbPath: $_currentGlbPath");
-
-      // 2. Check if paths match
-      if (firestoreGlbPath == _currentGlbPath) {
-        print("✅ Firestore and state paths match");
-      } else {
-        print("❌ Path mismatch!");
-        print("   Firestore: $firestoreGlbPath");
-        print("   State: $_currentGlbPath");
-      }
-
-      // 3. Check CharacterDataService
-      print("\n2️⃣ Checking CharacterDataService...");
-      final characterData =
-          await _characterDataService.getCurrentUserCharacterData();
-      final serviceGlbPath = characterData['homeGlbPath'] as String;
-      final serviceCharacter = characterData['currentCharacter'] as String;
-
-      print("   Service homeGlbPath: $serviceGlbPath");
-      print("   Service currentCharacter: $serviceCharacter");
-
-      // 4. Check expected path
-      final expectedPath =
-          CharacterDataService.characterHomeGlbPaths[currentCharacter];
-      print("   Expected path for '$currentCharacter': $expectedPath");
-
-      // 5. Test listener functionality
-      print("\n3️⃣ Testing listener functionality...");
-      bool listenerWorking = false;
-      StreamSubscription<DocumentSnapshot>? testListener;
-
-      testListener = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .snapshots()
-          .listen((snapshot) {
-        if (snapshot.exists) {
-          final data = snapshot.data()!;
-          final listenerGlbPath = data['homeGlbPath'] ?? 'not_set';
-          print("   📡 Listener triggered - homeGlbPath: $listenerGlbPath");
-          listenerWorking = true;
-        }
-      });
-
-      await Future.delayed(const Duration(seconds: 1));
-      testListener?.cancel();
-
-      if (listenerWorking) {
-        print("✅ Real-time listener is working");
-      } else {
-        print("❌ Real-time listener not working");
-      }
-
-      // 6. Summary
-      print("\n📊 === SUMMARY ===");
-      String summary = "GLB Debug Summary:\n";
-      summary += "Firestore: $firestoreGlbPath\n";
-      summary += "State: $_currentGlbPath\n";
-      summary += "Service: $serviceGlbPath\n";
-      summary += "Expected: $expectedPath\n";
-      summary += "Listener: ${listenerWorking ? 'Working' : 'Not Working'}";
-
-      if (firestoreGlbPath != _currentGlbPath) {
-        summary += "\n\n❌ ISSUE: State not synced with Firestore!";
-        print("❌ ISSUE: State not synced with Firestore!");
-      } else {
-        summary += "\n\n✅ State is synced with Firestore";
-        print("✅ State is synced with Firestore");
-      }
-
-      _showDebugMessage(summary);
-      print("🔍 === END GLB DEBUG ===");
-    } catch (e) {
-      print("❌ Error in GLB debug: $e");
-      _showDebugMessage("GLB Debug Error: $e");
     }
   }
 }

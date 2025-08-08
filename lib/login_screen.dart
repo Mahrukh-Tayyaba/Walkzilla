@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_screen.dart';
 import 'home.dart';
@@ -27,7 +28,7 @@ class LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   final HealthService _healthService = HealthService();
   final UsernameService _usernameService = UsernameService();
   final CoinService _coinService = CoinService();
@@ -208,7 +209,7 @@ class LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      print('Error in handling successful login: $e');
+      debugPrint('Error in handling successful login: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -238,8 +239,8 @@ class LoginScreenState extends State<LoginScreen> {
       String errorMessage;
 
       // Debug: Print the actual error code
-      print('Firebase Auth Error Code: ${e.code}');
-      print('Firebase Auth Error Message: ${e.message}');
+      debugPrint('Firebase Auth Error Code: ${e.code}');
+      debugPrint('Firebase Auth Error Message: ${e.message}');
 
       // Show generic message for authentication failures to prevent user enumeration
       if (e.code == 'user-not-found' ||
@@ -315,7 +316,7 @@ class LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         await _handleSuccessfulLogin(userCredential);
       } catch (e) {
-        print('Error during Google Sign In: $e');
+        debugPrint('Error during Google Sign In: $e');
         if (!mounted) return;
         await googleSignIn.signOut(); // Sign out from Google
         await FirebaseAuth.instance.signOut(); // Sign out from Firebase
@@ -327,7 +328,7 @@ class LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      print('Error in Google Sign In: $e');
+      debugPrint('Error in Google Sign In: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -342,27 +343,6 @@ class LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _resetPassword(BuildContext context) async {
-    if (_emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your email address")),
-      );
-      return;
-    }
-
-    try {
-      await FirebaseAuth.instance
-          .sendPasswordResetEmail(email: _emailController.text.trim());
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password reset email sent!")),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -374,7 +354,7 @@ class LoginScreenState extends State<LoginScreen> {
             end: Alignment.bottomCenter,
             colors: [
               const Color(0xFFF7F4F4),
-              const Color(0xFFFEB14C).withValues(alpha: 0.1),
+              const Color(0xFFFEB14C).withAlpha((0.1 * 255).round()),
             ],
           ),
         ),
@@ -401,7 +381,7 @@ class LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withAlpha((0.05 * 255).round()),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -462,7 +442,7 @@ class LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withAlpha((0.05 * 255).round()),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -565,7 +545,8 @@ class LoginScreenState extends State<LoginScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFEB14C).withOpacity(0.3),
+                          color: const Color(0xFFFEB14C)
+                              .withAlpha((0.3 * 255).round()),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -600,7 +581,9 @@ class LoginScreenState extends State<LoginScreen> {
                   Row(
                     children: [
                       Expanded(
-                          child: Divider(color: Colors.grey.withOpacity(0.3))),
+                          child: Divider(
+                              color:
+                                  Colors.grey.withAlpha((0.3 * 255).round()))),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
@@ -612,7 +595,9 @@ class LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       Expanded(
-                          child: Divider(color: Colors.grey.withOpacity(0.3))),
+                          child: Divider(
+                              color:
+                                  Colors.grey.withAlpha((0.3 * 255).round()))),
                     ],
                   ),
 

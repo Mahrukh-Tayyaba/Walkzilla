@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
-import 'services/leaderboard_service.dart';
 
 class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({Key? key}) : super(key: key);
@@ -41,7 +41,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         setState(() {
           _hasTimedOut = true;
         });
-        print('Leaderboard timeout - showing fallback content');
+        debugPrint('Leaderboard timeout - showing fallback content');
       }
     });
   }
@@ -96,12 +96,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 // Debug logging
-                print(
+                debugPrint(
                     'Leaderboard state: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, docs: ${snapshot.data?.docs.length ?? 0}');
 
                 // Handle errors with better error messages
                 if (snapshot.hasError) {
-                  print('Leaderboard error: ${snapshot.error}');
+                  debugPrint('Leaderboard error: ${snapshot.error}');
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -375,7 +375,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withAlpha((0.05 * 255).round()),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -609,7 +609,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.07),
+                  color: Colors.black.withAlpha((0.07 * 255).round()),
                   blurRadius: 12,
                   offset: const Offset(0, 2),
                 ),

@@ -281,7 +281,7 @@ class _StepsScreenState extends State<StepsScreen> {
       goalSteps: widget.goalSteps,
       isGoalEnabled: true, // Simulated data, so goal is always enabled
       isEditable: true,
-      onEdit: _showStepGoalDialog,
+
       onToggle: (value) {
         // No goal toggle logic for simulated data
       },
@@ -378,11 +378,11 @@ class _StepsScreenState extends State<StepsScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          stepGoalProvider.setGoal(tempGoalSteps);
+                          stepGoalProvider.setCurrentMonthGoal(tempGoalSteps);
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('Step goal updated!'),
+                              content: const Text('Monthly step goal set!'),
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),

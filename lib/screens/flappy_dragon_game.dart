@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/coin_service.dart';
 
@@ -32,12 +33,12 @@ class _FlappyDragonGameState extends State<FlappyDragonGame>
 
   // Dragon animation state
   int currentDragonFrame = 1; // Start with wingmiddle (1)
-  Timer? _dragonAnimationTimer;
+
   bool isFlapping = false; // Track if flap animation is currently playing
 
   Timer? _gameLoopTimer;
   double _gameAreaHeight = 0.0;
-  double _appBarHeight = 0.0;
+
   bool _initialLayoutDone = false;
   final CoinService _coinService = CoinService();
 
@@ -104,8 +105,6 @@ class _FlappyDragonGameState extends State<FlappyDragonGame>
 
   void _calculateDimensions(BuildContext context, BoxConstraints constraints) {
     if (!_initialLayoutDone) {
-      final anAppBar = AppBar(title: const Text(''));
-      _appBarHeight = anAppBar.preferredSize.height;
       _gameAreaHeight = constraints.maxHeight;
       double screenWidth = MediaQuery.of(context).size.width;
       for (int i = 0; i < numPillars; i++) {
@@ -273,9 +272,9 @@ class _FlappyDragonGameState extends State<FlappyDragonGame>
       // Award 50 coins when user reaches target score
       _coinService.addCoins(50).then((success) {
         if (success) {
-          print('Successfully awarded 50 coins for reaching target score');
+          debugPrint('Successfully awarded 50 coins for reaching target score');
         } else {
-          print('Failed to award coins for reaching target score');
+          debugPrint('Failed to award coins for reaching target score');
         }
       });
 

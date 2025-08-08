@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
 import 'health_dashboard.dart'; // Import the health dashboard screen
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'login_screen.dart';
+
 import 'notification_page.dart';
 import 'profile_page.dart';
 
@@ -24,7 +25,6 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   final health = Health();
   int _steps = 0; // Step count variable
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void initState() {
@@ -71,7 +71,7 @@ class _HomeState extends State<Home> {
       }
     } catch (e) {
       if (!mounted) return;
-      print("Error fetching health data: $e");
+      debugPrint("Error fetching health data: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Unable to fetch step count")),
       );
@@ -81,7 +81,6 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.of(context).size;
-    final double buttonSpacing = screenSize.width * 0.15; // 15% of screen width
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -114,7 +113,7 @@ class _HomeState extends State<Home> {
                 height: screenSize.width * 0.4,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.blue[100]?.withOpacity(0.3),
+                  color: Colors.blue[100]?.withAlpha((0.3 * 255).round()),
                 ),
               ),
             ),
@@ -126,7 +125,7 @@ class _HomeState extends State<Home> {
                 height: screenSize.width * 0.5,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.orange[100]?.withOpacity(0.3),
+                  color: Colors.orange[100]?.withAlpha((0.3 * 255).round()),
                 ),
               ),
             ),
@@ -147,7 +146,7 @@ class _HomeState extends State<Home> {
                         icon: Icons.emoji_events,
                         label: 'Daily\nChallenges',
                         color: Colors.orange,
-                        onTap: () => print("Daily Challenges tapped!"),
+                        onTap: () => debugPrint("Daily Challenges tapped!"),
                         screenSize: screenSize,
                       ),
 
@@ -160,10 +159,11 @@ class _HomeState extends State<Home> {
                           borderRadius: BorderRadius.circular(15.0),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.withOpacity(0.25),
-                              spreadRadius: 2,
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
+                              color:
+                                  Colors.grey.withAlpha((0.25 * 255).round()),
+                              spreadRadius: 2.0,
+                              blurRadius: 18.0,
+                              offset: const Offset(0, 6.0),
                             ),
                           ],
                         ),
@@ -184,7 +184,7 @@ class _HomeState extends State<Home> {
                         icon: Icons.calendar_today,
                         label: 'Events',
                         color: const Color(0xFF9C27B0), // Material Purple
-                        onTap: () => print("Events tapped!"),
+                        onTap: () => debugPrint("Events tapped!"),
                         screenSize: screenSize,
                       ),
                     ],
@@ -218,7 +218,7 @@ class _HomeState extends State<Home> {
                             width: screenSize.width * 0.3,
                             decoration: BoxDecoration(
                               color: Colors.blue[400],
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(20.0),
                             ),
                             child: const Center(
                               child: Icon(
@@ -234,7 +234,7 @@ class _HomeState extends State<Home> {
                             height: screenSize.height * 0.02,
                             decoration: BoxDecoration(
                               color: Colors.blue[400],
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(10.0),
                             ),
                           ),
                         ],
@@ -302,7 +302,7 @@ class _HomeState extends State<Home> {
       drawer: Drawer(
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withAlpha((0.95 * 255).round()),
           ),
           child: Column(
             children: [
@@ -318,8 +318,8 @@ class _HomeState extends State<Home> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.orange[400]!.withOpacity(0.9),
-                      Colors.orange[300]!.withOpacity(0.9),
+                      Colors.orange[400]!.withAlpha((0.9 * 255).round()),
+                      Colors.orange[300]!.withAlpha((0.9 * 255).round()),
                     ],
                   ),
                 ),
@@ -344,7 +344,8 @@ class _HomeState extends State<Home> {
                         ),
                         child: CircleAvatar(
                           radius: 35,
-                          backgroundColor: Colors.white.withOpacity(0.9),
+                          backgroundColor:
+                              Colors.white.withAlpha((0.9 * 255).round()),
                           child: Icon(
                             Icons.person,
                             size: 40,
@@ -372,8 +373,9 @@ class _HomeState extends State<Home> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
+                                color:
+                                    Colors.white.withAlpha((0.2 * 255).round()),
+                                borderRadius: BorderRadius.circular(20.0),
                               ),
                               child: const Text(
                                 "Premium Member",
@@ -450,7 +452,7 @@ class _HomeState extends State<Home> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Divider(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withAlpha((0.3 * 255).round()),
                   thickness: 1,
                 ),
               ),
@@ -472,17 +474,18 @@ class _HomeState extends State<Home> {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        width: 85,
-        height: 85,
+        width: 85.0,
+        height: 85.0,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
+          color: Colors.white.withAlpha((0.7 * 255).round()),
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.circular(20.0),
+          boxShadow: <BoxShadow>[
             BoxShadow(
-              color: color.withOpacity(0.1),
-              spreadRadius: 2,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: color.withAlpha((0.1 * 255).round()),
+              spreadRadius: 2.0,
+              blurRadius: 8.0,
+              offset: const Offset(0, 2.0),
             ),
           ],
         ),
@@ -490,19 +493,20 @@ class _HomeState extends State<Home> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.05),
-                shape: BoxShape.circle,
+              padding: const EdgeInsets.all(8.0),
+              decoration: ShapeDecoration(
+                color: color.withAlpha((0.05 * 255).round()),
+                shape: const CircleBorder(),
               ),
-              child: Icon(icon, color: color, size: 30),
+              child: Icon(icon, color: color, size: 30.0),
             ),
             const SizedBox(height: 4),
             Text(
               label,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                color: color.withOpacity(0.8),
-                fontSize: 12,
+                color: color.withAlpha((0.8 * 255).round()),
+                fontSize: 12.0,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -526,14 +530,15 @@ class _HomeState extends State<Home> {
         width: screenSize.width * 0.22,
         height: 80,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
+          color: Colors.white.withAlpha((0.7 * 255).round()),
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.circular(15.0),
+          boxShadow: <BoxShadow>[
             BoxShadow(
-              color: color.withOpacity(0.1),
-              spreadRadius: 2,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: color.withAlpha((0.1 * 255).round()),
+              spreadRadius: 2.0,
+              blurRadius: 8.0,
+              offset: const Offset(0, 2.0),
             ),
           ],
         ),
@@ -541,19 +546,19 @@ class _HomeState extends State<Home> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.05),
-                shape: BoxShape.circle,
+              padding: const EdgeInsets.all(8.0),
+              decoration: ShapeDecoration(
+                color: color.withAlpha((0.05 * 255).round()),
+                shape: const CircleBorder(),
               ),
-              child: Icon(icon, color: color, size: 24),
+              child: Icon(icon, color: color, size: 24.0),
             ),
             const SizedBox(height: 4),
             Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: color.withOpacity(0.8),
+                color: color.withAlpha((0.8 * 255).round()),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -581,8 +586,8 @@ class _HomeState extends State<Home> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: itemColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: itemColor.withAlpha((0.1 * 255).round()),
+              borderRadius: BorderRadius.circular(10.0),
             ),
             child: Icon(
               icon,
@@ -630,7 +635,7 @@ class _HomeState extends State<Home> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      hoverColor: itemColor.withOpacity(0.05),
+      hoverColor: itemColor.withAlpha((0.05 * 255).round()),
     );
   }
 }
@@ -796,7 +801,8 @@ class _FriendsPageState extends State<FriendsPage>
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.grey.withOpacity(0.25),
+                                  color: Colors.grey
+                                      .withAlpha((0.25 * 255).round()),
                                   spreadRadius: 2,
                                   blurRadius: 18,
                                   offset: const Offset(0, 6),
@@ -1107,7 +1113,7 @@ class _FriendsPageState extends State<FriendsPage>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.25),
+              color: Colors.grey.withAlpha((0.25 * 255).round()),
               spreadRadius: 2,
               blurRadius: 18,
               offset: const Offset(0, 6),
@@ -1217,10 +1223,10 @@ class _FriendsPageState extends State<FriendsPage>
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.12),
-              spreadRadius: 1,
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.grey.withAlpha((0.12 * 255).round()),
+              spreadRadius: 1.0,
+              blurRadius: 12.0,
+              offset: const Offset(0, 4.0),
             ),
           ],
         ),
@@ -1288,7 +1294,7 @@ class _FriendsPageState extends State<FriendsPage>
                     backgroundColor: const Color(0xFFF5F5F5),
                     side: BorderSide.none,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 0),
                   ),
@@ -1384,7 +1390,7 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
         _isLoadingSuggested = false;
       });
     } catch (e) {
-      print('Error loading suggested users: $e');
+      debugPrint('Error loading suggested users: $e');
       setState(() {
         _isLoadingSuggested = false;
       });
@@ -1490,7 +1496,7 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.0),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
               child: Row(
@@ -1680,7 +1686,7 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF03A9F4),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.0),
                   ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -1729,7 +1735,7 @@ class _InviteOption extends StatelessWidget {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(10.0),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),

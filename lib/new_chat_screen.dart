@@ -12,8 +12,6 @@ class NewChatScreen extends StatefulWidget {
 class _NewChatScreenState extends State<NewChatScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FriendService _friendService = FriendService();
-  List<Map<String, dynamic>> _filteredFriends = [];
-  bool _isSearching = false;
 
   @override
   void initState() {
@@ -22,10 +20,8 @@ class _NewChatScreenState extends State<NewChatScreen> {
   }
 
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _isSearching = query.isNotEmpty;
-    });
+    // Trigger rebuild when search text changes
+    setState(() {});
   }
 
   void _startChat(Map<String, dynamic> friend) {

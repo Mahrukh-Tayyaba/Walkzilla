@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import 'dart:async'; // Added for Timer and StreamSubscription
 import 'step_counter_service.dart';
 import 'leveling_service.dart';
-import 'leaderboard_service.dart';
+
 import 'network_service.dart';
 
 class HealthService {
@@ -25,7 +25,6 @@ class HealthService {
   bool _isInitialized = false;
 
   // Firestore collection names
-  static const String _healthDataCollection = 'health_data';
 
   // Health Connect data types - ONLY what your app actually uses
   final List<HealthDataType> _dataTypes = [
@@ -37,7 +36,7 @@ class HealthService {
   // Custom method to request TOTAL_ENERGY_BURNED permission
   Future<bool> requestTotalEnergyBurnedPermission() async {
     try {
-      print("🔄 Requesting TOTAL_ENERGY_BURNED permission...");
+      debugPrint("🔄 Requesting TOTAL_ENERGY_BURNED permission...");
 
       // Since the health package doesn't have TOTAL_ENERGY_BURNED,
       // we'll request the permissions we have and hope that the Android manifest
@@ -49,10 +48,10 @@ class HealthService {
         HealthDataType.DISTANCE_DELTA,
       ]);
 
-      print("✅ Permission request result: $result");
-      return result ?? false;
+      debugPrint("✅ Permission request result: $result");
+      return result;
     } catch (e) {
-      print("❌ Error requesting TOTAL_ENERGY_BURNED permission: $e");
+      debugPrint("❌ Error requesting TOTAL_ENERGY_BURNED permission: $e");
       return false;
     }
   }
@@ -62,21 +61,21 @@ class HealthService {
     try {
       if (_isInitialized) return true;
 
-      print("Initializing Health Connect...");
+      debugPrint("Initializing Health Connect...");
 
       // Check if Health Connect is available by trying to get permissions
       bool? hasPermissions = await health.hasPermissions(_dataTypes);
-      print("Health Connect available: ${hasPermissions != null}");
+      debugPrint("Health Connect available: ${hasPermissions != null}");
 
       if (hasPermissions == null) {
-        print("Health Connect is not available on this device");
+        debugPrint("Health Connect is not available on this device");
         return false;
       }
 
       _isInitialized = true;
       return true;
     } catch (e) {
-      print('Error initializing Health Connect: $e');
+      debugPrint('Error initializing Health Connect: $e');
       return false;
     }
   }
@@ -84,25 +83,25 @@ class HealthService {
   // Check what data types are available on this device
   Future<List<HealthDataType>> getAvailableDataTypes() async {
     try {
-      print("🔍 Checking available data types on device...");
+      debugPrint("🔍 Checking available data types on device...");
 
       // Test each data type individually to see which are supported
       List<HealthDataType> available = await _testIndividualDataTypes();
 
-      print(
+      debugPrint(
           "📋 Available data types: ${available.map((e) => e.toString()).join(', ')}");
 
       // Check which of our requested types are available
-      print("🔍 Checking our requested types:");
+      debugPrint("🔍 Checking our requested types:");
       for (HealthDataType requestedType in _dataTypes) {
         bool isAvailable = available.contains(requestedType);
-        print(
+        debugPrint(
             "  ${requestedType.toString()}: ${isAvailable ? '✅ Available' : '❌ Not Available'}");
       }
 
       return available;
     } catch (e) {
-      print("❌ Error checking available data types: $e");
+      debugPrint("❌ Error checking available data types: $e");
       return [];
     }
   }
@@ -117,12 +116,12 @@ class HealthService {
         bool? hasPermission = await health.hasPermissions([dataType]);
         if (hasPermission != null) {
           supported.add(dataType);
-          print("✅ ${dataType.toString()} is supported");
+          debugPrint("✅ ${dataType.toString()} is supported");
         } else {
-          print("❌ ${dataType.toString()} is not supported");
+          debugPrint("❌ ${dataType.toString()} is not supported");
         }
       } catch (e) {
-        print("❌ Error testing ${dataType.toString()}: $e");
+        debugPrint("❌ Error testing ${dataType.toString()}: $e");
       }
     }
 
@@ -132,7 +131,7 @@ class HealthService {
   // Check if our specific data types are supported
   Future<Map<String, bool>> checkDataTypeSupport() async {
     try {
-      print("🔍 Checking data type support...");
+      debugPrint("🔍 Checking data type support...");
 
       List<HealthDataType> available = await getAvailableDataTypes();
       Map<String, bool> supportStatus = {};
@@ -142,14 +141,14 @@ class HealthService {
         supportStatus[requestedType.toString()] = isSupported;
 
         if (!isSupported) {
-          print(
+          debugPrint(
               "⚠️ WARNING: ${requestedType.toString()} is NOT supported on this device!");
         }
       }
 
       return supportStatus;
     } catch (e) {
-      print("❌ Error checking data type support: $e");
+      debugPrint("❌ Error checking data type support: $e");
       return {};
     }
   }
@@ -157,39 +156,40 @@ class HealthService {
   // Request Health Connect permissions - Updated with better error handling
   Future<bool> requestHealthConnectPermissions() async {
     try {
-      print("🔐 Requesting Health Connect permissions...");
+      debugPrint("🔐 Requesting Health Connect permissions...");
 
       // Initialize first
       bool initialized = await initializeHealthConnect();
       if (!initialized) {
-        print("❌ Failed to initialize Health Connect");
+        debugPrint("❌ Failed to initialize Health Connect");
         return false;
       }
 
       // Always request permissions for all data types in _dataTypes
-      print(
+      debugPrint(
           "📋 Requesting permissions for:  {_dataTypes.map((e) => e.toString()).join(', ')}");
 
       // Request permissions with proper access types (READ only for your app)
-      print("🔄 Calling health.requestAuthorization...");
+      debugPrint("🔄 Calling health.requestAuthorization...");
       bool granted = await health.requestAuthorization(
         _dataTypes,
         permissions: List.filled(_dataTypes.length, HealthDataAccess.READ),
       );
 
-      print(" Permission request result: $granted");
+      debugPrint(" Permission request result: $granted");
 
       // Double-check permissions after request
       if (granted) {
-        print("✅ Permission request returned true, verifying...");
+        debugPrint("✅ Permission request returned true, verifying...");
         // Wait a moment for permissions to be processed
         await Future.delayed(const Duration(seconds: 2));
 
         bool? verifiedPermissions = await health.hasPermissions(_dataTypes);
-        print("🔍 Verified permissions after request: $verifiedPermissions");
+        debugPrint(
+            "🔍 Verified permissions after request: $verifiedPermissions");
 
         if (verifiedPermissions == true) {
-          print("✅ Permissions successfully granted and verified");
+          debugPrint("✅ Permissions successfully granted and verified");
 
           // Update Firestore to track permissions
           final user = _auth.currentUser;
@@ -198,25 +198,26 @@ class HealthService {
                 .collection('users')
                 .doc(user.uid)
                 .update({'hasHealthPermissions': true});
-            print("💾 Updated Firestore with permission status");
+            debugPrint("💾 Updated Firestore with permission status");
           }
 
           return true;
         } else {
-          print("❌ Permissions not properly granted despite request success");
-          print(
+          debugPrint(
+              "❌ Permissions not properly granted despite request success");
+          debugPrint(
               "🔍 This might indicate the user denied permissions in the dialog");
           return false;
         }
       } else {
-        print("❌ Permission request returned false");
-        print(
+        debugPrint("❌ Permission request returned false");
+        debugPrint(
             "🔍 This might indicate the user denied permissions or Health Connect is not available");
         return false;
       }
     } catch (e) {
-      print('❌ Error requesting Health Connect permissions: $e');
-      print(' Error details: ${e.toString()}');
+      debugPrint('❌ Error requesting Health Connect permissions: $e');
+      debugPrint(' Error details: ${e.toString()}');
       return false;
     }
   }
@@ -225,21 +226,21 @@ class HealthService {
   Future<bool> requestHealthConnectPermissionsWithVerification(
       BuildContext context) async {
     try {
-      print("🔐 Enhanced permission request with verification...");
+      debugPrint("🔐 Enhanced permission request with verification...");
 
       // Step 0: Check what data types are actually supported
       List<HealthDataType> availableTypes = await getAvailableDataTypes();
-      print(
+      debugPrint(
           "🔍 Available data types: ${availableTypes.map((e) => e.toString()).join(', ')}");
 
       // Use only supported data types for permission request
       List<HealthDataType> supportedDataTypes =
           _dataTypes.where((type) => availableTypes.contains(type)).toList();
-      print(
+      debugPrint(
           "🔍 Using supported data types: ${supportedDataTypes.map((e) => e.toString()).join(', ')}");
 
       if (supportedDataTypes.isEmpty) {
-        print("❌ No supported data types found!");
+        debugPrint("❌ No supported data types found!");
         return false;
       }
 
@@ -248,22 +249,23 @@ class HealthService {
           await _requestPermissionsForTypes(supportedDataTypes);
 
       if (initialGranted) {
-        print("✅ Initial permission request successful");
+        debugPrint("✅ Initial permission request successful");
         return true;
       }
 
       // Step 2: If initial request failed, verify and guide user
-      print("⚠️ Initial request failed, checking current status...");
+      debugPrint("⚠️ Initial request failed, checking current status...");
 
       // Wait a bit longer for permissions to be processed
       await Future.delayed(const Duration(seconds: 3));
 
       bool? currentPermissions =
           await health.hasPermissions(supportedDataTypes);
-      print("🔍 Current permission status after delay: $currentPermissions");
+      debugPrint(
+          "🔍 Current permission status after delay: $currentPermissions");
 
       if (currentPermissions == true) {
-        print("✅ Permissions verified after delay");
+        debugPrint("✅ Permissions verified after delay");
 
         // Update Firestore
         final user = _auth.currentUser;
@@ -278,14 +280,14 @@ class HealthService {
       }
 
       // Step 3: Show user guidance dialog
-      print("❌ Permissions still not granted, showing guidance dialog");
+      debugPrint("❌ Permissions still not granted, showing guidance dialog");
       if (context.mounted) {
         return await _showPermissionGuidanceDialog(context, supportedDataTypes);
       }
 
       return false;
     } catch (e) {
-      print('❌ Error in enhanced permission request: $e');
+      debugPrint('❌ Error in enhanced permission request: $e');
       return false;
     }
   }
@@ -294,7 +296,7 @@ class HealthService {
   Future<bool> _requestPermissionsForTypes(
       List<HealthDataType> dataTypes) async {
     try {
-      print(
+      debugPrint(
           "🔐 Requesting permissions for: ${dataTypes.map((e) => e.toString()).join(', ')}");
 
       bool granted = await health.requestAuthorization(
@@ -302,10 +304,10 @@ class HealthService {
         permissions: List.filled(dataTypes.length, HealthDataAccess.READ),
       );
 
-      print("🔐 Permission request result: $granted");
+      debugPrint("🔐 Permission request result: $granted");
       return granted;
     } catch (e) {
-      print("❌ Error requesting permissions: $e");
+      debugPrint("❌ Error requesting permissions: $e");
       return false;
     }
   }
@@ -422,7 +424,7 @@ class HealthService {
       bool? hasPermissions = await health.hasPermissions(_dataTypes);
 
       if (hasPermissions == true) {
-        print("✅ Permissions verified after manual setup");
+        debugPrint("✅ Permissions verified after manual setup");
 
         // Update Firestore
         final user = _auth.currentUser;
@@ -439,7 +441,7 @@ class HealthService {
 
         return true;
       } else {
-        print("❌ Permissions still not granted after manual setup");
+        debugPrint("❌ Permissions still not granted after manual setup");
         if (context.mounted) {
           _showRetryDialog(context);
         }
@@ -505,7 +507,7 @@ class HealthService {
   // Open Health Connect settings
   Future<void> _openHealthConnectSettings() async {
     try {
-      print("🔧 Opening Health Connect settings...");
+      debugPrint("🔧 Opening Health Connect settings...");
 
       // Try to open Health Connect app directly
       const healthConnectUrl =
@@ -514,15 +516,15 @@ class HealthService {
 
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
-        print("✅ Opened Health Connect settings");
+        debugPrint("✅ Opened Health Connect settings");
       } else {
         // Fallback to Play Store
-        print(
+        debugPrint(
             "⚠️ Could not open Health Connect directly, trying Play Store...");
         await openHealthConnect();
       }
     } catch (e) {
-      print("❌ Error opening Health Connect settings: $e");
+      debugPrint("❌ Error opening Health Connect settings: $e");
       // Final fallback to Play Store
       await openHealthConnect();
     }
@@ -531,7 +533,7 @@ class HealthService {
   // Enhanced permission check with detailed status
   Future<Map<String, dynamic>> checkDetailedPermissions() async {
     try {
-      print("🔍 Checking detailed permissions...");
+      debugPrint("🔍 Checking detailed permissions...");
 
       bool? hasPermissions = await health.hasPermissions(_dataTypes);
 
@@ -550,10 +552,10 @@ class HealthService {
         'timestamp': DateTime.now().toIso8601String(),
       };
 
-      print("🔍 Detailed permission status: $result");
+      debugPrint("🔍 Detailed permission status: $result");
       return result;
     } catch (e) {
-      print("❌ Error checking detailed permissions: $e");
+      debugPrint("❌ Error checking detailed permissions: $e");
       return {
         'overall': false,
         'individual': {},
@@ -567,26 +569,26 @@ class HealthService {
   // Debug method to troubleshoot permission issues
   Future<void> debugPermissions(BuildContext context) async {
     try {
-      print("🔧 === PERMISSION DEBUG START ===");
+      debugPrint("🔧 === PERMISSION DEBUG START ===");
 
       // Check available data types
       List<HealthDataType> availableTypes = await getAvailableDataTypes();
-      print(
+      debugPrint(
           "📋 Available data types: ${availableTypes.map((e) => e.toString()).join(', ')}");
 
       // Check detailed permissions
       Map<String, dynamic> detailedPermissions =
           await checkDetailedPermissions();
-      print("🔍 Detailed permissions: $detailedPermissions");
+      debugPrint("🔍 Detailed permissions: $detailedPermissions");
 
       // Show debug dialog
       if (context.mounted) {
         _showDebugDialog(context, availableTypes, detailedPermissions);
       }
 
-      print("🔧 === PERMISSION DEBUG END ===");
+      debugPrint("🔧 === PERMISSION DEBUG END ===");
     } catch (e) {
-      print("❌ Error in permission debug: $e");
+      debugPrint("❌ Error in permission debug: $e");
     }
   }
 
@@ -651,7 +653,7 @@ class HealthService {
   Future<Map<String, dynamic>> troubleshootPermissions(
       BuildContext context) async {
     try {
-      print("🔧 Starting permission troubleshooting...");
+      debugPrint("🔧 Starting permission troubleshooting...");
 
       Map<String, dynamic> result = {
         'healthConnectAvailable': false,
@@ -701,10 +703,10 @@ class HealthService {
         }
       });
 
-      print("🔧 Troubleshooting result: $result");
+      debugPrint("🔧 Troubleshooting result: $result");
       return result;
     } catch (e) {
-      print("❌ Error in permission troubleshooting: $e");
+      debugPrint("❌ Error in permission troubleshooting: $e");
       return {
         'healthConnectAvailable': false,
         'permissionsGranted': false,
@@ -718,7 +720,7 @@ class HealthService {
   // Manual permission fix with step-by-step guidance
   Future<bool> manualPermissionFix(BuildContext context) async {
     try {
-      print("🔧 Starting manual permission fix...");
+      debugPrint("🔧 Starting manual permission fix...");
 
       // First, troubleshoot to understand the current state
       Map<String, dynamic> troubleshooting =
@@ -747,7 +749,7 @@ class HealthService {
 
       return false;
     } catch (e) {
-      print("❌ Error in manual permission fix: $e");
+      debugPrint("❌ Error in manual permission fix: $e");
       return false;
     }
   }
@@ -897,7 +899,7 @@ class HealthService {
       bool? hasPermissions = await health.hasPermissions(_dataTypes);
 
       if (hasPermissions == true) {
-        print("✅ Manual fix successful - permissions verified");
+        debugPrint("✅ Manual fix successful - permissions verified");
 
         // Update Firestore
         final user = _auth.currentUser;
@@ -914,7 +916,7 @@ class HealthService {
 
         return true;
       } else {
-        print("❌ Manual fix failed - permissions still not granted");
+        debugPrint("❌ Manual fix failed - permissions still not granted");
         if (context.mounted) {
           _showManualFixFailedDialog(context);
         }
@@ -989,24 +991,24 @@ class HealthService {
         await initializeHealthConnect();
       }
 
-      print("🔍 Checking Health Connect permissions...");
+      debugPrint("🔍 Checking Health Connect permissions...");
 
       // Check if we have permissions for our data types
       bool? hasPermission = await health.hasPermissions(_dataTypes);
-      print("🔍 Permission check result: $hasPermission");
+      debugPrint("🔍 Permission check result: $hasPermission");
 
       if (hasPermission == true) {
-        print("✅ Health Connect permissions confirmed");
+        debugPrint("✅ Health Connect permissions confirmed");
         return true;
       } else if (hasPermission == false) {
-        print("❌ Health Connect permissions explicitly denied");
+        debugPrint("❌ Health Connect permissions explicitly denied");
         return false;
       } else {
-        print("❓ Health Connect permissions status unclear (null)");
+        debugPrint("❓ Health Connect permissions status unclear (null)");
         return false;
       }
     } catch (e) {
-      print('❌ Error checking Health Connect permissions: $e');
+      debugPrint('❌ Error checking Health Connect permissions: $e');
       return false;
     }
   }
@@ -1014,7 +1016,7 @@ class HealthService {
   // Add a method to force refresh permissions
   Future<bool> forceRefreshPermissions() async {
     try {
-      print("🔄 Force refreshing Health Connect permissions...");
+      debugPrint("🔄 Force refreshing Health Connect permissions...");
 
       // Clear any cached permission state
       _isInitialized = false;
@@ -1022,7 +1024,7 @@ class HealthService {
       // Re-initialize
       bool initialized = await initializeHealthConnect();
       if (!initialized) {
-        print("❌ Failed to re-initialize Health Connect");
+        debugPrint("❌ Failed to re-initialize Health Connect");
         return false;
       }
 
@@ -1030,13 +1032,13 @@ class HealthService {
       bool hasPermissions = await checkHealthConnectPermissions();
 
       if (!hasPermissions) {
-        print("🔄 No permissions found, requesting again...");
+        debugPrint("🔄 No permissions found, requesting again...");
         return await requestHealthConnectPermissions();
       }
 
       return hasPermissions;
     } catch (e) {
-      print('❌ Error force refreshing permissions: $e');
+      debugPrint('❌ Error force refreshing permissions: $e');
       return false;
     }
   }
@@ -1044,7 +1046,7 @@ class HealthService {
   // Add a method to manually verify permissions
   Future<bool> manuallyVerifyPermissions() async {
     try {
-      print("🔍 === MANUAL PERMISSION VERIFICATION ===");
+      debugPrint("🔍 === MANUAL PERMISSION VERIFICATION ===");
 
       // Force re-initialization
       _isInitialized = false;
@@ -1052,10 +1054,10 @@ class HealthService {
 
       // Check permissions directly
       bool? hasPermission = await health.hasPermissions(_dataTypes);
-      print("🔍 Direct permission check: $hasPermission");
+      debugPrint("🔍 Direct permission check: $hasPermission");
 
       if (hasPermission == true) {
-        print("✅ Permissions verified manually");
+        debugPrint("✅ Permissions verified manually");
 
         // Update Firestore
         final user = _auth.currentUser;
@@ -1064,16 +1066,16 @@ class HealthService {
               .collection('users')
               .doc(user.uid)
               .update({'hasHealthPermissions': true});
-          print("💾 Updated Firestore with permission status");
+          debugPrint("💾 Updated Firestore with permission status");
         }
 
         return true;
       } else {
-        print("❌ Permissions not verified manually");
+        debugPrint("❌ Permissions not verified manually");
         return false;
       }
     } catch (e) {
-      print('❌ Error in manual verification: $e');
+      debugPrint('❌ Error in manual verification: $e');
       return false;
     }
   }
@@ -1082,7 +1084,7 @@ class HealthService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        print("No user logged in, skipping health permission check");
+        debugPrint("No user logged in, skipping health permission check");
         return false;
       }
 
@@ -1104,7 +1106,7 @@ class HealthService {
       }
       return false;
     } catch (e) {
-      print('Error checking existing permissions: $e');
+      debugPrint('Error checking existing permissions: $e');
       return false;
     }
   }
@@ -1136,7 +1138,7 @@ class HealthService {
         '\nYour data privacy is important to us and all data is stored securely.';
 
     // Log what we're requesting
-    print(
+    debugPrint(
         "🔍 Requesting permissions for: ${availableTypes.map((e) => e.toString()).join(', ')}");
 
     bool? result = await showDialog<bool>(
@@ -1175,13 +1177,13 @@ class HealthService {
     try {
       await launchUrl(url);
     } catch (e) {
-      print('Error opening Health Connect: $e');
+      debugPrint('Error opening Health Connect: $e');
       final webUrl = Uri.parse(
           'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata');
       try {
         await launchUrl(webUrl);
       } catch (e) {
-        print('Error opening Health Connect web URL: $e');
+        debugPrint('Error opening Health Connect web URL: $e');
       }
     }
   }
@@ -1223,16 +1225,16 @@ class HealthService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        print("No user logged in, cannot request health permissions");
+        debugPrint("No user logged in, cannot request health permissions");
         return false;
       }
 
       // Use the nuclear reset to force Health Connect to recognize new data types
-      print(
+      debugPrint(
           "☢️ Using nuclear reset to force Health Connect to recognize new data types...");
       return await nuclearPermissionReset(context);
     } catch (e) {
-      print('Error requesting health permissions: $e');
+      debugPrint('Error requesting health permissions: $e');
       return false;
     }
   }
@@ -1240,13 +1242,13 @@ class HealthService {
   // Fetch steps data from Health Connect using aggregate API
   Future<int> fetchStepsData() async {
     try {
-      print(
+      debugPrint(
           "Fetching real steps data from Health Connect for user ${FirebaseAuth.instance.currentUser?.uid}");
 
       // Check if we have permissions
       bool hasPermissions = await checkHealthConnectPermissions();
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions for steps");
+        debugPrint("❌ No Health Connect permissions for steps");
         return 0;
       }
 
@@ -1255,12 +1257,12 @@ class HealthService {
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
 
-      print(
+      debugPrint(
           "📅 Fetching steps from ${startOfDay.toIso8601String()} to ${endOfDay.toIso8601String()}");
 
       // Use aggregate API to get total steps for the day
       try {
-        print("🔄 Using aggregate API for steps...");
+        debugPrint("🔄 Using aggregate API for steps...");
 
         // Get aggregated steps data
         final stepsData = await health.getTotalStepsInInterval(
@@ -1268,10 +1270,10 @@ class HealthService {
           endOfDay,
         );
 
-        print("📊 Aggregated steps from Health Connect: $stepsData");
+        debugPrint("📊 Aggregated steps from Health Connect: $stepsData");
         return stepsData ?? 0;
       } catch (e) {
-        print("❌ Error with aggregate API, falling back to raw data: $e");
+        debugPrint("❌ Error with aggregate API, falling back to raw data: $e");
 
         // Fallback to raw data method
         List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
@@ -1279,38 +1281,39 @@ class HealthService {
           endTime: endOfDay,
           types: [HealthDataType.STEPS],
         );
-        print("📊 Raw health data points: ${healthData.length}");
+        debugPrint("📊 Raw health data points: ${healthData.length}");
 
         // Calculate total steps with null safety and detailed debugging
         int totalSteps = 0;
-        print("🔍 Processing ${healthData.length} health data points:");
+        debugPrint("🔍 Processing ${healthData.length} health data points:");
 
         for (int i = 0; i < healthData.length; i++) {
           HealthDataPoint p = healthData[i];
-          print("  📊 Data point $i:");
-          print("    - Value: ${p.value} (type: ${p.value.runtimeType})");
-          print("    - Date from: ${p.dateFrom}");
-          print("    - Date to: ${p.dateTo}");
-          print("    - Data type: ${p.type}");
-          print("    - Unit: ${p.unit}");
+          debugPrint("  📊 Data point $i:");
+          debugPrint("    - Value: ${p.value} (type: ${p.value.runtimeType})");
+          debugPrint("    - Date from: ${p.dateFrom}");
+          debugPrint("    - Date to: ${p.dateTo}");
+          debugPrint("    - Data type: ${p.type}");
+          debugPrint("    - Unit: ${p.unit}");
 
           // Handle different value types
           if (p.value is int) {
             totalSteps += p.value as int;
-            print("    ✅ Added ${p.value} steps (int)");
+            debugPrint("    ✅ Added ${p.value} steps (int)");
           } else if (p.value is double) {
             totalSteps += (p.value as double).toInt();
-            print("    ✅ Added ${(p.value as double).toInt()} steps (double)");
+            debugPrint(
+                "    ✅ Added ${(p.value as double).toInt()} steps (double)");
           } else {
-            print("    ❌ Unknown value type: ${p.value.runtimeType}");
+            debugPrint("    ❌ Unknown value type: ${p.value.runtimeType}");
           }
         }
 
-        print("📊 Total steps calculated: $totalSteps");
+        debugPrint("📊 Total steps calculated: $totalSteps");
         return totalSteps;
       }
     } catch (e) {
-      print("Error in fetchStepsData: $e");
+      debugPrint("Error in fetchStepsData: $e");
       return 0;
     }
   }
@@ -1318,19 +1321,19 @@ class HealthService {
   // Fetch steps data for a specific date range
   Future<int> getStepsForDateRange(DateTime startDate, DateTime endDate) async {
     try {
-      print(
+      debugPrint(
           "Fetching steps data for date range: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}");
 
       // Check if we have permissions
       bool hasPermissions = await checkHealthConnectPermissions();
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions for steps");
+        debugPrint("❌ No Health Connect permissions for steps");
         return 0;
       }
 
       // Use aggregate API to get total steps for the date range
       try {
-        print("🔄 Using aggregate API for date range steps...");
+        debugPrint("🔄 Using aggregate API for date range steps...");
 
         // Get aggregated steps data
         final stepsData = await health.getTotalStepsInInterval(
@@ -1338,10 +1341,10 @@ class HealthService {
           endDate,
         );
 
-        print("📊 Aggregated steps for date range: $stepsData");
+        debugPrint("📊 Aggregated steps for date range: $stepsData");
         return stepsData ?? 0;
       } catch (e) {
-        print(
+        debugPrint(
             "❌ Error with aggregate API for date range, falling back to raw data: $e");
 
         // Fallback to raw data method
@@ -1350,7 +1353,8 @@ class HealthService {
           endTime: endDate,
           types: [HealthDataType.STEPS],
         );
-        print("📊 Raw health data points for date range: ${healthData.length}");
+        debugPrint(
+            "📊 Raw health data points for date range: ${healthData.length}");
 
         // Calculate total steps
         int totalSteps = 0;
@@ -1362,11 +1366,11 @@ class HealthService {
           }
         }
 
-        print("📊 Total steps calculated for date range: $totalSteps");
+        debugPrint("📊 Total steps calculated for date range: $totalSteps");
         return totalSteps;
       }
     } catch (e) {
-      print("Error in getStepsForDateRange: $e");
+      debugPrint("Error in getStepsForDateRange: $e");
       return 0;
     }
   }
@@ -1380,12 +1384,12 @@ class HealthService {
       // Check if we have Health Connect permissions
       bool hasPermissions = await checkHealthConnectPermissions();
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions for calories");
+        debugPrint("❌ No Health Connect permissions for calories");
         throw Exception(
             'Health Connect permissions required for calories data');
       }
 
-      print(
+      debugPrint(
           'Fetching real active calories data from Health Connect for user  {user.uid}');
 
       final now = DateTime.now();
@@ -1405,7 +1409,7 @@ class HealthService {
         }
       }
 
-      print("🔥 Active calories: $activeCalories kcal");
+      debugPrint("🔥 Active calories: $activeCalories kcal");
 
       return {
         "startTime": startOfDay.toIso8601String(),
@@ -1425,7 +1429,7 @@ class HealthService {
         }
       };
     } catch (e) {
-      print('Error in fetchCaloriesData: $e');
+      debugPrint('Error in fetchCaloriesData: $e');
       throw Exception('Failed to fetch calories data: $e');
     }
   }
@@ -1440,12 +1444,12 @@ class HealthService {
       // Check if we have Health Connect permissions
       bool hasPermissions = await checkHealthConnectPermissions();
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions for distance");
+        debugPrint("❌ No Health Connect permissions for distance");
         throw Exception(
             'Health Connect permissions required for distance data');
       }
 
-      print(
+      debugPrint(
           '📏 Fetching distance from ${start.toIso8601String()} to ${end.toIso8601String()}');
 
       List<HealthDataPoint> distanceData = await health.getHealthDataFromTypes(
@@ -1457,12 +1461,11 @@ class HealthService {
       double totalDistance = 0.0;
       if (distanceData.isNotEmpty) {
         for (HealthDataPoint dataPoint in distanceData) {
-          if (dataPoint.value != null) {
+          {
             if (dataPoint.value is NumericHealthValue) {
               totalDistance += (dataPoint.value as NumericHealthValue)
-                      .numericValue
-                      ?.toDouble() ??
-                  0.0;
+                  .numericValue
+                  .toDouble();
             } else if (dataPoint.value is num) {
               totalDistance += (dataPoint.value as num).toDouble();
             }
@@ -1470,10 +1473,10 @@ class HealthService {
         }
       }
 
-      print("📏 Total distance: $totalDistance meters");
+      debugPrint("📏 Total distance: $totalDistance meters");
       return totalDistance;
     } catch (e) {
-      print('❌ Error in fetchDistance: $e');
+      debugPrint('❌ Error in fetchDistance: $e');
       throw Exception('Failed to fetch distance data: $e');
     }
   }
@@ -1487,12 +1490,12 @@ class HealthService {
       // Check if we have Health Connect permissions
       bool hasPermissions = await checkHealthConnectPermissions();
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions for distance");
+        debugPrint("❌ No Health Connect permissions for distance");
         throw Exception(
             'Health Connect permissions required for distance data');
       }
 
-      print(
+      debugPrint(
           'Fetching real distance data from Health Connect for user  {user.uid}');
 
       final now = DateTime.now();
@@ -1507,22 +1510,21 @@ class HealthService {
       double totalDistance = 0.0;
       if (distanceData.isNotEmpty) {
         for (HealthDataPoint dataPoint in distanceData) {
-          if (dataPoint.value != null) {
+          {
             if (dataPoint.value is NumericHealthValue) {
               totalDistance += (dataPoint.value as NumericHealthValue)
-                      .numericValue
-                      ?.toDouble() ??
-                  0.0;
+                  .numericValue
+                  .toDouble();
             } else if (dataPoint.value is num) {
               totalDistance += (dataPoint.value as num).toDouble();
             }
           }
         }
       }
-      print("📏 Total distance: $totalDistance meters");
+      debugPrint("📏 Total distance: $totalDistance meters");
       return totalDistance;
     } catch (e) {
-      print('Error in fetchDistanceData: $e');
+      debugPrint('Error in fetchDistanceData: $e');
       throw Exception('Failed to fetch distance data: $e');
     }
   }
@@ -1530,29 +1532,29 @@ class HealthService {
   // Main method to fetch all health data
   Future<Map<String, dynamic>> fetchHealthData() async {
     try {
-      print("Fetching health data...");
+      debugPrint("Fetching health data...");
 
       final user = _auth.currentUser;
       if (user == null) {
-        print("No user logged in, cannot fetch health data");
+        debugPrint("No user logged in, cannot fetch health data");
         throw Exception('No user logged in');
       }
 
-      print("User ID: ${user.uid}");
+      debugPrint("User ID: ${user.uid}");
 
       // Fetch and store each type of data
-      print("Fetching steps data...");
+      debugPrint("Fetching steps data...");
       final stepsData = await fetchStepsData();
-      print("Steps data fetched: $stepsData steps");
+      debugPrint("Steps data fetched: $stepsData steps");
 
-      print("Fetching calories data...");
+      debugPrint("Fetching calories data...");
       final caloriesData = await fetchCaloriesData();
-      print(
+      debugPrint(
           "Calories data fetched: ${caloriesData['energy']['activeKilocalories']} kcal");
 
       return {'steps': stepsData, 'calories': caloriesData};
     } catch (e) {
-      print('Error fetching health data: $e');
+      debugPrint('Error fetching health data: $e');
       // Return error states for all data types
       return {
         'steps': await fetchStepsData(),
@@ -1570,12 +1572,12 @@ class HealthService {
   // Start real-time step monitoring
   Future<void> startRealTimeStepMonitoring() async {
     try {
-      print("🔄 Starting real-time step monitoring...");
+      debugPrint("🔄 Starting real-time step monitoring...");
 
       // Check permissions first
       bool hasPermissions = await checkHealthConnectPermissions();
       if (!hasPermissions) {
-        print("❌ No Health Connect permissions for real-time monitoring");
+        debugPrint("❌ No Health Connect permissions for real-time monitoring");
         return;
       }
 
@@ -1585,7 +1587,7 @@ class HealthService {
       // Initial step count
       _lastKnownSteps = await fetchStepsData();
       _lastStepUpdate = DateTime.now();
-      print("📊 Initial step count: $_lastKnownSteps");
+      debugPrint("📊 Initial step count: $_lastKnownSteps");
 
       // Set up periodic monitoring (every 30 seconds)
       _stepMonitoringTimer =
@@ -1600,9 +1602,9 @@ class HealthService {
         }
       });
 
-      print("✅ Real-time step monitoring started");
+      debugPrint("✅ Real-time step monitoring started");
     } catch (e) {
-      print("❌ Error starting real-time step monitoring: $e");
+      debugPrint("❌ Error starting real-time step monitoring: $e");
     }
   }
 
@@ -1612,7 +1614,7 @@ class HealthService {
     _stepMonitoringTimer = null;
     _healthDataSubscription?.cancel();
     _healthDataSubscription = null;
-    print("🛑 Real-time step monitoring stopped");
+    debugPrint("🛑 Real-time step monitoring stopped");
   }
 
   // Check if user is active (has taken steps recently)
@@ -1632,14 +1634,14 @@ class HealthService {
         _lastKnownSteps = currentSteps;
         _lastStepUpdate = DateTime.now();
 
-        print(
+        debugPrint(
             "🎉 Step update detected: +$stepIncrease steps (Total: $currentSteps)");
 
         // Notify listeners about step update
         _notifyStepUpdate(currentSteps, stepIncrease);
       }
     } catch (e) {
-      print("❌ Error checking for step updates: $e");
+      debugPrint("❌ Error checking for step updates: $e");
     }
   }
 
@@ -1665,7 +1667,7 @@ class HealthService {
   // Force refresh step count
   Future<int> forceRefreshStepCount() async {
     try {
-      print("🔄 Force refreshing step count...");
+      debugPrint("🔄 Force refreshing step count...");
 
       // Use sensor-optimized step count for accuracy
       final unifiedSteps = await fetchSensorOptimizedSteps();
@@ -1675,14 +1677,15 @@ class HealthService {
         _lastKnownSteps = unifiedSteps;
         _lastStepUpdate = DateTime.now();
         _notifyStepUpdate(unifiedSteps, stepIncrease);
-        print("✅ Force refresh updated steps: $unifiedSteps (+$stepIncrease)");
+        debugPrint(
+            "✅ Force refresh updated steps: $unifiedSteps (+$stepIncrease)");
       } else {
-        print("📊 Force refresh: No change in steps ($unifiedSteps)");
+        debugPrint("📊 Force refresh: No change in steps ($unifiedSteps)");
       }
 
       return unifiedSteps;
     } catch (e) {
-      print("❌ Error force refreshing step count: $e");
+      debugPrint("❌ Error force refreshing step count: $e");
       return _lastKnownSteps;
     }
   }
@@ -1701,7 +1704,8 @@ class HealthService {
   // Start enhanced real-time monitoring with smart polling
   Future<void> startEnhancedRealTimeMonitoring() async {
     try {
-      print("🚀 Starting enhanced real-time monitoring with smart polling...");
+      debugPrint(
+          "🚀 Starting enhanced real-time monitoring with smart polling...");
 
       // Stop any existing monitoring
       stopAllMonitoring();
@@ -1710,14 +1714,14 @@ class HealthService {
       _lastKnownSteps = await fetchStepsData();
       _lastStepUpdate = DateTime.now();
       _lastStepCheck = DateTime.now();
-      print("📊 Initial step count: $_lastKnownSteps");
+      debugPrint("📊 Initial step count: $_lastKnownSteps");
 
       // Start smart polling
       _startSmartPolling();
 
-      print("✅ Enhanced real-time monitoring started");
+      debugPrint("✅ Enhanced real-time monitoring started");
     } catch (e) {
-      print("❌ Error starting enhanced monitoring: $e");
+      debugPrint("❌ Error starting enhanced monitoring: $e");
       // Fallback to regular polling
       startRealTimeStepMonitoring();
     }
@@ -1749,10 +1753,10 @@ class HealthService {
         if (_currentPollingInterval != _fastPolling) {
           _currentPollingInterval = _fastPolling;
           _startSmartPolling();
-          print("🏃 User active - switching to fast polling (10s)");
+          debugPrint("🏃 User active - switching to fast polling (10s)");
         }
 
-        print(
+        debugPrint(
             "🎉 Smart polling detected step increase: +$stepIncrease steps (Total: $currentSteps)");
         _notifyStepUpdate(currentSteps, stepIncrease);
       } else if (currentSteps == _lastKnownSteps) {
@@ -1765,22 +1769,22 @@ class HealthService {
           // After 1 minute of no changes, switch to normal polling
           _currentPollingInterval = _normalPolling;
           _startSmartPolling();
-          print("😴 User inactive - switching to normal polling (30s)");
+          debugPrint("😴 User inactive - switching to normal polling (30s)");
         } else if (_consecutiveNoChangeCount >= 20 &&
             _currentPollingInterval == _normalPolling) {
           // After 10 minutes of no changes, switch to slow polling
           _currentPollingInterval = _slowPolling;
           _startSmartPolling();
-          print("💤 User very inactive - switching to slow polling (60s)");
+          debugPrint("💤 User very inactive - switching to slow polling (60s)");
         }
 
-        print(
+        debugPrint(
             "📊 Smart polling: No step change (count: $_consecutiveNoChangeCount)");
       }
 
       _lastStepCheck = now;
     } catch (e) {
-      print("❌ Error in smart polling check: $e");
+      debugPrint("❌ Error in smart polling check: $e");
     }
   }
 
@@ -1817,7 +1821,7 @@ class HealthService {
 
       return newSteps;
     } catch (e) {
-      print("❌ Error force refreshing with smart reset: $e");
+      debugPrint("❌ Error force refreshing with smart reset: $e");
       return _lastKnownSteps;
     }
   }
@@ -1830,7 +1834,7 @@ class HealthService {
   // Start aggressive sync monitoring
   Future<void> startAggressiveSyncMonitoring() async {
     try {
-      print("🚀 Starting aggressive sync monitoring...");
+      debugPrint("🚀 Starting aggressive sync monitoring...");
 
       // Stop any existing monitoring
       stopAllMonitoring();
@@ -1844,9 +1848,9 @@ class HealthService {
         await _forceAggressiveSync();
       });
 
-      print("✅ Aggressive sync monitoring started");
+      debugPrint("✅ Aggressive sync monitoring started");
     } catch (e) {
-      print("❌ Error starting aggressive sync monitoring: $e");
+      debugPrint("❌ Error starting aggressive sync monitoring: $e");
     }
   }
 
@@ -1854,7 +1858,7 @@ class HealthService {
   Future<void> _forceAggressiveSync() async {
     try {
       _syncAttempts++;
-      print("🔄 Aggressive sync attempt $_syncAttempts...");
+      debugPrint("🔄 Aggressive sync attempt $_syncAttempts...");
 
       // Strategy 1: Force refresh Health Connect data
       await _refreshHealthConnectData();
@@ -1868,11 +1872,11 @@ class HealthService {
         _lastStepUpdate = DateTime.now();
         _syncAttempts = 0; // Reset attempts on success
 
-        print(
+        debugPrint(
             "🎉 Aggressive sync successful: +$stepIncrease steps (Total: $currentSteps)");
         _notifyStepUpdate(currentSteps, stepIncrease);
       } else {
-        print("📊 Aggressive sync: No new steps detected");
+        debugPrint("📊 Aggressive sync: No new steps detected");
 
         // If we've tried too many times without success, try alternative strategies
         if (_syncAttempts >= _maxSyncAttempts) {
@@ -1881,14 +1885,14 @@ class HealthService {
         }
       }
     } catch (e) {
-      print("❌ Error in aggressive sync: $e");
+      debugPrint("❌ Error in aggressive sync: $e");
     }
   }
 
   // Refresh Health Connect data by re-initializing
   Future<void> _refreshHealthConnectData() async {
     try {
-      print("🔄 Refreshing Health Connect data...");
+      debugPrint("🔄 Refreshing Health Connect data...");
 
       // Re-initialize Health Connect
       await initializeHealthConnect();
@@ -1899,14 +1903,14 @@ class HealthService {
       // Small delay to allow data to refresh
       await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
-      print("❌ Error refreshing Health Connect data: $e");
+      debugPrint("❌ Error refreshing Health Connect data: $e");
     }
   }
 
   // Try alternative sync strategies
   Future<void> _tryAlternativeSyncStrategies() async {
     try {
-      print("🔄 Trying alternative sync strategies...");
+      debugPrint("🔄 Trying alternative sync strategies...");
 
       // Strategy 1: Try different time ranges
       await _tryDifferentTimeRanges();
@@ -1914,14 +1918,14 @@ class HealthService {
       // Strategy 2: Force data refresh with different parameters
       await _forceDataRefreshWithDifferentParams();
     } catch (e) {
-      print("❌ Error in alternative sync strategies: $e");
+      debugPrint("❌ Error in alternative sync strategies: $e");
     }
   }
 
   // Try fetching data with different time ranges
   Future<void> _tryDifferentTimeRanges() async {
     try {
-      print("🔄 Trying different time ranges...");
+      debugPrint("🔄 Trying different time ranges...");
 
       final now = DateTime.now();
 
@@ -1937,7 +1941,7 @@ class HealthService {
       final startOfDay = DateTime(now.year, now.month, now.day);
       final stepsToday = await _fetchStepsForTimeRange(startOfDay, now);
 
-      print(
+      debugPrint(
           "📊 Time range results - 2h: $steps2h, 4h: $steps4h, Today: $stepsToday");
 
       // Use the highest value
@@ -1949,12 +1953,12 @@ class HealthService {
         _lastKnownSteps = maxSteps;
         _lastStepUpdate = now;
 
-        print(
+        debugPrint(
             "🎉 Alternative sync successful: +$stepIncrease steps (Total: $maxSteps)");
         _notifyStepUpdate(maxSteps, stepIncrease);
       }
     } catch (e) {
-      print("❌ Error trying different time ranges: $e");
+      debugPrint("❌ Error trying different time ranges: $e");
     }
   }
 
@@ -1978,7 +1982,7 @@ class HealthService {
 
       return totalSteps;
     } catch (e) {
-      print("❌ Error fetching steps for time range: $e");
+      debugPrint("❌ Error fetching steps for time range: $e");
       return 0;
     }
   }
@@ -1986,7 +1990,7 @@ class HealthService {
   // Force data refresh with different parameters
   Future<void> _forceDataRefreshWithDifferentParams() async {
     try {
-      print("🔄 Forcing data refresh with different parameters...");
+      debugPrint("🔄 Forcing data refresh with different parameters...");
 
       await health.getHealthDataFromTypes(
         startTime: DateTime.now().subtract(const Duration(hours: 1)),
@@ -1997,14 +2001,14 @@ class HealthService {
       // Small delay
       await Future.delayed(const Duration(milliseconds: 300));
     } catch (e) {
-      print("❌ Error forcing data refresh: $e");
+      debugPrint("❌ Error forcing data refresh: $e");
     }
   }
 
   // Enhanced force refresh that tries multiple strategies
   Future<int> forceRefreshWithMultipleStrategies() async {
     try {
-      print("🔄 Force refresh with multiple strategies...");
+      debugPrint("🔄 Force refresh with multiple strategies...");
 
       // Strategy 1: Normal fetch
       int steps = await fetchStepsData();
@@ -2023,7 +2027,7 @@ class HealthService {
 
       return steps;
     } catch (e) {
-      print("❌ Error in force refresh with multiple strategies: $e");
+      debugPrint("❌ Error in force refresh with multiple strategies: $e");
       return _lastKnownSteps;
     }
   }
@@ -2033,7 +2037,7 @@ class HealthService {
     _aggressiveSyncTimer?.cancel();
     _aggressiveSyncTimer = null;
     _syncAttempts = 0;
-    print("🛑 Aggressive sync monitoring stopped");
+    debugPrint("🛑 Aggressive sync monitoring stopped");
   }
 
   // Enhanced stop all monitoring
@@ -2042,7 +2046,7 @@ class HealthService {
     stopAggressiveSyncMonitoring();
     _smartPollingTimer?.cancel();
     _smartPollingTimer = null;
-    print("🛑 All monitoring stopped");
+    debugPrint("🛑 All monitoring stopped");
   }
 
   // ===== REAL-TIME STEP TRACKING INTEGRATION =====
@@ -2057,19 +2061,19 @@ class HealthService {
   /// Start real-time step tracking using hardware sensor
   Future<bool> startRealTimeStepTracking() async {
     try {
-      print("🚀 Starting real-time step tracking...");
+      debugPrint("🚀 Starting real-time step tracking...");
 
       // Initialize step counter service
       final initialized = await StepCounterService.initialize();
       if (!initialized) {
-        print("❌ Failed to initialize step counter service");
+        debugPrint("❌ Failed to initialize step counter service");
         return false;
       }
 
       // Start tracking
       final started = await StepCounterService.startTracking();
       if (!started) {
-        print("❌ Failed to start step tracking");
+        debugPrint("❌ Failed to start step tracking");
         return false;
       }
 
@@ -2081,7 +2085,7 @@ class HealthService {
             final dailySteps = data['dailySteps'] as int;
             final timestamp = data['timestamp'] as DateTime;
 
-            print(
+            debugPrint(
                 "👟 Real-time step update: $currentSteps steps (Daily: $dailySteps)");
 
             // Only update if we have a valid baseline
@@ -2106,28 +2110,28 @@ class HealthService {
               _lastStepUpdate = timestamp;
 
               // Notify listeners with display count
-              print(
+              debugPrint(
                   "🎯 Sending real-time step update: $displaySteps (sensor: $currentSteps, health: $accurateSteps)");
               _notifyStepUpdate(displaySteps, currentSteps);
             } else {
-              print("⚠️ Baseline not set yet, skipping update");
+              debugPrint("⚠️ Baseline not set yet, skipping update");
             }
           } else if (data['type'] == 'sensor_status') {
             final available = data['available'] as bool;
-            print(
+            debugPrint(
                 "📱 Step sensor status: ${available ? 'Available' : 'Not available'}");
           }
         },
         onError: (error) {
-          print("❌ Error in real-time step stream: $error");
+          debugPrint("❌ Error in real-time step stream: $error");
         },
       );
 
       _isRealTimeTrackingActive = true;
-      print("✅ Real-time step tracking started successfully");
+      debugPrint("✅ Real-time step tracking started successfully");
       return true;
     } catch (e) {
-      print("❌ Error starting real-time step tracking: $e");
+      debugPrint("❌ Error starting real-time step tracking: $e");
       return false;
     }
   }
@@ -2135,7 +2139,7 @@ class HealthService {
   /// Stop real-time step tracking
   Future<void> stopRealTimeStepTracking() async {
     try {
-      print("🛑 Stopping real-time step tracking...");
+      debugPrint("🛑 Stopping real-time step tracking...");
 
       _realTimeStepSubscription?.cancel();
       _realTimeStepSubscription = null;
@@ -2143,9 +2147,9 @@ class HealthService {
       await StepCounterService.stopTracking();
 
       _isRealTimeTrackingActive = false;
-      print("✅ Real-time step tracking stopped");
+      debugPrint("✅ Real-time step tracking stopped");
     } catch (e) {
-      print("❌ Error stopping real-time step tracking: $e");
+      debugPrint("❌ Error stopping real-time step tracking: $e");
     }
   }
 
@@ -2158,23 +2162,24 @@ class HealthService {
   /// ACCURATE HYBRID - Syncs perfectly with Google Fit
   Future<int> fetchAccurateHybridSteps() async {
     try {
-      print("🎯 ACCURATE HYBRID: Starting accurate step fetch...");
+      debugPrint("🎯 ACCURATE HYBRID: Starting accurate step fetch...");
 
       // Get the most recent Health Connect steps (this should match Google Fit)
       final healthConnectSteps = await fetchStepsData();
-      print("🎯 ACCURATE HYBRID: Health Connect steps: $healthConnectSteps");
+      debugPrint(
+          "🎯 ACCURATE HYBRID: Health Connect steps: $healthConnectSteps");
 
       // For accuracy, we'll use ONLY Health Connect steps to match Google Fit
       // The real-time sensor can cause double-counting issues
       final accurateSteps = healthConnectSteps;
 
-      print(
+      debugPrint(
           "🎯 ACCURATE HYBRID: Using Health Connect only for accuracy: $accurateSteps");
-      print("🎯 ACCURATE HYBRID: This should match Google Fit exactly");
+      debugPrint("🎯 ACCURATE HYBRID: This should match Google Fit exactly");
 
       return accurateSteps;
     } catch (e) {
-      print("🎯 ACCURATE HYBRID: Error, using fallback: $e");
+      debugPrint("🎯 ACCURATE HYBRID: Error, using fallback: $e");
       return 0;
     }
   }
@@ -2182,28 +2187,30 @@ class HealthService {
   /// SMART HYBRID - Uses real-time sensor only for animation detection, Health Connect for display
   Future<int> fetchSmartHybridSteps() async {
     try {
-      print("🧠 SMART HYBRID: Starting smart step fetch...");
+      debugPrint("🧠 SMART HYBRID: Starting smart step fetch...");
 
       // Get Health Connect steps for display accuracy
       final healthConnectSteps = await fetchStepsData();
-      print(
+      debugPrint(
           "🧠 SMART HYBRID: Health Connect steps (display): $healthConnectSteps");
 
       // Get real-time sensor steps for animation detection only
       final realTimeSteps = StepCounterService.currentSteps;
-      print(
+      debugPrint(
           "🧠 SMART HYBRID: Real-time sensor steps (animation): $realTimeSteps");
 
       // Use Health Connect for display (matches Google Fit)
       // Use real-time sensor only for detecting if user is currently walking
       final displaySteps = healthConnectSteps;
 
-      print("🧠 SMART HYBRID: Display steps (Health Connect): $displaySteps");
-      print("🧠 SMART HYBRID: Animation detection (Real-time): $realTimeSteps");
+      debugPrint(
+          "🧠 SMART HYBRID: Display steps (Health Connect): $displaySteps");
+      debugPrint(
+          "🧠 SMART HYBRID: Animation detection (Real-time): $realTimeSteps");
 
       return displaySteps;
     } catch (e) {
-      print("🧠 SMART HYBRID: Error, using fallback: $e");
+      debugPrint("🧠 SMART HYBRID: Error, using fallback: $e");
       return 0;
     }
   }
@@ -2211,17 +2218,17 @@ class HealthService {
   /// GOOGLE FIT SYNC - Ensures perfect sync with Google Fit
   Future<int> fetchGoogleFitSyncSteps() async {
     try {
-      print("📱 GOOGLE FIT SYNC: Starting Google Fit sync...");
+      debugPrint("📱 GOOGLE FIT SYNC: Starting Google Fit sync...");
 
       // Force refresh Health Connect data to ensure latest sync
       final steps = await fetchStepsData();
 
-      print("📱 GOOGLE FIT SYNC: Steps synced with Google Fit: $steps");
-      print("📱 GOOGLE FIT SYNC: This should match Google Fit exactly");
+      debugPrint("📱 GOOGLE FIT SYNC: Steps synced with Google Fit: $steps");
+      debugPrint("📱 GOOGLE FIT SYNC: This should match Google Fit exactly");
 
       return steps;
     } catch (e) {
-      print("📱 GOOGLE FIT SYNC: Error, using fallback: $e");
+      debugPrint("📱 GOOGLE FIT SYNC: Error, using fallback: $e");
       return 0;
     }
   }
@@ -2230,24 +2237,25 @@ class HealthService {
   /// BULLETPROOF VERSION - Multiple safeguards to prevent disruption
   Future<int> fetchHybridStepsData() async {
     try {
-      print("🛡️ BULLETPROOF: Starting hybrid step fetch...");
+      debugPrint("🛡️ BULLETPROOF: Starting hybrid step fetch...");
 
       // SAFEGUARD 1: Ensure baseline is always set
       if (!_baselineSet) {
-        print("🛡️ BULLETPROOF: Baseline not set, setting it now...");
+        debugPrint("🛡️ BULLETPROOF: Baseline not set, setting it now...");
         final healthConnectSteps = await fetchStepsData();
         _healthConnectBaseline = healthConnectSteps;
         _baselineSet = true;
-        print("🛡️ BULLETPROOF: Set baseline to: $_healthConnectBaseline");
+        debugPrint("🛡️ BULLETPROOF: Set baseline to: $_healthConnectBaseline");
       }
 
       // SAFEGUARD 2: Get Health Connect steps with error handling
       int healthConnectSteps;
       try {
         healthConnectSteps = await fetchStepsData();
-        print("🛡️ BULLETPROOF: Health Connect steps: $healthConnectSteps");
+        debugPrint(
+            "🛡️ BULLETPROOF: Health Connect steps: $healthConnectSteps");
       } catch (e) {
-        print(
+        debugPrint(
             "🛡️ BULLETPROOF: Health Connect error, using baseline: $_healthConnectBaseline");
         healthConnectSteps = _healthConnectBaseline;
       }
@@ -2256,20 +2264,21 @@ class HealthService {
       int realTimeSteps;
       try {
         realTimeSteps = StepCounterService.currentSteps;
-        print("🛡️ BULLETPROOF: Real-time sensor steps: $realTimeSteps");
+        debugPrint("🛡️ BULLETPROOF: Real-time sensor steps: $realTimeSteps");
       } catch (e) {
-        print("🛡️ BULLETPROOF: Real-time sensor error, using 0");
+        debugPrint("🛡️ BULLETPROOF: Real-time sensor error, using 0");
         realTimeSteps = 0;
       }
 
       // SAFEGUARD 4: Validate data integrity
       if (healthConnectSteps < 0) {
-        print("🛡️ BULLETPROOF: Invalid Health Connect steps, using baseline");
+        debugPrint(
+            "🛡️ BULLETPROOF: Invalid Health Connect steps, using baseline");
         healthConnectSteps = _healthConnectBaseline;
       }
 
       if (realTimeSteps < 0) {
-        print("🛡️ BULLETPROOF: Invalid real-time steps, using 0");
+        debugPrint("🛡️ BULLETPROOF: Invalid real-time steps, using 0");
         realTimeSteps = 0;
       }
 
@@ -2278,33 +2287,35 @@ class HealthService {
       if (realTimeSteps > 0) {
         // Add sensor steps to Health Connect baseline for real-time updates
         finalSteps = healthConnectSteps + realTimeSteps;
-        print(
+        debugPrint(
             "🛡️ BULLETPROOF: Real-time total: $healthConnectSteps (Health Connect) + $realTimeSteps (Sensor) = $finalSteps");
       } else {
         finalSteps = healthConnectSteps;
-        print("🛡️ BULLETPROOF: Using Health Connect steps only: $finalSteps");
+        debugPrint(
+            "🛡️ BULLETPROOF: Using Health Connect steps only: $finalSteps");
       }
 
       // SAFEGUARD 7: Update baseline if Health Connect steps increased significantly
       if (healthConnectSteps > _healthConnectBaseline + 10) {
-        print(
+        debugPrint(
             "🛡️ BULLETPROOF: Health Connect steps increased significantly, updating baseline");
         _healthConnectBaseline = healthConnectSteps;
-        print("🛡️ BULLETPROOF: Updated baseline to: $_healthConnectBaseline");
+        debugPrint(
+            "🛡️ BULLETPROOF: Updated baseline to: $_healthConnectBaseline");
       }
 
       return finalSteps;
     } catch (e) {
-      print(
+      debugPrint(
           "🛡️ BULLETPROOF: Critical error in hybrid fetch, using fallback: $e");
 
       // SAFEGUARD 8: Ultimate fallback - return baseline or 0
       if (_baselineSet) {
-        print(
+        debugPrint(
             "🛡️ BULLETPROOF: Returning baseline as fallback: $_healthConnectBaseline");
         return _healthConnectBaseline;
       } else {
-        print("🛡️ BULLETPROOF: No baseline available, returning 0");
+        debugPrint("🛡️ BULLETPROOF: No baseline available, returning 0");
         return 0;
       }
     }
@@ -2312,7 +2323,7 @@ class HealthService {
 
   /// FORCE HYBRID - Always use hybrid method regardless of errors
   Future<int> forceHybridStepsData() async {
-    print("💪 FORCE HYBRID: Ensuring hybrid method is used...");
+    debugPrint("💪 FORCE HYBRID: Ensuring hybrid method is used...");
 
     // Force baseline setup
     if (!_baselineSet) {
@@ -2320,12 +2331,12 @@ class HealthService {
         final steps = await fetchStepsData();
         _healthConnectBaseline = steps;
         _baselineSet = true;
-        print(
+        debugPrint(
             "💪 FORCE HYBRID: Forced baseline setup: $_healthConnectBaseline");
       } catch (e) {
         _healthConnectBaseline = 0;
         _baselineSet = true;
-        print("💪 FORCE HYBRID: Forced baseline to 0 due to error");
+        debugPrint("💪 FORCE HYBRID: Forced baseline to 0 due to error");
       }
     }
 
@@ -2334,19 +2345,19 @@ class HealthService {
 
   /// ANIMATION-SAFE HYBRID - Specifically for character animations
   Future<int> fetchAnimationSafeSteps() async {
-    print("🎬 ANIMATION-SAFE: Fetching steps for character animation...");
+    debugPrint("🎬 ANIMATION-SAFE: Fetching steps for character animation...");
 
     // VALIDATION: Ensure hybrid mode is always used
     if (!_forceHybridMode) {
-      print(
+      debugPrint(
           "🚨 CRITICAL ERROR: Hybrid mode is disabled! This will break animations!");
-      print("🚨 CRITICAL ERROR: _forceHybridMode must always be true!");
+      debugPrint("🚨 CRITICAL ERROR: _forceHybridMode must always be true!");
     }
 
     // Use Google Fit sync for accuracy
     final steps = await fetchGoogleFitSyncSteps();
 
-    print("🎬 ANIMATION-SAFE: Steps for animation: $steps");
+    debugPrint("🎬 ANIMATION-SAFE: Steps for animation: $steps");
     return steps;
   }
 
@@ -2356,7 +2367,8 @@ class HealthService {
       throw Exception(
           "CRITICAL: Hybrid mode is disabled! This will break character animations!");
     }
-    print("✅ Hybrid mode validation passed - animations will work correctly");
+    debugPrint(
+        "✅ Hybrid mode validation passed - animations will work correctly");
   }
 
   /// FORCE VALIDATION: Call this before any step fetch to ensure hybrid mode
@@ -2368,7 +2380,7 @@ class HealthService {
   /// Initialize both Health Connect and real-time tracking
   Future<bool> initializeHybridTracking() async {
     try {
-      print("🔄 Initializing hybrid tracking system...");
+      debugPrint("🔄 Initializing hybrid tracking system...");
 
       // Initialize Health Connect
       final healthConnectInitialized = await initializeHealthConnect();
@@ -2381,17 +2393,17 @@ class HealthService {
         final initialSteps = await fetchStepsData();
         _healthConnectBaseline = initialSteps;
         _baselineSet = true;
-        print("📊 Set initial baseline: $_healthConnectBaseline");
+        debugPrint("📊 Set initial baseline: $_healthConnectBaseline");
       }
 
-      print(
+      debugPrint(
           "🏥 Health Connect: ${healthConnectInitialized ? 'Ready' : 'Not available'}");
-      print(
+      debugPrint(
           "📱 Real-time sensor: ${realTimeInitialized ? 'Ready' : 'Not available'}");
 
       return healthConnectInitialized || realTimeInitialized;
     } catch (e) {
-      print("❌ Error initializing hybrid tracking: $e");
+      debugPrint("❌ Error initializing hybrid tracking: $e");
       return false;
     }
   }
@@ -2399,35 +2411,36 @@ class HealthService {
   /// Enhanced monitoring that uses both systems
   Future<void> startHybridMonitoring() async {
     try {
-      print("🚀 Starting hybrid monitoring...");
+      debugPrint("🚀 Starting hybrid monitoring...");
 
       // Start real-time tracking if available
       if (await StepCounterService.isSensorAvailable()) {
         await startRealTimeStepTracking();
-        print("✅ Real-time tracking started");
+        debugPrint("✅ Real-time tracking started");
       } else {
-        print("⚠️ Real-time sensor not available, using Health Connect only");
+        debugPrint(
+            "⚠️ Real-time sensor not available, using Health Connect only");
         // Only use Health Connect monitoring if real-time sensor is not available
         await startRealTimeStepMonitoring();
       }
 
-      print("✅ Hybrid monitoring started");
+      debugPrint("✅ Hybrid monitoring started");
     } catch (e) {
-      print("❌ Error starting hybrid monitoring: $e");
+      debugPrint("❌ Error starting hybrid monitoring: $e");
     }
   }
 
   /// Stop hybrid monitoring
   Future<void> stopHybridMonitoring() async {
     try {
-      print("🛑 Stopping hybrid monitoring...");
+      debugPrint("🛑 Stopping hybrid monitoring...");
 
       await stopRealTimeStepTracking();
       stopRealTimeStepMonitoring();
 
-      print("✅ Hybrid monitoring stopped");
+      debugPrint("✅ Hybrid monitoring stopped");
     } catch (e) {
-      print("❌ Error stopping hybrid monitoring: $e");
+      debugPrint("❌ Error stopping hybrid monitoring: $e");
     }
   }
 
@@ -2435,7 +2448,7 @@ class HealthService {
   void resetBaseline() {
     _baselineSet = false;
     _healthConnectBaseline = 0;
-    print("🔄 Baseline reset");
+    debugPrint("🔄 Baseline reset");
   }
 
   /// Get current baseline value
@@ -2444,28 +2457,32 @@ class HealthService {
   /// SENSOR-OPTIMIZED ANIMATION DETECTION - Uses optimal Google Fit + sensor approach
   Future<int> fetchSensorOptimizedSteps() async {
     try {
-      print("📱 SENSOR-OPTIMIZED: Starting sensor-optimized step fetch...");
+      debugPrint(
+          "📱 SENSOR-OPTIMIZED: Starting sensor-optimized step fetch...");
 
       // Use the optimal approach: Google Fit for accuracy
       final accurateSteps = await fetchOptimalSteps();
-      print("📱 SENSOR-OPTIMIZED: Optimal steps (Google Fit): $accurateSteps");
+      debugPrint(
+          "📱 SENSOR-OPTIMIZED: Optimal steps (Google Fit): $accurateSteps");
 
       // Get real-time sensor data for animation detection
       final sensorSteps = StepCounterService.currentSteps;
       final isSensorActive = await StepCounterService.isSensorAvailable();
 
-      print("📱 SENSOR-OPTIMIZED: Real-time sensor steps: $sensorSteps");
-      print("📱 SENSOR-OPTIMIZED: Sensor active: $isSensorActive");
+      debugPrint("📱 SENSOR-OPTIMIZED: Real-time sensor steps: $sensorSteps");
+      debugPrint("📱 SENSOR-OPTIMIZED: Sensor active: $isSensorActive");
 
       // Use Google Fit steps for display accuracy
       final displaySteps = accurateSteps;
 
-      print("📱 SENSOR-OPTIMIZED: Display steps (Google Fit): $displaySteps");
-      print("📱 SENSOR-OPTIMIZED: Animation detection (Sensor): $sensorSteps");
+      debugPrint(
+          "📱 SENSOR-OPTIMIZED: Display steps (Google Fit): $displaySteps");
+      debugPrint(
+          "📱 SENSOR-OPTIMIZED: Animation detection (Sensor): $sensorSteps");
 
       return displaySteps;
     } catch (e) {
-      print("📱 SENSOR-OPTIMIZED: Error, using fallback: $e");
+      debugPrint("📱 SENSOR-OPTIMIZED: Error, using fallback: $e");
       return 0;
     }
   }
@@ -2473,12 +2490,13 @@ class HealthService {
   /// REAL-TIME ANIMATION DETECTOR - Uses sensors to detect active walking
   Future<bool> isUserActivelyWalking() async {
     try {
-      print("🎬 ANIMATION DETECTOR: Checking if user is actively walking...");
+      debugPrint(
+          "🎬 ANIMATION DETECTOR: Checking if user is actively walking...");
 
       // Check if real-time sensor is available
       final isSensorAvailable = await StepCounterService.isSensorAvailable();
       if (!isSensorAvailable) {
-        print(
+        debugPrint(
             "🎬 ANIMATION DETECTOR: Sensor not available, using Health Connect");
         return false; // Fall back to Health Connect detection
       }
@@ -2487,8 +2505,9 @@ class HealthService {
       final currentSensorSteps = StepCounterService.currentSteps;
       final lastKnownSensorSteps = _lastKnownSteps;
 
-      print("🎬 ANIMATION DETECTOR: Current sensor steps: $currentSensorSteps");
-      print(
+      debugPrint(
+          "🎬 ANIMATION DETECTOR: Current sensor steps: $currentSensorSteps");
+      debugPrint(
           "🎬 ANIMATION DETECTOR: Last known sensor steps: $lastKnownSensorSteps");
 
       // Check if sensor steps increased recently (within last 5 seconds)
@@ -2496,20 +2515,21 @@ class HealthService {
           DateTime.now().difference(_lastStepUpdate).inSeconds;
       final stepsIncreased = currentSensorSteps > lastKnownSensorSteps;
 
-      print(
+      debugPrint(
           "🎬 ANIMATION DETECTOR: Time since last update: ${timeSinceLastUpdate}s");
-      print("🎬 ANIMATION DETECTOR: Steps increased: $stepsIncreased");
+      debugPrint("🎬 ANIMATION DETECTOR: Steps increased: $stepsIncreased");
 
       // User is actively walking if:
       // 1. Sensor steps increased recently, OR
       // 2. Last update was very recent (within 3 seconds)
       final isActivelyWalking = stepsIncreased || timeSinceLastUpdate <= 3;
 
-      print("🎬 ANIMATION DETECTOR: User actively walking: $isActivelyWalking");
+      debugPrint(
+          "🎬 ANIMATION DETECTOR: User actively walking: $isActivelyWalking");
 
       return isActivelyWalking;
     } catch (e) {
-      print("🎬 ANIMATION DETECTOR: Error, using fallback: $e");
+      debugPrint("🎬 ANIMATION DETECTOR: Error, using fallback: $e");
       return false;
     }
   }
@@ -2517,7 +2537,7 @@ class HealthService {
   /// HYBRID ANIMATION SYSTEM - Combines Google Fit accuracy with sensor responsiveness
   Future<Map<String, dynamic>> fetchHybridAnimationData() async {
     try {
-      print("🎮 HYBRID ANIMATION: Starting hybrid animation system...");
+      debugPrint("🎮 HYBRID ANIMATION: Starting hybrid animation system...");
 
       // Get accurate step count from Google Fit
       final googleFitSteps = await fetchGoogleFitSyncSteps();
@@ -2525,8 +2545,8 @@ class HealthService {
       // Check if user is actively walking using sensors
       final isActivelyWalking = await isUserActivelyWalking();
 
-      print("🎮 HYBRID ANIMATION: Google Fit steps: $googleFitSteps");
-      print("🎮 HYBRID ANIMATION: Actively walking: $isActivelyWalking");
+      debugPrint("🎮 HYBRID ANIMATION: Google Fit steps: $googleFitSteps");
+      debugPrint("🎮 HYBRID ANIMATION: Actively walking: $isActivelyWalking");
 
       return {
         'steps': googleFitSteps,
@@ -2534,7 +2554,7 @@ class HealthService {
         'source': 'hybrid_animation_system'
       };
     } catch (e) {
-      print("🎮 HYBRID ANIMATION: Error, using fallback: $e");
+      debugPrint("🎮 HYBRID ANIMATION: Error, using fallback: $e");
       return {'steps': 0, 'isActivelyWalking': false, 'source': 'fallback'};
     }
   }
@@ -2542,27 +2562,28 @@ class HealthService {
   /// ACCURATE DAILY STEPS - Uses baseline + incremental sensor approach
   Future<int> fetchAccurateDailySteps() async {
     try {
-      print("🎯 ACCURATE DAILY: Starting accurate daily step calculation...");
+      debugPrint(
+          "🎯 ACCURATE DAILY: Starting accurate daily step calculation...");
 
       // Get Health Connect steps at app launch (baseline)
       if (!_baselineSet) {
         final hcStepsAtLaunch = await fetchStepsData();
         _healthConnectBaseline = hcStepsAtLaunch;
         _baselineSet = true;
-        print(
+        debugPrint(
             "🎯 ACCURATE DAILY: Set baseline at launch: $_healthConnectBaseline");
       }
 
       // Get current Health Connect steps (this is the accurate source)
       final currentHealthConnectSteps = await fetchStepsData();
 
-      print(
+      debugPrint(
           "🎯 ACCURATE DAILY: Current Health Connect steps: $currentHealthConnectSteps");
-      print("🎯 ACCURATE DAILY: This matches Google Fit exactly!");
+      debugPrint("🎯 ACCURATE DAILY: This matches Google Fit exactly!");
 
       return currentHealthConnectSteps;
     } catch (e) {
-      print("🎯 ACCURATE DAILY: Error, using fallback: $e");
+      debugPrint("🎯 ACCURATE DAILY: Error, using fallback: $e");
       return _healthConnectBaseline;
     }
   }
@@ -2570,7 +2591,7 @@ class HealthService {
   /// RESET DAILY BASELINE - Call this when starting a new day
   Future<void> resetDailyBaseline() async {
     try {
-      print("🔄 RESET DAILY: Resetting daily baseline...");
+      debugPrint("🔄 RESET DAILY: Resetting daily baseline...");
 
       // Get current Health Connect steps as new baseline
       final newBaseline = await fetchStepsData();
@@ -2580,34 +2601,34 @@ class HealthService {
       // Reset sensor tracking
       StepCounterService.resetCounter();
 
-      print("🔄 RESET DAILY: New baseline set: $_healthConnectBaseline");
-      print("🔄 RESET DAILY: Sensor counter reset");
+      debugPrint("🔄 RESET DAILY: New baseline set: $_healthConnectBaseline");
+      debugPrint("🔄 RESET DAILY: Sensor counter reset");
     } catch (e) {
-      print("🔄 RESET DAILY: Error resetting baseline: $e");
+      debugPrint("🔄 RESET DAILY: Error resetting baseline: $e");
     }
   }
 
   /// OPTIMAL STEP COUNTING - Google Fit for accuracy, sensors for animation
   Future<int> fetchOptimalSteps() async {
     try {
-      print("🎯 OPTIMAL: Starting optimal step fetch...");
+      debugPrint("🎯 OPTIMAL: Starting optimal step fetch...");
 
       // Get accurate step count directly from Google Fit
       final accurateSteps = await fetchStepsData();
-      print("🎯 OPTIMAL: Google Fit steps (accurate): $accurateSteps");
+      debugPrint("🎯 OPTIMAL: Google Fit steps (accurate): $accurateSteps");
 
       // Use sensors ONLY for animation detection, not step counting
       final sensorSteps = StepCounterService.currentSteps;
       final isSensorActive = await StepCounterService.isSensorAvailable();
 
-      print("🎯 OPTIMAL: Sensor steps (animation only): $sensorSteps");
-      print("🎯 OPTIMAL: Sensor active: $isSensorActive");
+      debugPrint("🎯 OPTIMAL: Sensor steps (animation only): $sensorSteps");
+      debugPrint("🎯 OPTIMAL: Sensor active: $isSensorActive");
 
       // Return Google Fit steps for display accuracy
-      print("🎯 OPTIMAL: Returning Google Fit steps: $accurateSteps");
+      debugPrint("🎯 OPTIMAL: Returning Google Fit steps: $accurateSteps");
       return accurateSteps;
     } catch (e) {
-      print("🎯 OPTIMAL: Error, using fallback: $e");
+      debugPrint("🎯 OPTIMAL: Error, using fallback: $e");
       return 0;
     }
   }
@@ -2621,11 +2642,11 @@ class HealthService {
 
       // Simple walking detection: if sensor is active and steps > 0, user is walking
       final isWalking = isSensorActive && sensorSteps > 0;
-      print(
+      debugPrint(
           "🎭 ANIMATION: Sensor steps: $sensorSteps, Sensor active: $isSensorActive, Walking: $isWalking");
       return isWalking;
     } catch (e) {
-      print("🎭 ANIMATION: Error detecting walking state: $e");
+      debugPrint("🎭 ANIMATION: Error detecting walking state: $e");
       return false;
     }
   }
@@ -2633,7 +2654,7 @@ class HealthService {
   /// COMPLETE STEP DATA - Combines accurate steps + animation state
   Future<Map<String, dynamic>> fetchCompleteStepData() async {
     try {
-      print("🎯 COMPLETE: Fetching complete step data...");
+      debugPrint("🎯 COMPLETE: Fetching complete step data...");
 
       // Get accurate steps from Google Fit
       final accurateSteps = await fetchOptimalSteps();
@@ -2647,11 +2668,11 @@ class HealthService {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
 
-      print(
+      debugPrint(
           "🎯 COMPLETE: Steps: ${result['steps']}, Walking: ${result['isWalking']}");
       return result;
     } catch (e) {
-      print("🎯 COMPLETE: Error: $e");
+      debugPrint("🎯 COMPLETE: Error: $e");
       return {
         'steps': 0,
         'isWalking': false,
@@ -2665,7 +2686,7 @@ class HealthService {
     try {
       return await fetchStepsData();
     } catch (e) {
-      print("❌ Error getting pure Health Connect steps: $e");
+      debugPrint("❌ Error getting pure Health Connect steps: $e");
       return 0;
     }
   }
@@ -2673,7 +2694,7 @@ class HealthService {
   /// Reset hybrid system baselines to resolve inconsistencies
   Future<void> resetHybridSystem() async {
     try {
-      print("🔄 Resetting hybrid system baselines...");
+      debugPrint("🔄 Resetting hybrid system baselines...");
 
       // Reset baselines
       _baselineSet = false;
@@ -2686,49 +2707,49 @@ class HealthService {
       _sensorBaseline = StepCounterService.currentSteps;
       _baselineSet = true;
 
-      print("🔄 Hybrid system reset complete:");
-      print("  - Health Connect baseline: $_healthConnectBaseline");
-      print("  - Sensor baseline: $_sensorBaseline");
+      debugPrint("🔄 Hybrid system reset complete:");
+      debugPrint("  - Health Connect baseline: $_healthConnectBaseline");
+      debugPrint("  - Sensor baseline: $_sensorBaseline");
     } catch (e) {
-      print("❌ Error resetting hybrid system: $e");
+      debugPrint("❌ Error resetting hybrid system: $e");
     }
   }
 
   /// Test step consistency between Health Connect and hybrid system
   Future<void> testStepConsistency() async {
     try {
-      print("🧪 Testing step consistency...");
+      debugPrint("🧪 Testing step consistency...");
 
       final pureSteps = await getPureHealthConnectSteps();
       final hybridSteps = await fetchHybridRealTimeSteps();
 
-      print("🧪 CONSISTENCY TEST RESULTS:");
-      print("  - Pure Health Connect steps: $pureSteps");
-      print("  - Hybrid steps: $hybridSteps");
-      print("  - Difference: ${hybridSteps - pureSteps}");
+      debugPrint("🧪 CONSISTENCY TEST RESULTS:");
+      debugPrint("  - Pure Health Connect steps: $pureSteps");
+      debugPrint("  - Hybrid steps: $hybridSteps");
+      debugPrint("  - Difference: ${hybridSteps - pureSteps}");
 
       if (hybridSteps < pureSteps) {
-        print(
+        debugPrint(
             "❌ INCONSISTENCY DETECTED: Hybrid steps less than Health Connect steps");
         await resetHybridSystem();
       } else {
-        print("✅ Step consistency test passed");
+        debugPrint("✅ Step consistency test passed");
       }
     } catch (e) {
-      print("❌ Error testing step consistency: $e");
+      debugPrint("❌ Error testing step consistency: $e");
     }
   }
 
   /// HYBRID REAL-TIME STEPS - Shows immediate feedback + Google Fit accuracy
   Future<int> fetchHybridRealTimeSteps() async {
     try {
-      print("🔄 HYBRID: Starting hybrid real-time step calculation...");
+      debugPrint("🔄 HYBRID: Starting hybrid real-time step calculation...");
 
       // Initialize sensor baseline if not set (first time)
       if (!_baselineSet) {
         // Set sensor baseline to current sensor value
         _sensorBaseline = StepCounterService.currentSteps;
-        print("🔄 HYBRID: Set sensor baseline: $_sensorBaseline");
+        debugPrint("🔄 HYBRID: Set sensor baseline: $_sensorBaseline");
       }
 
       // Get Google Fit steps directly (this is the accurate source)
@@ -2736,10 +2757,6 @@ class HealthService {
 
       // Update baseline if not set or if Health Connect steps increased significantly
       if (!_baselineSet || healthConnectSteps > _healthConnectBaseline + 10) {
-        // Calculate how much Health Connect increased
-        final healthConnectIncrease =
-            healthConnectSteps - _healthConnectBaseline;
-
         // Update Health Connect baseline
         _healthConnectBaseline = healthConnectSteps;
         _baselineSet = true;
@@ -2748,24 +2765,24 @@ class HealthService {
         // This prevents incorrect adjustments that could cause negative increments
         if (!_baselineSet || _sensorBaseline == 0) {
           _sensorBaseline = StepCounterService.currentSteps;
-          print(
+          debugPrint(
               "🔄 HYBRID: First time setup - set sensor baseline to current sensor value: $_sensorBaseline");
         }
 
-        print(
+        debugPrint(
             "🔄 HYBRID: Updated Google Fit baseline: $_healthConnectBaseline");
-        print("🔄 HYBRID: Current sensor baseline: $_sensorBaseline");
+        debugPrint("🔄 HYBRID: Current sensor baseline: $_sensorBaseline");
       }
 
       // Get real-time sensor steps for immediate feedback
       final sensorSteps = StepCounterService.currentSteps;
       final isSensorActive = await StepCounterService.isSensorAvailable();
 
-      print("🔄 HYBRID: Google Fit steps (accurate): $healthConnectSteps");
-      print("🔄 HYBRID: Real-time sensor steps (immediate): $sensorSteps");
-      print("🔄 HYBRID: Sensor active: $isSensorActive");
-      print("🔄 HYBRID: Baseline set: $_baselineSet");
-      print("🔄 HYBRID: Current baseline: $_healthConnectBaseline");
+      debugPrint("🔄 HYBRID: Google Fit steps (accurate): $healthConnectSteps");
+      debugPrint("🔄 HYBRID: Real-time sensor steps (immediate): $sensorSteps");
+      debugPrint("🔄 HYBRID: Sensor active: $isSensorActive");
+      debugPrint("🔄 HYBRID: Baseline set: $_baselineSet");
+      debugPrint("🔄 HYBRID: Current baseline: $_healthConnectBaseline");
 
       // HYBRID APPROACH: Use Health Connect as primary source, sensor for real-time updates
       int displaySteps;
@@ -2777,37 +2794,37 @@ class HealthService {
         // Only add positive sensor increments to avoid reducing Health Connect steps
         if (incrementalSensorSteps > 0) {
           displaySteps = healthConnectSteps + incrementalSensorSteps;
-          print(
+          debugPrint(
               "🔄 HYBRID: Real-time total: $healthConnectSteps (Health Connect) + $incrementalSensorSteps (Sensor increment) = $displaySteps");
         } else {
           // If sensor increment is negative or zero, use Health Connect steps only
           displaySteps = healthConnectSteps;
-          print(
+          debugPrint(
               "🔄 HYBRID: Using Health Connect steps only (sensor increment: $incrementalSensorSteps): $displaySteps");
         }
 
-        print(
+        debugPrint(
             "🔄 HYBRID: Sensor baseline: $_sensorBaseline, Current sensor: $sensorSteps");
-        print(
+        debugPrint(
             "🔄 HYBRID: Provides immediate feedback while Health Connect syncs!");
       } else {
         // If sensor is not active, use Health Connect steps only
         displaySteps = healthConnectSteps;
-        print("🔄 HYBRID: Using Health Connect steps only: $displaySteps");
+        debugPrint("🔄 HYBRID: Using Health Connect steps only: $displaySteps");
       }
 
-      print("🔄 HYBRID: Final display steps: $displaySteps");
-      print("🔄 HYBRID: Real-time hybrid system active!");
+      debugPrint("🔄 HYBRID: Final display steps: $displaySteps");
+      debugPrint("🔄 HYBRID: Real-time hybrid system active!");
 
       // Ensure we never return less than Health Connect steps
       if (displaySteps < healthConnectSteps) {
-        print(
+        debugPrint(
             "🔄 HYBRID: WARNING - Display steps ($displaySteps) less than Health Connect steps ($healthConnectSteps), using Health Connect steps");
         displaySteps = healthConnectSteps;
 
         // If there's a significant inconsistency, reset the hybrid system
         if (healthConnectSteps - displaySteps > 10) {
-          print(
+          debugPrint(
               "🔄 HYBRID: Significant inconsistency detected, resetting hybrid system...");
           await resetHybridSystem();
         }
@@ -2817,16 +2834,16 @@ class HealthService {
       _updateLeaderboardData(displaySteps);
 
       // Debug logging for step consistency
-      print("🔍 STEP CONSISTENCY DEBUG:");
-      print("  - Pure Health Connect steps: $healthConnectSteps");
-      print("  - Hybrid display steps: $displaySteps");
-      print("  - Sensor steps: $sensorSteps");
-      print("  - Sensor baseline: $_sensorBaseline");
-      print("  - Health Connect baseline: $_healthConnectBaseline");
+      debugPrint("🔍 STEP CONSISTENCY DEBUG:");
+      debugPrint("  - Pure Health Connect steps: $healthConnectSteps");
+      debugPrint("  - Hybrid display steps: $displaySteps");
+      debugPrint("  - Sensor steps: $sensorSteps");
+      debugPrint("  - Sensor baseline: $_sensorBaseline");
+      debugPrint("  - Health Connect baseline: $_healthConnectBaseline");
 
       return displaySteps;
     } catch (e) {
-      print("🔄 HYBRID: Error, using fallback: $e");
+      debugPrint("🔄 HYBRID: Error, using fallback: $e");
       return _healthConnectBaseline;
     }
   }
@@ -2885,10 +2902,11 @@ class HealthService {
               // Update leveling system with new daily steps
               await _updateLevelingSystem(user.uid, stepIncrease.toInt());
 
-              print(
+              debugPrint(
                   "📊 LEADERBOARD: Updated daily steps: $currentDailySteps → $steps (+$stepIncrease)");
-              print("📊 LEADERBOARD: Updated weekly total: $weeklyTotal");
-              print("📊 LEADERBOARD: Updated leaderboard data for ${user.uid}");
+              debugPrint("📊 LEADERBOARD: Updated weekly total: $weeklyTotal");
+              debugPrint(
+                  "📊 LEADERBOARD: Updated leaderboard data for ${user.uid}");
             }
           } else {
             // Initialize user data if it doesn't exist
@@ -2900,26 +2918,23 @@ class HealthService {
               'shown_rewards': {},
             }, SetOptions(merge: true));
 
-            print(
+            debugPrint(
                 "📊 LEADERBOARD: Initialized user data for ${user.uid} with $steps steps");
           }
         });
       }
     } catch (e) {
-      print("📊 LEADERBOARD: Error updating leaderboard data: $e");
+      debugPrint("📊 LEADERBOARD: Error updating leaderboard data: $e");
     }
   }
 
   /// SYNC WITH GOOGLE FIT - Updates baseline periodically for accuracy
   Future<void> syncWithGoogleFit() async {
     try {
-      print("🔄 SYNC: Syncing with Google Fit for accuracy...");
+      debugPrint("🔄 SYNC: Syncing with Google Fit for accuracy...");
 
       // Get current Google Fit steps
       final currentGoogleFitSteps = await fetchStepsData();
-
-      // Calculate how much Google Fit has increased since our baseline
-      final googleFitIncrease = currentGoogleFitSteps - _healthConnectBaseline;
 
       // Update baseline to current Google Fit
       _healthConnectBaseline = currentGoogleFitSteps;
@@ -2927,20 +2942,20 @@ class HealthService {
       // Reset sensor counter to account for the sync
       StepCounterService.resetCounter();
 
-      print("🔄 SYNC: Google Fit steps: $currentGoogleFitSteps");
-      print("🔄 SYNC: Google Fit increase: $googleFitIncrease");
-      print("🔄 SYNC: New baseline: $_healthConnectBaseline");
-      print("🔄 SYNC: Sensor counter reset");
-      print("🔄 SYNC: Now showing accurate steps!");
+      debugPrint("🔄 SYNC: Google Fit steps: $currentGoogleFitSteps");
+
+      debugPrint("🔄 SYNC: New baseline: $_healthConnectBaseline");
+      debugPrint("🔄 SYNC: Sensor counter reset");
+      debugPrint("🔄 SYNC: Now showing accurate steps!");
     } catch (e) {
-      print("🔄 SYNC: Error syncing with Google Fit: $e");
+      debugPrint("🔄 SYNC: Error syncing with Google Fit: $e");
     }
   }
 
   /// SMART HYBRID SYSTEM - Best of both worlds
   Future<Map<String, dynamic>> fetchSmartHybridData() async {
     try {
-      print("🧠 SMART: Starting smart hybrid system...");
+      debugPrint("🧠 SMART: Starting smart hybrid system...");
 
       // Get real-time steps for immediate display
       final realTimeSteps = await fetchHybridRealTimeSteps();
@@ -2964,14 +2979,14 @@ class HealthService {
         'timestamp': now.millisecondsSinceEpoch,
       };
 
-      print(
+      debugPrint(
           "🧠 SMART: Steps: ${result['steps']}, Walking: ${result['isWalking']}");
-      print(
+      debugPrint(
           "🧠 SMART: Baseline: ${result['baseline']}, Sensor: ${result['sensorSteps']}");
 
       return result;
     } catch (e) {
-      print("🧠 SMART: Error: $e");
+      debugPrint("🧠 SMART: Error: $e");
       return {
         'steps': _healthConnectBaseline,
         'isWalking': false,
@@ -2985,16 +3000,16 @@ class HealthService {
   /// Start continuous step monitoring and Firestore updates (No Loading Screens)
   Future<void> startContinuousStepUpdates() async {
     try {
-      print("🔄 Starting continuous step updates...");
+      debugPrint("🔄 Starting continuous step updates...");
 
       // Update steps every 30 seconds (background, no UI impact)
       Timer.periodic(const Duration(seconds: 30), (timer) async {
         try {
           final currentSteps = await fetchHybridRealTimeSteps();
           await _updateLeaderboardData(currentSteps);
-          print("🔄 Background step update: $currentSteps steps");
+          debugPrint("🔄 Background step update: $currentSteps steps");
         } catch (e) {
-          print("🔄 Error in continuous step update: $e");
+          debugPrint("🔄 Error in continuous step update: $e");
         }
       });
 
@@ -3008,17 +3023,17 @@ class HealthService {
             try {
               final currentSteps = await fetchHybridRealTimeSteps();
               await _updateLeaderboardData(currentSteps);
-              print("🔄 Resume step update: $currentSteps steps");
+              debugPrint("🔄 Resume step update: $currentSteps steps");
             } catch (e) {
-              print("🔄 Error updating steps on resume: $e");
+              debugPrint("🔄 Error updating steps on resume: $e");
             }
           },
         ),
       );
 
-      print("✅ Continuous step updates started (no loading screens)");
+      debugPrint("✅ Continuous step updates started (no loading screens)");
     } catch (e) {
-      print("❌ Error starting continuous step updates: $e");
+      debugPrint("❌ Error starting continuous step updates: $e");
     }
   }
 
@@ -3036,22 +3051,22 @@ class HealthService {
           await LevelingService.updateUserLevel(userId, stepIncrease);
 
       if (levelResult != null && levelResult['leveledUp'] == true) {
-        print(
+        debugPrint(
             "🎉 LEVEL UP: User ${userId} leveled up from ${levelResult['oldLevel']} to ${levelResult['newLevel']}");
-        print("🎉 LEVEL UP: Reward: ${levelResult['reward']} coins");
+        debugPrint("🎉 LEVEL UP: Reward: ${levelResult['reward']} coins");
 
         // You can add notification logic here for level up
         // _showLevelUpNotification(levelResult);
       }
     } catch (e) {
-      print("Error updating leveling system: $e");
+      debugPrint("Error updating leveling system: $e");
     }
   }
 
   // Force reset all Health Connect permissions and cache
   Future<bool> forceResetHealthConnectPermissions() async {
     try {
-      print(
+      debugPrint(
           "🔄 FORCE RESET: Clearing all Health Connect permissions and cache...");
 
       // Step 1: Clear any cached state
@@ -3060,7 +3075,7 @@ class HealthService {
       // Step 2: Force re-initialization
       bool initialized = await initializeHealthConnect();
       if (!initialized) {
-        print("❌ FORCE RESET: Failed to re-initialize Health Connect");
+        debugPrint("❌ FORCE RESET: Failed to re-initialize Health Connect");
         return false;
       }
 
@@ -3071,16 +3086,16 @@ class HealthService {
             .collection('users')
             .doc(user.uid)
             .update({'hasHealthPermissions': false});
-        print("💾 FORCE RESET: Cleared Firestore permission status");
+        debugPrint("💾 FORCE RESET: Cleared Firestore permission status");
       }
 
       // Step 4: Force a fresh permission check
       await Future.delayed(const Duration(seconds: 2));
 
-      print("✅ FORCE RESET: Health Connect permissions cleared");
+      debugPrint("✅ FORCE RESET: Health Connect permissions cleared");
       return true;
     } catch (e) {
-      print("❌ FORCE RESET: Error clearing permissions: $e");
+      debugPrint("❌ FORCE RESET: Error clearing permissions: $e");
       return false;
     }
   }
@@ -3088,7 +3103,7 @@ class HealthService {
   // Nuclear option: Force Health Connect to completely reset permissions
   Future<bool> nuclearPermissionReset(BuildContext context) async {
     try {
-      print("☢️ NUCLEAR: Starting nuclear permission reset...");
+      debugPrint("☢️ NUCLEAR: Starting nuclear permission reset...");
 
       // Step 1: Show warning dialog
       bool? proceed = await showDialog<bool>(
@@ -3166,7 +3181,7 @@ class HealthService {
 
       return true;
     } catch (e) {
-      print("❌ NUCLEAR: Error in nuclear reset: $e");
+      debugPrint("❌ NUCLEAR: Error in nuclear reset: $e");
       return false;
     }
   }
@@ -3174,41 +3189,42 @@ class HealthService {
   // Force Health Connect to recognize new data types
   Future<void> _forceHealthConnectDataTypesRecognition() async {
     try {
-      print(
+      debugPrint(
           "🔧 FORCE RECOGNITION: Forcing Health Connect to recognize new data types...");
 
       // Step 1: Try to request permissions for each data type individually
       for (HealthDataType dataType in _dataTypes) {
         try {
-          print("🔧 FORCE RECOGNITION: Testing ${dataType.toString()}...");
+          debugPrint("🔧 FORCE RECOGNITION: Testing ${dataType.toString()}...");
 
           // Try to request permission for this specific type
           bool? result = await health.hasPermissions([dataType]);
-          print("🔧 FORCE RECOGNITION: ${dataType.toString()} result: $result");
+          debugPrint(
+              "🔧 FORCE RECOGNITION: ${dataType.toString()} result: $result");
 
           // Small delay between requests
           await Future.delayed(const Duration(milliseconds: 500));
         } catch (e) {
-          print(
+          debugPrint(
               "🔧 FORCE RECOGNITION: Error testing ${dataType.toString()}: $e");
         }
       }
 
       // Step 2: Force a complete permission request
       try {
-        print("🔧 FORCE RECOGNITION: Requesting all data types...");
+        debugPrint("🔧 FORCE RECOGNITION: Requesting all data types...");
         bool granted = await health.requestAuthorization(
           _dataTypes,
           permissions: List.filled(_dataTypes.length, HealthDataAccess.READ),
         );
-        print("🔧 FORCE RECOGNITION: Complete request result: $granted");
+        debugPrint("🔧 FORCE RECOGNITION: Complete request result: $granted");
       } catch (e) {
-        print("🔧 FORCE RECOGNITION: Error in complete request: $e");
+        debugPrint("🔧 FORCE RECOGNITION: Error in complete request: $e");
       }
 
-      print("✅ FORCE RECOGNITION: Data type recognition forced");
+      debugPrint("✅ FORCE RECOGNITION: Data type recognition forced");
     } catch (e) {
-      print("❌ FORCE RECOGNITION: Error forcing recognition: $e");
+      debugPrint("❌ FORCE RECOGNITION: Error forcing recognition: $e");
     }
   }
 
@@ -3216,18 +3232,18 @@ class HealthService {
   Future<bool> requestHealthConnectPermissionsAggressive(
       BuildContext context) async {
     try {
-      print("🚀 AGGRESSIVE: Starting aggressive permission request...");
+      debugPrint("🚀 AGGRESSIVE: Starting aggressive permission request...");
 
       // Step 1: Force reset everything
       await forceResetHealthConnectPermissions();
 
       // Step 2: Check what data types are actually supported
       List<HealthDataType> availableTypes = await getAvailableDataTypes();
-      print(
+      debugPrint(
           "🔍 AGGRESSIVE: Available data types: ${availableTypes.map((e) => e.toString()).join(', ')}");
 
       if (availableTypes.isEmpty) {
-        print("❌ AGGRESSIVE: No supported data types found!");
+        debugPrint("❌ AGGRESSIVE: No supported data types found!");
         if (context.mounted) {
           await _showHealthConnectInstallDialog(context);
         }
@@ -3247,7 +3263,7 @@ class HealthService {
       bool granted = await _requestPermissionsWithRetry(availableTypes);
 
       if (granted) {
-        print("✅ AGGRESSIVE: Permissions granted successfully");
+        debugPrint("✅ AGGRESSIVE: Permissions granted successfully");
 
         // Update Firestore
         final user = _auth.currentUser;
@@ -3260,14 +3276,14 @@ class HealthService {
 
         return true;
       } else {
-        print("❌ AGGRESSIVE: Permissions not granted, showing manual fix");
+        debugPrint("❌ AGGRESSIVE: Permissions not granted, showing manual fix");
         if (context.mounted) {
           return await manualPermissionFix(context);
         }
         return false;
       }
     } catch (e) {
-      print("❌ AGGRESSIVE: Error in aggressive permission request: $e");
+      debugPrint("❌ AGGRESSIVE: Error in aggressive permission request: $e");
       return false;
     }
   }
@@ -3316,17 +3332,17 @@ class HealthService {
   Future<bool> _requestPermissionsWithRetry(
       List<HealthDataType> dataTypes) async {
     try {
-      print("🔄 RETRY: Requesting permissions with retry logic...");
+      debugPrint("🔄 RETRY: Requesting permissions with retry logic...");
 
       for (int attempt = 1; attempt <= 3; attempt++) {
-        print("🔄 RETRY: Attempt $attempt of 3");
+        debugPrint("🔄 RETRY: Attempt $attempt of 3");
 
         bool granted = await health.requestAuthorization(
           dataTypes,
           permissions: List.filled(dataTypes.length, HealthDataAccess.READ),
         );
 
-        print("🔄 RETRY: Attempt $attempt result: $granted");
+        debugPrint("🔄 RETRY: Attempt $attempt result: $granted");
 
         if (granted) {
           // Wait and verify
@@ -3334,10 +3350,10 @@ class HealthService {
           bool? verified = await health.hasPermissions(dataTypes);
 
           if (verified == true) {
-            print("✅ RETRY: Permissions verified on attempt $attempt");
+            debugPrint("✅ RETRY: Permissions verified on attempt $attempt");
             return true;
           } else {
-            print(
+            debugPrint(
                 "⚠️ RETRY: Permission request succeeded but verification failed on attempt $attempt");
           }
         }
@@ -3348,10 +3364,10 @@ class HealthService {
         }
       }
 
-      print("❌ RETRY: All attempts failed");
+      debugPrint("❌ RETRY: All attempts failed");
       return false;
     } catch (e) {
-      print("❌ RETRY: Error in retry logic: $e");
+      debugPrint("❌ RETRY: Error in retry logic: $e");
       return false;
     }
   }
@@ -3359,7 +3375,7 @@ class HealthService {
   // Complete reset method for stubborn permission issues
   Future<bool> completePermissionReset(BuildContext context) async {
     try {
-      print("🔄 COMPLETE RESET: Starting complete permission reset...");
+      debugPrint("🔄 COMPLETE RESET: Starting complete permission reset...");
 
       bool? result = await showDialog<bool>(
         context: context,
@@ -3434,7 +3450,7 @@ class HealthService {
 
       return false;
     } catch (e) {
-      print("❌ COMPLETE RESET: Error in complete reset: $e");
+      debugPrint("❌ COMPLETE RESET: Error in complete reset: $e");
       return false;
     }
   }
@@ -3442,7 +3458,7 @@ class HealthService {
   // Emergency permission fix for when nothing else works
   Future<bool> emergencyPermissionFix(BuildContext context) async {
     try {
-      print("🚨 EMERGENCY: Starting emergency permission fix...");
+      debugPrint("🚨 EMERGENCY: Starting emergency permission fix...");
 
       // Show emergency dialog
       bool? result = await showDialog<bool>(
@@ -3519,7 +3535,7 @@ class HealthService {
 
       return false;
     } catch (e) {
-      print("❌ EMERGENCY: Error in emergency fix: $e");
+      debugPrint("❌ EMERGENCY: Error in emergency fix: $e");
       return false;
     }
   }
@@ -3527,23 +3543,24 @@ class HealthService {
   // Comprehensive permission testing and debugging
   Future<void> comprehensivePermissionTest(BuildContext context) async {
     try {
-      print("🔧 === COMPREHENSIVE PERMISSION TEST START ===");
+      debugPrint("🔧 === COMPREHENSIVE PERMISSION TEST START ===");
 
       // Test 1: Check available data types
-      print("\n📋 TEST 1: Available Data Types");
+      debugPrint("\n📋 TEST 1: Available Data Types");
       List<HealthDataType> availableTypes = await getAvailableDataTypes();
-      print("Available: ${availableTypes.map((e) => e.toString()).join(', ')}");
+      debugPrint(
+          "Available: ${availableTypes.map((e) => e.toString()).join(', ')}");
 
       // Test 2: Check current permissions
-      print("\n🔍 TEST 2: Current Permissions");
+      debugPrint("\n🔍 TEST 2: Current Permissions");
       Map<String, dynamic> currentPermissions =
           await checkDetailedPermissions();
-      print("Current permissions: $currentPermissions");
+      debugPrint("Current permissions: $currentPermissions");
 
       // Test 3: Check data type support
-      print("\n✅ TEST 3: Data Type Support");
+      debugPrint("\n✅ TEST 3: Data Type Support");
       Map<String, bool> supportStatus = await checkDataTypeSupport();
-      print("Support status: $supportStatus");
+      debugPrint("Support status: $supportStatus");
 
       // Show comprehensive results
       if (context.mounted) {
@@ -3551,9 +3568,9 @@ class HealthService {
             context, availableTypes, currentPermissions, supportStatus);
       }
 
-      print("🔧 === COMPREHENSIVE PERMISSION TEST END ===");
+      debugPrint("🔧 === COMPREHENSIVE PERMISSION TEST END ===");
     } catch (e) {
-      print("❌ Error in comprehensive test: $e");
+      debugPrint("❌ Error in comprehensive test: $e");
     }
   }
 
@@ -3641,7 +3658,7 @@ class HealthService {
   Future<bool> forceHealthConnectDataTypesRecognition(
       BuildContext context) async {
     try {
-      print(
+      debugPrint(
           "🚀 FORCE RECOGNITION: Starting aggressive data type recognition...");
 
       // Step 1: Show user what we're about to do
@@ -3678,7 +3695,7 @@ class HealthService {
       }
 
       // Step 2: Clear all cached state
-      print("🔄 Step 1: Clearing all cached state...");
+      debugPrint("🔄 Step 1: Clearing all cached state...");
       _isInitialized = false;
 
       // Clear Firestore permission status
@@ -3688,45 +3705,46 @@ class HealthService {
             .collection('users')
             .doc(user.uid)
             .update({'hasHealthPermissions': false});
-        print("💾 Cleared Firestore permission status");
+        debugPrint("💾 Cleared Firestore permission status");
       }
 
       // Step 3: Force Health Connect to recognize new data types
-      print("🔧 Step 2: Forcing Health Connect to recognize new data types...");
+      debugPrint(
+          "🔧 Step 2: Forcing Health Connect to recognize new data types...");
 
       // Try to request permissions for each data type individually to force recognition
       for (HealthDataType dataType in _dataTypes) {
         try {
-          print("🔧 Testing ${dataType.toString()}...");
+          debugPrint("🔧 Testing ${dataType.toString()}...");
 
           // Force Health Connect to recognize this data type
           bool? result = await health.hasPermissions([dataType]);
-          print("🔧 ${dataType.toString()} recognition result: $result");
+          debugPrint("🔧 ${dataType.toString()} recognition result: $result");
 
           // Small delay to prevent overwhelming Health Connect
           await Future.delayed(const Duration(milliseconds: 300));
         } catch (e) {
-          print("🔧 Error testing ${dataType.toString()}: $e");
+          debugPrint("🔧 Error testing ${dataType.toString()}: $e");
         }
       }
 
       // Step 4: Force a complete permission request with new data types
-      print(
+      debugPrint(
           "🔧 Step 3: Requesting complete permissions with new data types...");
       try {
         bool granted = await health.requestAuthorization(
           _dataTypes,
           permissions: List.filled(_dataTypes.length, HealthDataAccess.READ),
         );
-        print("🔧 Complete permission request result: $granted");
+        debugPrint("🔧 Complete permission request result: $granted");
       } catch (e) {
-        print("🔧 Error in complete permission request: $e");
+        debugPrint("🔧 Error in complete permission request: $e");
       }
 
       // Step 5: Verify the new data types are recognized
-      print("🔍 Step 4: Verifying new data types are recognized...");
+      debugPrint("🔍 Step 4: Verifying new data types are recognized...");
       bool? finalCheck = await health.hasPermissions(_dataTypes);
-      print("🔍 Final permission check result: $finalCheck");
+      debugPrint("🔍 Final permission check result: $finalCheck");
 
       // Step 6: Show success message with next steps
       if (context.mounted) {
@@ -3763,10 +3781,11 @@ class HealthService {
         );
       }
 
-      print("✅ FORCE RECOGNITION: Health Connect data type recognition forced");
+      debugPrint(
+          "✅ FORCE RECOGNITION: Health Connect data type recognition forced");
       return true;
     } catch (e) {
-      print("❌ FORCE RECOGNITION: Error forcing recognition: $e");
+      debugPrint("❌ FORCE RECOGNITION: Error forcing recognition: $e");
       return false;
     }
   }
@@ -3775,7 +3794,7 @@ class HealthService {
   Future<void> _requestFreshPermissionsAfterForceReset(
       BuildContext context) async {
     try {
-      print("🔄 Requesting fresh permissions after force reset...");
+      debugPrint("🔄 Requesting fresh permissions after force reset...");
 
       // Show loading dialog
       showDialog(
@@ -3806,7 +3825,7 @@ class HealthService {
       }
 
       if (granted) {
-        print("✅ Fresh permissions granted successfully");
+        debugPrint("✅ Fresh permissions granted successfully");
 
         // Update Firestore
         final user = _auth.currentUser;
@@ -3827,7 +3846,7 @@ class HealthService {
           );
         }
       } else {
-        print("❌ Fresh permission request denied");
+        debugPrint("❌ Fresh permission request denied");
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -3840,7 +3859,7 @@ class HealthService {
         }
       }
     } catch (e) {
-      print("❌ Error requesting fresh permissions: $e");
+      debugPrint("❌ Error requesting fresh permissions: $e");
 
       // Close loading dialog if still open
       if (context.mounted) {
