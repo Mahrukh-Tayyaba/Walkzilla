@@ -4,8 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/username_service.dart';
-
-import 'services/health_service.dart';
+import 'services/fcm_notification_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -30,8 +29,7 @@ class _ProfilePageState extends State<ProfilePage> {
   int _challengesWon = 0;
   int _currentStreak = 0;
   String _memberSince = '';
-  int _todaySteps = 0;
-  final HealthService _healthService = HealthService();
+  int _lifetimeSteps = 0;
 
   @override
   void initState() {
@@ -62,6 +60,10 @@ class _ProfilePageState extends State<ProfilePage> {
             _userCoins = userData['coins'] ?? 0;
             _challengesWon = userData['challenges_won'] ?? 0;
             _currentStreak = userData['currentStreak'] ?? 0;
+            final lifetime = userData['totalLifetimeSteps'];
+            _lifetimeSteps = lifetime is int
+                ? lifetime
+                : (lifetime is num ? lifetime.toInt() : 0);
 
             // Format member since date
             final createdAt = userData['createdAt'] as Timestamp?;
@@ -94,28 +96,11 @@ class _ProfilePageState extends State<ProfilePage> {
           // Initialize controllers
           _nameController.text = _userName;
         }
-
-        // Load today's steps
-        await _loadTodaySteps();
       }
     } catch (e) {
       debugPrint('Error loading user data: $e');
       setState(() {
         _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadTodaySteps() async {
-    try {
-      final todaySteps = await _healthService.fetchStepsData();
-      setState(() {
-        _todaySteps = todaySteps;
-      });
-    } catch (e) {
-      debugPrint('Error loading today steps: $e');
-      setState(() {
-        _todaySteps = 0;
       });
     }
   }
@@ -379,8 +364,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   Expanded(
                     child: _buildStatCard(
                       icon: Icons.directions_walk,
-                      value: _todaySteps.toString(),
-                      label: 'Steps Today',
+                      value: _lifetimeSteps.toString(),
+                      label: 'Lifetime Steps',
                       color: Colors.blue,
                       backgroundColor: Colors.blue.withOpacity(0.1),
                     ),
@@ -534,10 +519,11 @@ class _ProfilePageState extends State<ProfilePage> {
                           _challengesWon = 0;
                           _currentStreak = 0;
                           _memberSince = '';
-                          _todaySteps = 0;
+                          _lifetimeSteps = 0;
                         });
 
-                        // Sign out from Firebase
+                        // Clear token then sign out
+                        await FCMNotificationService.clearFCMTokenOnLogout();
                         await FirebaseAuth.instance.signOut();
                         debugPrint('✅ Firebase sign out completed');
 

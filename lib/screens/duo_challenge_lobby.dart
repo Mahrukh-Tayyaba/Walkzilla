@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'duo_challenge_game_screen.dart';
+import '../services/character_data_service.dart';
+import '../services/character_animation_service.dart';
 import '../services/coin_service.dart';
 
 class DuoChallengeLobby extends StatefulWidget {
@@ -25,6 +27,9 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   late String _userId;
+  final CharacterDataService _characterDataService = CharacterDataService();
+  final CharacterAnimationService _animationService =
+      CharacterAnimationService();
   bool coinsMerged = false;
   StreamSubscription<DocumentSnapshot>? _gameStartSubscription;
   late AnimationController _leftCoinsController;
@@ -32,12 +37,20 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
   bool _showCenterAmount = false;
   static const int _coinCount = 7;
   bool _redirectedToGame = false;
+  bool _preloadedUser = false;
+  bool _preloadedOpponent = false;
+  Map<String, dynamic>? _preUserCharacterData;
+  Map<String, dynamic>? _preOpponentCharacterData;
+  String? _opponentUserId;
 
   @override
   void initState() {
     super.initState();
     _userId = _auth.currentUser!.uid;
     _setPresence(true);
+
+    // Start preloading current user's character immediately
+    _preloadCurrentUserCharacter();
     _leftCoinsController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -158,10 +171,27 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
   void _listenForGameStart() {
     final docRef =
         _firestore.collection('duo_challenge_invites').doc(widget.inviteId);
-    _gameStartSubscription = docRef.snapshots().listen((doc) {
+    _gameStartSubscription = docRef.snapshots().listen((doc) async {
       if (!doc.exists) return;
       final data = doc.data() as Map<String, dynamic>;
       final gameStarted = data['gameStarted'] ?? false;
+      final presence = (data['lobbyPresence'] ?? {}) as Map<String, dynamic>;
+
+      // Attempt to determine opponent userId from lobby presence
+      final keys = presence.keys.cast<String>().toList();
+      if (keys.isNotEmpty) {
+        final maybeOpponentId = keys.firstWhere(
+          (k) => k != _userId,
+          orElse: () => '',
+        );
+        if (maybeOpponentId.isNotEmpty) {
+          _opponentUserId = maybeOpponentId;
+          // Preload opponent character if not yet
+          if (!_preloadedOpponent) {
+            await _preloadOpponentCharacter(maybeOpponentId);
+          }
+        }
+      }
 
       if (gameStarted && !_redirectedToGame && mounted) {
         _redirectedToGame = true;
@@ -170,11 +200,53 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
             builder: (context) => DuoChallengeGameScreen(
               inviteId: widget.inviteId,
               otherUsername: widget.otherUsername,
+              initialUserCharacterData: _preUserCharacterData,
+              initialOpponentCharacterData: _preOpponentCharacterData,
+              initialOpponentUserId: _opponentUserId,
             ),
           ),
         );
       }
     });
+  }
+
+  Future<void> _preloadCurrentUserCharacter() async {
+    if (_preloadedUser) return;
+    try {
+      final userData =
+          await _characterDataService.getCurrentUserCharacterData();
+      _preUserCharacterData = userData;
+      final userCharacterId = '${_userId}_${userData['currentCharacter']}';
+      await _animationService.preloadAnimationsForCharacterWithData(
+        userCharacterId,
+        userData,
+      );
+      _preloadedUser = true;
+      debugPrint(
+          '🎭 Lobby: Preloaded current user animations for $userCharacterId');
+    } catch (e) {
+      debugPrint('❌ Lobby: Failed to preload current user character: $e');
+    }
+  }
+
+  Future<void> _preloadOpponentCharacter(String opponentUserId) async {
+    if (_preloadedOpponent) return;
+    try {
+      final oppData =
+          await _characterDataService.getUserCharacterData(opponentUserId);
+      _preOpponentCharacterData = oppData;
+      final opponentCharacterId =
+          '${opponentUserId}_${oppData['currentCharacter']}';
+      await _animationService.preloadAnimationsForCharacterWithData(
+        opponentCharacterId,
+        oppData,
+      );
+      _preloadedOpponent = true;
+      debugPrint(
+          '🎭 Lobby: Preloaded opponent animations for $opponentCharacterId');
+    } catch (e) {
+      debugPrint('❌ Lobby: Failed to preload opponent character: $e');
+    }
   }
 
   Future<void> _deductCoinsIfNeeded() async {
@@ -251,9 +323,16 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
               if (mounted) setState(() => _showCenterAmount = true);
             });
 
-            // Signal game start after 2 seconds (coins animation + 1.1 seconds)
-            Future.delayed(const Duration(milliseconds: 2000), () {
+            // Signal game start after 3 seconds to allow sprite sheets to preload
+            Future.delayed(const Duration(seconds: 3), () async {
               if (mounted && !_redirectedToGame) {
+                // Ensure we have attempted preloading for both before starting
+                if (!_preloadedUser) {
+                  await _preloadCurrentUserCharacter();
+                }
+                if (!_preloadedOpponent && _opponentUserId != null) {
+                  await _preloadOpponentCharacter(_opponentUserId!);
+                }
                 _firestore
                     .collection('duo_challenge_invites')
                     .doc(widget.inviteId)

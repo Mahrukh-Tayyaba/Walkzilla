@@ -24,6 +24,7 @@ import 'widgets/connection_status_widget.dart';
 import 'services/leveling_migration_service.dart';
 import 'challenges_screen.dart';
 import 'notification_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'profile_page.dart';
 
@@ -37,6 +38,7 @@ import 'solo_mode.dart';
 import 'main.dart';
 import 'screens/duo_challenge_lobby.dart';
 import 'dart:async';
+import 'services/fcm_notification_service.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -1579,6 +1581,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // Clean up resources before logout
       await _cleanupBeforeLogout();
 
+      // Clear notifications token before sign out
+      await FCMNotificationService.clearFCMTokenOnLogout();
+
       // Sign out from Firebase
       await _auth.signOut();
       debugPrint('✅ Firebase sign out completed');
@@ -1674,6 +1679,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // Clean up duo challenge service
       _duoChallengeService = null;
       debugPrint('✅ Duo challenge service cleaned');
+
+      // Clear user ID
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('user_id');
+        debugPrint('✅ User ID cleared');
+      } catch (e) {
+        debugPrint('⚠️ Error clearing user ID: $e');
+      }
 
       // Clear any cached data and reset state
       if (mounted) {

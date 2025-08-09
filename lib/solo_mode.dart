@@ -143,25 +143,13 @@ class _SoloModeState extends State<SoloMode> {
           _isLoading = false;
         });
 
-        // IMMEDIATE MILESTONE CHECK: Check for milestone achievement immediately when steps are fetched
-        if (_steps > _previousSteps) {
-          debugPrint(
-              '🎯 FETCH STEPS: Steps increased from $_previousSteps to $_steps - checking milestones immediately');
-          _checkMilestoneAchievementRealTime();
-        }
+        // Ensure milestone boards reposition to reflect latest steps
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _game?.setSteps(_steps);
+        });
 
         // Check if user is walking (steps increased)
         _checkUserWalkingWithTiming(DateTime.now());
-
-        // Check for milestone achievement on every step fetch (real-time)
-        _checkMilestoneAchievementRealTime();
-
-        // Restore milestones that should be visible and clean up out-of-range ones
-        _restoreMilestones();
-        _cleanupOutOfRangeMilestones();
-
-        // Real-time cleanup of milestones that just went out of range
-        _cleanupOutOfRangeMilestonesRealTime();
 
         debugPrint(
             '📱 SENSOR-OPTIMIZED: Fetched accurate steps: $stepsCount (previous: $_previousSteps)');
@@ -176,6 +164,9 @@ class _SoloModeState extends State<SoloMode> {
         setState(() {
           _steps = 0;
           _isLoading = false;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _game?.setSteps(_steps);
         });
       }
     }
@@ -197,27 +188,11 @@ class _SoloModeState extends State<SoloMode> {
           _steps = accurateSteps; // Use accurate steps, not hybrid total
         });
 
-        // IMMEDIATE MILESTONE CHECK: Check for milestone achievement immediately when steps update
-        if (_steps > _previousSteps) {
-          debugPrint(
-              '🎯 HEALTH CONNECT: Steps increased from $_previousSteps to $_steps - checking milestones immediately');
-          _checkMilestoneAchievementRealTime();
-        }
+        // Reposition milestone boards in real time based on updated steps
+        _game?.setSteps(_steps);
 
         // Check if user is walking (steps increased)
         _checkUserWalkingWithTiming(DateTime.now());
-
-        // 🎯 REAL-TIME MILESTONE CHECK: Check for milestone achievement on EVERY step update
-        debugPrint(
-            '🎯 REAL-TIME MILESTONE CHECK: Steps=$_steps, Previous=$_previousSteps');
-        _checkMilestoneAchievementRealTime();
-
-        // Restore milestones that should be visible and clean up out-of-range ones
-        _restoreMilestones();
-        _cleanupOutOfRangeMilestones();
-
-        // Real-time cleanup of milestones that just went out of range
-        _cleanupOutOfRangeMilestonesRealTime();
 
         // Sync character animation
         _syncCharacterAnimation();
@@ -263,12 +238,7 @@ class _SoloModeState extends State<SoloMode> {
       }
     }
 
-    // ENHANCED MILESTONE CHECK: Check for milestone achievements during continuous monitoring
-    if (_isUserWalking) {
-      debugPrint(
-          '🎯 CONTINUOUS MONITORING: User is walking, checking milestones');
-      _checkMilestoneAchievementRealTime();
-    }
+    // Milestones are world-anchored now; no achievement checks needed
   }
 
   void _setWalkingState(bool walking) {
@@ -297,8 +267,7 @@ class _SoloModeState extends State<SoloMode> {
       return;
     }
 
-    // Check for milestone achievement (500 steps)
-    _checkMilestoneAchievement();
+    // World-anchored milestones: no range-based checks
 
     // SIMPLIFIED LOGIC: Only two states - walking or idle
     bool shouldBeWalking = false;
@@ -622,9 +591,6 @@ class _SoloModeState extends State<SoloMode> {
         // Check for day change
         _checkForDayChange();
 
-        // Check for milestone achievements (real-time)
-        _checkMilestoneAchievementRealTime();
-
         // Force check walking state if still walking but no recent steps
         if (_isUserWalking && _lastStepUpdate != null) {
           final timeSinceLastStep =
@@ -652,7 +618,7 @@ class _SoloModeState extends State<SoloMode> {
         // APPROACH 7: Additional safety check every 5 seconds
         _forceCharacterStateCheck();
 
-        // APPROACH 33: PROPER PERIODIC IDLE DETECTION (5 seconds)
+        // PROPER PERIODIC IDLE DETECTION (5 seconds)
         if (_isUserWalking && _lastStepUpdate != null) {
           final timeSinceLastStep =
               DateTime.now().difference(_lastStepUpdate!).inSeconds;
@@ -748,77 +714,56 @@ class _SoloModeState extends State<SoloMode> {
     }
   }
 
-  // Clean up milestones that are out of range
+  // Clean up milestones that are out of view (world-anchored logic)
   void _cleanupOutOfRangeMilestones() async {
-    debugPrint('🧹 CLEANING UP OUT-OF-RANGE MILESTONES');
-    debugPrint('Current Steps: $_steps');
-
+    debugPrint('🧹 CLEANING UP OFF-SCREEN MILESTONES');
     try {
       for (final threshold in MilestoneHelper.milestones) {
-        final isInGame =
-            _game?.children.contains(_game?.milestoneBoards[threshold]) ??
-                false;
-        final isInRange = MilestoneHelper.isMilestoneInRange(threshold, _steps);
-
-        // Remove milestone if it's in game but out of range
-        if (isInGame && !isInRange) {
-          debugPrint(
-              '🗑️ CLEANUP: Removing $threshold milestone (out of range: $_steps steps)');
-          _game!.remove(_game!.milestoneBoards[threshold]!);
-          debugPrint('✅ $threshold milestone board removed from game');
+        final board = _game?.milestoneBoards[threshold];
+        if (board == null) continue;
+        final bool isInGame = _game?.children.contains(board) ?? false;
+        if (isInGame) {
+          final double rightEdge = board.x + board.size.x;
+          if (rightEdge < 0) {
+            _game!.remove(board);
+            debugPrint('✅ Removed $threshold milestone (off-screen)');
+          }
         }
       }
     } catch (e) {
-      debugPrint('❌ Error cleaning up out-of-range milestones: $e');
+      debugPrint('❌ Error cleaning up off-screen milestones: $e');
     }
-
-    debugPrint('✅ Out-of-range milestone cleanup completed');
   }
 
-  // Restore milestones that should be visible based on current steps
+  // Restore milestones that should be visible based on shown state and world position
   void _restoreMilestones() async {
-    debugPrint('🔄 RESTORING MILESTONES');
-    debugPrint('=======================');
-    debugPrint('Current Steps: $_steps');
-
+    debugPrint('🔄 RESTORING MILESTONES (world-anchored)');
     try {
+      final game = _game;
+      if (game == null) return;
       for (final threshold in MilestoneHelper.milestones) {
         final isShown = await MilestoneHelper.isShown(threshold);
-        final isAvailable = _game?.milestoneBoards[threshold] != null;
-        final isInGame =
-            _game?.children.contains(_game?.milestoneBoards[threshold]) ??
-                false;
-        final hasReached = _steps >= threshold;
-        final isInRange = MilestoneHelper.isMilestoneInRange(threshold, _steps);
+        final board = game.milestoneBoards[threshold];
+        if (board == null) continue;
 
-        // If milestone should be shown (reached, marked as shown, and in range) but not in game
-        if (hasReached && isShown && isInRange && !isInGame && isAvailable) {
-          debugPrint(
-              '🔄 RESTORING: $threshold milestone (reached, shown, and in range)');
+        final bool isInGame = game.children.contains(board);
+        final double x = game.screenXForMilestone(threshold);
+        final bool shouldBeOnScreen =
+            game.isMilestoneVisibleOnScreen(threshold);
 
-          // Add the milestone board back to the game using addAll for proper batching
-          final board = _game!.milestoneBoards[threshold]!;
-
-          // Force priority reset to ensure proper rendering
-          board.priority = 2; // Ensure it's above background layers
-
-          // Use addAll for proper batching in Flame
-          _game!.addAll([board]);
-          debugPrint(
-              '✅ $threshold milestone board restored to game with addAll()');
-        } else if (hasReached && isShown && !isInRange && isInGame) {
-          // Remove milestone if it's out of range but still in game
-          debugPrint(
-              '🗑️ REMOVING: $threshold milestone (out of range: $_steps steps)');
-          _game!.remove(_game!.milestoneBoards[threshold]!);
-          debugPrint('✅ $threshold milestone board removed from game');
+        if (isShown && shouldBeOnScreen && !isInGame) {
+          board.priority = 2;
+          board.x = x;
+          game.add(board);
+          debugPrint('✅ Restored milestone $threshold to scene');
+        }
+        if (isInGame) {
+          board.x = x; // ensure correct positioning
         }
       }
     } catch (e) {
-      debugPrint('❌ Error restoring milestones: $e');
+      debugPrint('❌ Error restoring milestones (world-anchored): $e');
     }
-
-    debugPrint('✅ Milestone restoration completed');
   }
 
   void _syncCharacterAnimation() {
@@ -1191,9 +1136,82 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
   final double bushesHeight = 1841;
   final double pathHeight = 559;
   final double walkSpeed = 150; // pixels per second, adjust as needed
+  // World/viewport mapping for milestones
+  double stepPixelRatio = 5.0; // 1 step = 5 pixels (adjust as needed)
+  double _playerWorldX = 0; // Computed from current steps
+  double _visibilityBuffer = 100; // Pixels outside viewport to keep showing
+  // World positions for milestones once they are spawned (spawn at far-right)
+  final Map<int, double> _milestoneWorldPositions = {};
 
   SoloModeGame() {
     instance = this;
+  }
+
+  // Update current steps to reposition milestone boards in world coordinates
+  void setSteps(int steps) {
+    try {
+      _playerWorldX = steps * stepPixelRatio;
+      _triggerMilestonesForSteps(steps);
+      _updateMilestoneBoardPositions();
+    } catch (e) {
+      debugPrint('❌ Error in setSteps: $e');
+    }
+  }
+
+  // Compute screen X for a given milestone based on current world position
+  double screenXForMilestone(int milestoneSteps) {
+    if (character == null) return -99999;
+    final double playerScreenX = character!.x;
+    final double milestoneWorldX =
+        _milestoneWorldPositions[milestoneSteps] ?? -1e9;
+    return playerScreenX + (milestoneWorldX - _playerWorldX);
+  }
+
+  bool isMilestoneVisibleOnScreen(int milestoneSteps) {
+    final double x = screenXForMilestone(milestoneSteps);
+    final double screenWidth = size.x;
+    return x > -_visibilityBuffer && x < screenWidth + _visibilityBuffer;
+  }
+
+  void _updateMilestoneBoardPositions() {
+    if (character == null) {
+      return; // Character not ready yet
+    }
+
+    milestoneBoards.forEach((int milestoneSteps, SpriteComponent board) {
+      final double screenX = screenXForMilestone(milestoneSteps);
+
+      // Update X position relative to player/world mapping
+      board.x = screenX;
+    });
+  }
+
+  // Spawn milestones on first reach: place at far-right edge of screen
+  void _triggerMilestonesForSteps(int steps) {
+    if (character == null) return;
+    final double playerScreenX = character!.x;
+    final double screenWidth = size.x;
+
+    for (final entry in milestoneBoards.entries) {
+      final int threshold = entry.key;
+      final SpriteComponent board = entry.value;
+
+      if (steps >= threshold &&
+          !_milestoneWorldPositions.containsKey(threshold)) {
+        // World X so that board appears at the far-right edge
+        final double spawnWorldX =
+            _playerWorldX + (screenWidth - playerScreenX - board.size.x);
+        _milestoneWorldPositions[threshold] = spawnWorldX;
+
+        // Ensure initial placement and add once
+        board.x = screenXForMilestone(threshold);
+        board.priority = 2;
+        if (!children.contains(board)) {
+          add(board);
+        }
+        debugPrint('🎯 Spawned milestone $threshold at worldX=$spawnWorldX');
+      }
+    }
   }
 
   void updateWalkingState(bool walking) {
@@ -1398,11 +1416,28 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
         }
       }
 
-      // Milestone Boards (move with the path)
+      // Milestone boards move with the path to visually stick to ground
       milestoneBoard?.x -= dx;
-      // Move all milestone boards
-      for (final milestoneBoard in milestoneBoards.values) {
-        milestoneBoard.x -= dx;
+      for (final board in milestoneBoards.values) {
+        board.x -= dx;
+      }
+
+      // Remove boards that have scrolled off-screen to the left
+      final List<int> toRemoveKeys = [];
+      milestoneBoards.forEach((k, board) {
+        if (children.contains(board)) {
+          final double rightEdge = board.x + board.size.x;
+          if (rightEdge < 0) {
+            toRemoveKeys.add(k);
+          }
+        }
+      });
+      for (final k in toRemoveKeys) {
+        final board = milestoneBoards[k];
+        if (board != null) {
+          remove(board);
+          debugPrint('🗑️ GAME: Removed milestone $k after it left screen');
+        }
       }
     } else {
       // Reduced debug logging to prevent performance issues

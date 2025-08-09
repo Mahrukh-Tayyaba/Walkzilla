@@ -249,13 +249,19 @@ class _DailyGoalSelectionScreenState extends State<DailyGoalSelectionScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Save the selected goal to Firestore
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({
-          'dailyStepGoal': _selectedGoal,
-        });
+        // Save the selected goal to Firestore under monthlyGoals[YYYY-MM].goalSteps
+        final now = DateTime.now();
+        final monthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'monthlyGoals': {
+            monthKey: {
+              'goalSteps': _selectedGoal,
+              'month': now.month,
+              'year': now.year,
+              'setDate': now.toIso8601String(),
+            }
+          }
+        }, SetOptions(merge: true));
 
         // Request health permissions
         final healthService = HealthService();

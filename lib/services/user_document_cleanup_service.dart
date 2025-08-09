@@ -70,6 +70,17 @@ class UserDocumentCleanupService {
         fieldsToRemove.add('total_coins');
       if (userData.containsKey('weeklyGoal')) fieldsToRemove.add('weeklyGoal');
 
+      // Remove deprecated streak fields
+      if (userData.containsKey('dailyGoalCompletedDate')) {
+        fieldsToRemove.add('dailyGoalCompletedDate');
+      }
+      if (userData.containsKey('daily_goal_completed_date')) {
+        fieldsToRemove.add('daily_goal_completed_date');
+      }
+      if (userData.containsKey('dailyGoalCompleted')) {
+        fieldsToRemove.add('dailyGoalCompleted');
+      }
+
       if (fieldsToRemove.isEmpty && fieldsToUpdate.isEmpty) {
         print(
             '✅ User $userId already has clean document (no unnecessary fields)');
@@ -130,7 +141,10 @@ class UserDocumentCleanupService {
           userData.containsKey('steps') ||
           userData.containsKey('todaySteps') ||
           userData.containsKey('today_steps') ||
-          userData.containsKey('weeklyGoal');
+          userData.containsKey('weeklyGoal') ||
+          userData.containsKey('dailyGoalCompletedDate') ||
+          userData.containsKey('daily_goal_completed_date') ||
+          userData.containsKey('dailyGoalCompleted');
     } catch (e) {
       print('❌ Error checking cleanup status: $e');
       return false;

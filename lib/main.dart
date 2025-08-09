@@ -18,6 +18,9 @@ import 'services/health_service.dart';
 import 'services/coin_service.dart';
 import 'services/network_service.dart';
 import 'services/leveling_migration_service.dart';
+import 'services/notification_service.dart';
+import 'services/fcm_notification_service.dart';
+import 'services/friend_request_notification_service.dart';
 
 // Global navigator key to show dialogs from anywhere
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -52,6 +55,8 @@ void main() async {
       await cleanupService.cleanupAllUserDocuments();
       print('User document cleanup completed');
 
+      // Streak refresh disabled after initial rollout; service remains available for manual use
+
       // Initialize challenges_won field for existing users
       await LevelingMigrationService.initializeChallengesWonForAllUsers();
       print('Challenges_won field initialization completed');
@@ -64,6 +69,21 @@ void main() async {
     final networkService = NetworkService();
     networkService.startConnectivityMonitoring();
     print('Network connectivity monitoring started');
+
+    // Initialize local notifications
+    await NotificationService.initialize();
+    print('Local notifications initialized');
+
+    // StreakNotificationService removed; using FCM-based scheduling only
+
+    // Initialize FCM notifications
+    await FCMNotificationService.initialize();
+    await FCMNotificationService.requestPermissions();
+    print('FCM notifications initialized');
+
+    // Initialize in-app friend request notifications
+    await FriendRequestNotificationService.initialize();
+    print('Friend request in-app notifications initialized');
 
     // FCM setup
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

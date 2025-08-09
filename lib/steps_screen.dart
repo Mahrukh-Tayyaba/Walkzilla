@@ -155,8 +155,9 @@ class _StepsScreenState extends State<StepsScreen> {
                     : CircularPercentIndicator(
                         radius: 85.0,
                         lineWidth: 10.0,
-                        percent: _todaySteps /
-                            (widget.goalSteps == 0 ? 1 : widget.goalSteps),
+                        percent: (_todaySteps /
+                                (widget.goalSteps == 0 ? 1 : widget.goalSteps))
+                            .clamp(0.0, 1.0),
                         center: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [

@@ -16,6 +16,9 @@ import 'services/user_login_service.dart';
 import 'services/leveling_migration_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'main.dart' show navigatorKey;
+import 'services/notification_service.dart';
+import 'services/fcm_notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -199,6 +202,13 @@ class LoginScreenState extends State<LoginScreen> {
 
       // Initialize character animations for the logged-in user
       await _userLoginService.onUserLogin();
+
+      // Store user ID for background notifications
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', userCredential.user!.uid);
+
+      // Save FCM token for automatic notifications
+      await FCMNotificationService.saveFCMToken();
 
       // Navigate to home screen after permissions are handled
       if (mounted) {

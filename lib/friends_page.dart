@@ -641,7 +641,8 @@ class _HomeState extends State<Home> {
 }
 
 class FriendsPage extends StatefulWidget {
-  const FriendsPage({super.key});
+  final int initialTab;
+  const FriendsPage({super.key, this.initialTab = 0});
 
   @override
   State<FriendsPage> createState() => _FriendsPageState();
@@ -655,7 +656,11 @@ class _FriendsPageState extends State<FriendsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    final int initial = (widget.initialTab >= 0 && widget.initialTab <= 2)
+        ? widget.initialTab
+        : 0;
+    _tabController =
+        TabController(length: 3, vsync: this, initialIndex: initial);
   }
 
   @override

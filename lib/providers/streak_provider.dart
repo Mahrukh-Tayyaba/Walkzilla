@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class StreakProvider extends ChangeNotifier {
   int _currentStreak = 0;
@@ -8,8 +9,54 @@ class StreakProvider extends ChangeNotifier {
   Map<String, Set<DateTime>> _monthlyGoalMetDays =
       {}; // monthKey -> Set of dates
 
-  int get currentStreak => _currentStreak;
-  int get bestStreak => _bestStreak;
+  // Compute current streak from goal-met days to ensure UI is always correct
+  // even if stored values get temporarily out of sync.
+  int get currentStreak {
+    final Set<DateTime> metDays = {};
+    for (final monthDays in _monthlyGoalMetDays.values) {
+      for (final d in monthDays) {
+        metDays.add(DateTime(d.year, d.month, d.day));
+      }
+    }
+    if (metDays.isEmpty) return 0;
+    // Find the most recent met day
+    DateTime latest = metDays.first;
+    for (final d in metDays) {
+      if (d.isAfter(latest)) latest = d;
+    }
+    int run = 1;
+    DateTime cursor = latest;
+    while (true) {
+      final prev = cursor.subtract(const Duration(days: 1));
+      if (metDays.contains(prev)) {
+        run += 1;
+        cursor = prev;
+      } else {
+        break;
+      }
+    }
+    return run;
+  }
+
+  // Compute best streak dynamically from stored goal-met days
+  int get bestStreak {
+    final List<DateTime> days = _monthlyGoalMetDays.values
+        .expand((s) => s.map((d) => DateTime(d.year, d.month, d.day)))
+        .toList()
+      ..sort();
+    if (days.isEmpty) return 0;
+    int best = 1;
+    int run = 1;
+    for (int i = 1; i < days.length; i++) {
+      if (days[i].difference(days[i - 1]).inDays == 1) {
+        run += 1;
+        if (run > best) best = run;
+      } else {
+        run = 1;
+      }
+    }
+    return best;
+  }
 
   // Get all goal met days (for backward compatibility)
   Set<DateTime> get goalMetDays {
@@ -60,8 +107,26 @@ class StreakProvider extends ChangeNotifier {
         for (final entry in monthlyGoalMetDaysData.entries) {
           final monthKey = entry.key;
           final daysList = entry.value as List<dynamic>? ?? [];
-          _monthlyGoalMetDays[monthKey] =
-              daysList.map((d) => DateTime.parse(d as String)).toSet();
+          _monthlyGoalMetDays[monthKey] = daysList
+              .whereType<String>()
+              .map((d) {
+                try {
+                  // Support both yyyy-MM-dd and full ISO formats
+                  if (d.length == 10) {
+                    final parts = d.split('-');
+                    final y = int.parse(parts[0]);
+                    final m = int.parse(parts[1]);
+                    final day = int.parse(parts[2]);
+                    return DateTime(y, m, day);
+                  }
+                  final parsed = DateTime.parse(d);
+                  return DateTime(parsed.year, parsed.month, parsed.day);
+                } catch (_) {
+                  return null;
+                }
+              })
+              .whereType<DateTime>()
+              .toSet();
         }
       } else {
         // Legacy support: load old goalMetDays format
@@ -241,16 +306,8 @@ class StreakProvider extends ChangeNotifier {
       [DateTime? goalSetDate]) async {
     final today = DateTime.now();
     final startOfToday = DateTime(today.year, today.month, today.day);
-    final yesterday = startOfToday.subtract(const Duration(days: 1));
     final todayMonthKey =
         '${startOfToday.year}-${startOfToday.month.toString().padLeft(2, '0')}';
-    final yesterdayMonthKey =
-        '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}';
-
-    // Use provided goal set date or default to today
-    final startOfGoalSetDate = goalSetDate != null
-        ? DateTime(goalSetDate.year, goalSetDate.month, goalSetDate.day)
-        : startOfToday; // If no goal set date provided, use today
 
     // Check if today is already marked
     final todayMonthDays = _monthlyGoalMetDays[todayMonthKey] ?? {};
@@ -259,12 +316,7 @@ class StreakProvider extends ChangeNotifier {
         date.month == startOfToday.month &&
         date.day == startOfToday.day);
 
-    // Check if yesterday is already marked
-    final yesterdayMonthDays = _monthlyGoalMetDays[yesterdayMonthKey] ?? {};
-    final yesterdayAlreadyMarked = yesterdayMonthDays.any((date) =>
-        date.year == yesterday.year &&
-        date.month == yesterday.month &&
-        date.day == yesterday.day);
+    // Yesterday handling removed in this method (handled in checkAndUpdateStreakWithYesterday)
 
     bool changed = false;
 
@@ -278,25 +330,8 @@ class StreakProvider extends ChangeNotifier {
       changed = true;
     }
 
-    // Check if we need to add yesterday to the streak
-    // Only add yesterday if the goal was set before or on yesterday
-    if (!yesterdayAlreadyMarked &&
-        yesterday
-            .isAfter(startOfGoalSetDate.subtract(const Duration(days: 1)))) {
-      // We need to check yesterday's data from Health Connect
-      // For now, we'll assume if today's goal is met and yesterday isn't marked,
-      // we should check if yesterday should be added
-      // This is a simplified approach - in a real app, you'd fetch yesterday's data
-
-      // If today's goal is met and we have a streak, yesterday should also be marked
-      if (todaySteps >= goalSteps && _currentStreak > 0) {
-        _monthlyGoalMetDays
-            .putIfAbsent(yesterdayMonthKey, () => {})
-            .add(yesterday);
-        print("✅ Added yesterday to streak: $yesterday");
-        changed = true;
-      }
-    }
+    // Do NOT auto-add yesterday here. Yesterday should only be added via
+    // checkAndUpdateStreakWithYesterday() which validates actual yesterday steps.
 
     // Only recalculate streaks if we made changes, otherwise just notify listeners
     if (changed) {
@@ -306,31 +341,8 @@ class StreakProvider extends ChangeNotifier {
     }
   }
 
-  // Get goal for a specific date from monthly goals
-  int _getGoalForDate(DateTime date, int defaultGoal) {
-    final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
-    // This will need to be updated to work with StepGoalProvider
-    // For now, return the default goal
-    return defaultGoal;
-  }
-
-  // Get the goal set date for current month
-  DateTime? _getGoalSetDateForCurrentMonth() {
-    final now = DateTime.now();
-    final currentMonthKey =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}';
-
-    // Check if we have a goal for the current month in our monthly goals
-    // This is a simplified approach - ideally this would be integrated with StepGoalProvider
-    if (_monthlyGoalMetDays.containsKey(currentMonthKey)) {
-      // If we have goal met days for this month, assume goal was set on the first day
-      // In a real implementation, this would fetch the actual set date from StepGoalProvider
-      return DateTime(
-          now.year, now.month, 1); // Assume goal was set on first day of month
-    }
-
-    return null; // No goal set for current month
-  }
+  // Removed unused goal/goalSetDate helpers to keep provider focused on
+  // monthlyGoalMetDays as the sole source of truth.
 
   // Enhanced method to check and update streak with yesterday's data
   Future<void> checkAndUpdateStreakWithYesterday(
@@ -365,8 +377,7 @@ class StreakProvider extends ChangeNotifier {
 
     bool changed = false;
 
-    // Handle yesterday's streak status - only add, never remove
-    // Only add yesterday if the goal was set before or on yesterday
+    // Handle yesterday's streak status - only add if met and allowed by goal set date
     if (yesterdaySteps >= goalSteps &&
         !yesterdayAlreadyMarked &&
         yesterday
@@ -556,65 +567,52 @@ class StreakProvider extends ChangeNotifier {
     }
   }
 
-  // Helper method to recalculate streaks after changes
+  // Helper method to recalculate streaks after changes using ONLY
+  // monthlyGoalMetDays as the source of truth.
+  // - currentStreak is anchored at today (0 if today not met)
+  // - bestStreak is the longest historical consecutive sequence
   Future<void> _recalculateStreaks(int goalSteps) async {
     final uid = await _getUserId();
     if (uid == null) return;
 
-    // Convert goal met days to daily steps map
-    Map<DateTime, int> dailySteps = {};
+    // Flatten to a set for O(1) lookups and a sorted list for best-streak scan
+    final Set<DateTime> metDays = {};
     for (final monthDays in _monthlyGoalMetDays.values) {
-      for (final date in monthDays) {
-        dailySteps[date] = goalSteps; // Use goal steps as minimum for met days
-      }
+      metDays.addAll(monthDays.map((d) => DateTime(d.year, d.month, d.day)));
     }
 
-    // Recalculate streaks
-    final sortedDays = dailySteps.keys.toList()..sort();
+    final List<DateTime> sortedDays = metDays.toList()..sort();
+
+    // Current streak = most recent consecutive run (may end yesterday)
     int streak = 0;
-    int best = 0;
-
-    // Calculate current streak from the most recent day
     if (sortedDays.isNotEmpty) {
-      // Start from the most recent day
-      DateTime currentDay = sortedDays.last;
+      DateTime cursor = sortedDays.last; // most recent met day
       streak = 1;
-
-      // Look backwards for consecutive days
       for (int i = sortedDays.length - 2; i >= 0; i--) {
-        final prevDay = sortedDays[i];
-        final daysDiff = currentDay.difference(prevDay).inDays;
-
-        if (daysDiff == 1) {
-          streak++;
-          currentDay = prevDay; // Update current day for next iteration
+        final prev = sortedDays[i];
+        if (cursor.difference(prev).inDays == 1) {
+          streak += 1;
+          cursor = prev;
         } else {
-          break; // Streak broken
+          break;
         }
       }
     }
 
-    // Calculate best streak by looking at all consecutive sequences
-    int currentSequence = 0;
-    DateTime? prevDay;
-
+    // Best streak across history (longest consecutive block)
+    int best = 0;
+    int run = 0;
+    DateTime? last;
     for (final day in sortedDays) {
-      if (dailySteps[day]! >= goalSteps) {
-        if (prevDay == null || day.difference(prevDay).inDays == 1) {
-          currentSequence++;
-        } else {
-          // Gap found, reset sequence
-          currentSequence = 1;
-        }
-        if (currentSequence > best) {
-          best = currentSequence;
-        }
-        prevDay = day;
+      if (last == null) {
+        run = 1;
+      } else if (day.difference(last).inDays == 1) {
+        run += 1;
       } else {
-        // Goal not met, reset sequence
-        currentSequence = 0;
-        prevDay = null;
+        run = 1;
       }
+      if (run > best) best = run;
+      last = day;
     }
 
     _currentStreak = streak;
@@ -625,11 +623,13 @@ class StreakProvider extends ChangeNotifier {
     print("   Best streak: $_bestStreak");
     print("   Monthly goal met days: ${_monthlyGoalMetDays.keys.toList()}");
 
-    // Convert monthly goal met days to Firestore format
+    // Convert monthly goal met days to Firestore format using yyyy-MM-dd
+    final DateFormat dateOnly = DateFormat('yyyy-MM-dd');
     final monthlyGoalMetDaysMap = <String, List<String>>{};
     for (final entry in _monthlyGoalMetDays.entries) {
-      monthlyGoalMetDaysMap[entry.key] =
-          entry.value.map((d) => d.toIso8601String()).toList();
+      monthlyGoalMetDaysMap[entry.key] = entry.value
+          .map((d) => dateOnly.format(DateTime(d.year, d.month, d.day)))
+          .toList();
     }
 
     await FirebaseFirestore.instance.collection('users').doc(uid).update({

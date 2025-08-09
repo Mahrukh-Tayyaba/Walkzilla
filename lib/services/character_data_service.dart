@@ -121,15 +121,17 @@ class CharacterDataService {
         currentCharacter = 'MyCharacter';
       }
 
-      // Get sprite sheets with proper fallback
+      // Get sprite sheets with proper fallback and normalize paths
       Map<String, String> userSpriteSheets;
       if (userData['spriteSheets'] is Map) {
-        userSpriteSheets = Map<String, String>.from(
-            userData['spriteSheets'] ?? spriteSheets['MyCharacter']!);
+        userSpriteSheets = _normalizeSpriteSheetPaths(Map<String, dynamic>.from(
+            userData['spriteSheets'] ?? spriteSheets['MyCharacter']!));
       } else {
         debugPrint(
             '🎭 CharacterDataService: spriteSheets is not a Map, using default');
-        userSpriteSheets = spriteSheets['MyCharacter']!;
+        userSpriteSheets = _normalizeSpriteSheetPaths(
+          Map<String, dynamic>.from(spriteSheets['MyCharacter']!),
+        );
       }
 
       final result = {
@@ -187,15 +189,17 @@ class CharacterDataService {
         currentCharacter = 'MyCharacter';
       }
 
-      // Get sprite sheets with proper fallback
+      // Get sprite sheets with proper fallback and normalize paths
       Map<String, String> userSpriteSheets;
       if (userData['spriteSheets'] is Map) {
-        userSpriteSheets = Map<String, String>.from(
-            userData['spriteSheets'] ?? spriteSheets['MyCharacter']!);
+        userSpriteSheets = _normalizeSpriteSheetPaths(Map<String, dynamic>.from(
+            userData['spriteSheets'] ?? spriteSheets['MyCharacter']!));
       } else {
         debugPrint(
             '🎭 CharacterDataService: spriteSheets is not a Map, using default');
-        userSpriteSheets = spriteSheets['MyCharacter']!;
+        userSpriteSheets = _normalizeSpriteSheetPaths(
+          Map<String, dynamic>.from(spriteSheets['MyCharacter']!),
+        );
       }
 
       final result = {
@@ -375,5 +379,39 @@ class CharacterDataService {
   /// Get sprite sheets for a specific character
   Map<String, String> getSpriteSheetsForCharacter(String characterId) {
     return spriteSheets[characterId] ?? spriteSheets['MyCharacter']!;
+  }
+}
+
+extension _SpriteSheetPathNormalization on CharacterDataService {
+  // Normalize incoming sprite sheet paths to ensure they use the
+  // 'images/...' convention (no leading 'assets/'). This avoids
+  // mismatches with Flame's default prefixes.
+  Map<String, String> _normalizeSpriteSheetPaths(Map<String, dynamic> raw) {
+    String normalize(String path) {
+      if (path.startsWith('assets/')) {
+        path = path.substring(7); // drop leading 'assets/'
+      }
+      // Ensure we start at the 'images/' segment if present
+      final index = path.indexOf('images/');
+      if (index > 0) {
+        path = path.substring(index);
+      }
+      return path;
+    }
+
+    final Map<String, String> result = {};
+    if (raw['idle'] is String) {
+      result['idle'] = normalize(raw['idle'] as String);
+    }
+    if (raw['walking'] is String) {
+      result['walking'] = normalize(raw['walking'] as String);
+    }
+    // Fallbacks if any key is missing
+    if (!result.containsKey('idle') || !result.containsKey('walking')) {
+      final fallback = CharacterDataService.spriteSheets['MyCharacter']!;
+      result.putIfAbsent('idle', () => fallback['idle']!);
+      result.putIfAbsent('walking', () => fallback['walking']!);
+    }
+    return result;
   }
 }

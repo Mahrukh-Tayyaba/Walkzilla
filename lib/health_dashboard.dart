@@ -186,9 +186,23 @@ class _HealthDashboardState extends State<HealthDashboard> {
       // Get the goal set date from StepGoalProvider
       final goalSetDate = stepGoalProvider.getGoalSetDateForCurrentMonth();
 
-      // Use the new method from streak provider
-      await streakProvider.checkAndUpdateTodayStreak(
-          todaySteps, goalSteps, goalSetDate);
+      // Also fetch yesterday's steps so we can correctly attribute streaks
+      // to the right day and avoid off-by-one errors when the goal is met.
+      final now = DateTime.now();
+      final startOfYesterday = DateTime(now.year, now.month, now.day)
+          .subtract(const Duration(days: 1));
+      final endOfYesterday = startOfYesterday.add(const Duration(days: 1));
+      int yesterdaySteps = 0;
+      try {
+        yesterdaySteps = await _healthService.getStepsForDateRange(
+            startOfYesterday, endOfYesterday);
+      } catch (_) {
+        yesterdaySteps = 0;
+      }
+
+      // Use the enhanced method that checks both yesterday and today
+      await streakProvider.checkAndUpdateStreakWithYesterday(
+          todaySteps, yesterdaySteps, goalSteps, goalSetDate);
 
       debugPrint("✅ Streak check completed");
     } catch (e) {
@@ -269,9 +283,21 @@ class _HealthDashboardState extends State<HealthDashboard> {
       // Get the goal set date from StepGoalProvider
       final goalSetDate = stepGoalProvider.getGoalSetDateForCurrentMonth();
 
-      // Use the new method from streak provider
-      await streakProvider.checkAndUpdateTodayStreak(
-          todaySteps, goalSteps, goalSetDate);
+      // Fetch yesterday too and use enhanced method for correctness
+      final now = DateTime.now();
+      final startOfYesterday = DateTime(now.year, now.month, now.day)
+          .subtract(const Duration(days: 1));
+      final endOfYesterday = startOfYesterday.add(const Duration(days: 1));
+      int yesterdaySteps = 0;
+      try {
+        yesterdaySteps = await _healthService.getStepsForDateRange(
+            startOfYesterday, endOfYesterday);
+      } catch (_) {
+        yesterdaySteps = 0;
+      }
+
+      await streakProvider.checkAndUpdateStreakWithYesterday(
+          todaySteps, yesterdaySteps, goalSteps, goalSetDate);
 
       debugPrint("✅ Streak data refreshed");
     } catch (e) {

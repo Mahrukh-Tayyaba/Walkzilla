@@ -148,8 +148,9 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
                   key: const Key('calories_circular_indicator'),
                   radius: 85.0,
                   lineWidth: 10.0,
-                  percent: _currentCalories /
-                      (Provider.of<StepGoalProvider>(context).goalCalories),
+                  percent: (_currentCalories /
+                          (Provider.of<StepGoalProvider>(context).goalCalories))
+                      .clamp(0.0, 1.0),
                   center: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

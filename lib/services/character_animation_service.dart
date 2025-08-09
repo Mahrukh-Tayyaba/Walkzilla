@@ -119,6 +119,13 @@ class CharacterAnimationService {
   /// Preload animations for a specific character with provided character data
   Future<void> preloadAnimationsForCharacterWithData(
       String characterId, Map<String, dynamic> characterData) async {
+    // If already loaded for this character, skip
+    if (_isLoaded[characterId] == true) {
+      debugPrint(
+          'CharacterAnimationService: Preload skipped, already loaded for $characterId');
+      return;
+    }
+
     if (_isLoading[characterId] == true) return;
 
     _isLoading[characterId] = true;
@@ -127,8 +134,9 @@ class CharacterAnimationService {
 
     try {
       // Get sprite sheet paths from the provided character data
-      final spriteSheets =
-          Map<String, String>.from(characterData['spriteSheets'] as Map);
+      final spriteSheets = _normalizeSpriteSheetPaths(
+        Map<String, dynamic>.from(characterData['spriteSheets'] as Map),
+      );
       _lastLoadedCharacterId[characterId] = characterData['currentCharacter'];
 
       debugPrint(
@@ -443,5 +451,25 @@ class CharacterAnimationService {
   /// Get current character ID that animations are loaded for
   String? getCurrentLoadedCharacterId() {
     return _lastLoadedCharacterId['current_user'];
+  }
+}
+
+extension _AnimPathNormalization on CharacterAnimationService {
+  Map<String, String> _normalizeSpriteSheetPaths(Map<String, dynamic> raw) {
+    String normalize(String path) {
+      if (path.startsWith('assets/')) {
+        path = path.substring(7);
+      }
+      final idx = path.indexOf('images/');
+      if (idx > 0) path = path.substring(idx);
+      return path;
+    }
+
+    final Map<String, String> result = {};
+    if (raw['idle'] is String) result['idle'] = normalize(raw['idle']);
+    if (raw['walking'] is String) {
+      result['walking'] = normalize(raw['walking']);
+    }
+    return result;
   }
 }
