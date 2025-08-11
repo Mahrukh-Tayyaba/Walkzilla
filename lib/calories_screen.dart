@@ -50,46 +50,31 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
           DateTime(yesterday.year, yesterday.month, yesterday.day);
       final endOfYesterday = startOfYesterday.add(const Duration(days: 1));
 
-      debugPrint("📅 Date ranges:");
-      debugPrint(
-          "  Today: ${startOfToday.toIso8601String()} to ${endOfToday.toIso8601String()}");
-      debugPrint(
-          "  Yesterday: ${startOfYesterday.toIso8601String()} to ${endOfYesterday.toIso8601String()}");
-
       // Fetch today's steps and convert to calories
       double todayCalories = 0.0;
       try {
-        debugPrint("🔄 Fetching today's steps...");
         int todaySteps = await healthService.health.getTotalStepsInInterval(
               startOfToday,
               endOfToday,
             ) ??
             0;
 
-        debugPrint("📊 Today's steps: $todaySteps");
         todayCalories = _calculateCaloriesFromSteps(todaySteps);
-        debugPrint("✅ Today's calculated calories: $todayCalories kcal");
       } catch (e) {
-        debugPrint("❌ Error fetching today's steps: $e");
         todayCalories = 0.0;
       }
 
       // Fetch yesterday's steps and convert to calories
       double yesterdayCalories = 0.0;
       try {
-        debugPrint("🔄 Fetching yesterday's steps...");
         int yesterdaySteps = await healthService.health.getTotalStepsInInterval(
               startOfYesterday,
               endOfYesterday,
             ) ??
             0;
 
-        debugPrint("📊 Yesterday's steps: $yesterdaySteps");
         yesterdayCalories = _calculateCaloriesFromSteps(yesterdaySteps);
-        debugPrint(
-            "✅ Yesterday's calculated calories: $yesterdayCalories kcal");
       } catch (e) {
-        debugPrint("❌ Error fetching yesterday's steps: $e");
         yesterdayCalories = 0.0;
       }
 
@@ -99,11 +84,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
           _yesterdayCalories = yesterdayCalories;
         });
       }
-
-      debugPrint(
-          "✅ Calories data calculated - Today: $todayCalories kcal, Yesterday: $yesterdayCalories kcal");
     } catch (e) {
-      debugPrint("❌ Error calculating calories data: $e");
       if (mounted) {
         setState(() {
           _currentCalories = 0.0;
@@ -117,10 +98,10 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: const Key('calories_screen_scaffold'),
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
         key: const Key('calories_screen_appbar'),
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFFFF1DC),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new,
@@ -209,9 +190,9 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: const Color(0xFFFFFEF7),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
+                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
                 ),
                 child: Row(
                   children: [
@@ -313,6 +294,7 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
                 iconColor: Colors.amber,
                 content: DailyContentService().getDailyFunFact('calories'),
               ),
+              const SizedBox(height: 50),
             ],
           ),
         ),
@@ -334,54 +316,45 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF3E0), // light orange
+          color: const Color(0xFFFFE0B2), // darker orange
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.orange.withAlpha((0.08 * 255).round()),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFEF7),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ],
-              ),
-              child: const Icon(
-                Icons.lightbulb,
-                color: Colors.orange,
-                size: 24,
-              ),
+                  child: const Icon(
+                    Icons.lightbulb,
+                    color: Colors.orange,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    content,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 12),
+            Text(
+              content,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black87,
+                height: 1.4,
               ),
             ),
           ],
@@ -395,15 +368,9 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFFFFFEF7),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha((0.03 * 255).round()),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -511,15 +478,9 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFEF7),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha((0.03 * 255).round()),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

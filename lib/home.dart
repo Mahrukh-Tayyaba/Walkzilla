@@ -38,6 +38,7 @@ import 'main.dart';
 import 'screens/duo_challenge_lobby.dart';
 import 'dart:async';
 import 'services/fcm_notification_service.dart';
+import 'services/user_login_service.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -51,6 +52,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final CoinService _coinService = CoinService();
   final NetworkService _networkService = NetworkService();
+  final UserLoginService _userLoginService = UserLoginService();
 
   int _steps = 0;
   double _calories = 0.0;
@@ -112,10 +114,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    // Check if user is authenticated before initializing services
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      debugPrint('⚠️ No authenticated user, skipping initialization');
+      return;
+    }
+
+    debugPrint('🚀 Initializing home screen for user: ${currentUser.uid}');
+
     // Add a small delay to prevent rapid initialization issues
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
-        _checkHealthConnectPermissions(); // This should be called first
         _fetchHealthData();
         _startHealthDataRefresh();
         _startHybridStepMonitoring(); // Use hybrid monitoring instead
@@ -142,6 +152,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         });
       }
     });
+  }
+
+  /// Check if user is authenticated before performing Firebase operations
+  bool _isUserAuthenticated() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      debugPrint('⚠️ User not authenticated, skipping Firebase operation');
+      return false;
+    }
+    return true;
   }
 
   // Goal checking methods
@@ -589,6 +609,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> _loadUserData() async {
     try {
+      // Check if user is authenticated before proceeding
+      if (!_isUserAuthenticated()) {
+        debugPrint('⚠️ Skipping user data load - user not authenticated');
+        setState(() {
+          _isUserDataLoading = false;
+        });
+        return;
+      }
+
       setState(() {
         _isUserDataLoading = true;
       });
@@ -1585,6 +1614,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       // Clean up resources before logout
       await _cleanupBeforeLogout();
 
+      // Call UserLoginService logout cleanup
+      try {
+        await _userLoginService.onUserLogout();
+        debugPrint('✅ UserLoginService logout cleanup completed');
+      } catch (e) {
+        debugPrint('⚠️ UserLoginService logout cleanup error: $e');
+      }
+
       // Clear notifications token before sign out
       await FCMNotificationService.clearFCMTokenOnLogout();
 
@@ -1592,29 +1629,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       await _auth.signOut();
       debugPrint('✅ Firebase sign out completed');
 
-      if (!mounted) {
-        debugPrint('⚠️ Widget not mounted after sign out');
-        return;
-      }
-
-      // Navigate to login screen with proper error handling
-      try {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
-        debugPrint('✅ Navigation to login screen completed');
-      } catch (navigationError) {
-        debugPrint('❌ Navigation error: $navigationError');
-        // Fallback navigation
-        if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-        }
-      }
+      // The StreamBuilder in main.dart will automatically handle navigation
+      // No need to manually navigate here
+      debugPrint('✅ Logout completed successfully');
     } catch (e) {
       debugPrint('❌ Logout error: $e');
+      // Reset logout flag on error
       if (mounted) {
+        setState(() {
+          _isLoggingOut = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error signing out: ${e.toString()}'),
@@ -1629,47 +1653,75 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     try {
       debugPrint('🧹 Starting logout cleanup...');
 
-      // Cancel all active listeners and timers
-      if (_userDataListener != null) {
-        _userDataListener!.cancel();
-        _userDataListener = null;
-        debugPrint('✅ User data listener cancelled');
+      // Cancel all active listeners and timers with null checks
+      try {
+        if (_userDataListener != null) {
+          _userDataListener!.cancel();
+          _userDataListener = null;
+          debugPrint('✅ User data listener cancelled');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error cancelling user data listener: $e');
       }
 
-      if (_acceptedInviteListener != null) {
-        _acceptedInviteListener!.cancel();
-        _acceptedInviteListener = null;
-        debugPrint('✅ Accepted invite listener cancelled');
+      try {
+        if (_acceptedInviteListener != null) {
+          _acceptedInviteListener!.cancel();
+          _acceptedInviteListener = null;
+          debugPrint('✅ Accepted invite listener cancelled');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error cancelling accepted invite listener: $e');
       }
 
-      if (_declinedInviteListener != null) {
-        _declinedInviteListener!.cancel();
-        _declinedInviteListener = null;
-        debugPrint('✅ Declined invite listener cancelled');
+      try {
+        if (_declinedInviteListener != null) {
+          _declinedInviteListener!.cancel();
+          _declinedInviteListener = null;
+          debugPrint('✅ Declined invite listener cancelled');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error cancelling declined invite listener: $e');
       }
 
-      if (_connectionStatusTimer != null) {
-        _connectionStatusTimer!.cancel();
-        _connectionStatusTimer = null;
-        debugPrint('✅ Connection status timer cancelled');
+      try {
+        if (_connectionStatusTimer != null) {
+          _connectionStatusTimer!.cancel();
+          _connectionStatusTimer = null;
+          debugPrint('✅ Connection status timer cancelled');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error cancelling connection status timer: $e');
       }
 
-      if (_glbUpdateTimer != null) {
-        _glbUpdateTimer!.cancel();
-        _glbUpdateTimer = null;
-        debugPrint('✅ GLB update timer cancelled');
+      try {
+        if (_glbUpdateTimer != null) {
+          _glbUpdateTimer!.cancel();
+          _glbUpdateTimer = null;
+          debugPrint('✅ GLB update timer cancelled');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error cancelling GLB update timer: $e');
       }
 
-      if (_weeklyRewardListener != null) {
-        _weeklyRewardListener!.cancel();
-        _weeklyRewardListener = null;
-        debugPrint('✅ Weekly reward listener cancelled');
+      try {
+        if (_weeklyRewardListener != null) {
+          _weeklyRewardListener!.cancel();
+          _weeklyRewardListener = null;
+          debugPrint('✅ Weekly reward listener cancelled');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error cancelling weekly reward listener: $e');
       }
 
-      if (_dailyRewardListener != null) {
-        _dailyRewardListener!.cancel();
-        _dailyRewardListener = null;
-        debugPrint('✅ Daily reward listener cancelled');
+      try {
+        if (_dailyRewardListener != null) {
+          _dailyRewardListener!.cancel();
+          _dailyRewardListener = null;
+          debugPrint('✅ Daily reward listener cancelled');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error cancelling daily reward listener: $e');
       }
 
       // Stop health monitoring
@@ -1681,10 +1733,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       }
 
       // Clean up duo challenge service
-      _duoChallengeService = null;
-      debugPrint('✅ Duo challenge service cleaned');
+      try {
+        if (_duoChallengeService != null) {
+          _duoChallengeService = null;
+          debugPrint('✅ Duo challenge service cleaned');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error cleaning duo challenge service: $e');
+      }
 
-      // Clear user ID
+      // Clear user ID from SharedPreferences
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('user_id');
@@ -1695,29 +1753,38 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
       // Clear any cached data and reset state
       if (mounted) {
-        setState(() {
-          _userName = 'User';
-          _userLevel = 1;
-          _coins = 0;
-          _steps = 0;
-          _calories = 0.0;
-          _isUsingRealData = false;
-          _isOnline = true;
-          _currentGlbPath = 'assets/web/home/MyCharacter_home.glb';
-          _lastProcessedGlbPath = '';
-          _isUserDataLoading = false;
-          _userDataListenerStarted = false;
-          _isLoggingOut = false; // Reset logout flag
-        });
-        debugPrint('✅ State reset completed');
+        try {
+          setState(() {
+            _userName = 'User';
+            _userLevel = 1;
+            _coins = 0;
+            _steps = 0;
+            _calories = 0.0;
+            _isUsingRealData = false;
+            _isOnline = true;
+            _currentGlbPath = 'assets/web/home/MyCharacter_home.glb';
+            _lastProcessedGlbPath = '';
+            _isUserDataLoading = false;
+            _userDataListenerStarted = false;
+            _isLoggingOut = false; // Reset logout flag
+          });
+          debugPrint('✅ State reset completed');
+        } catch (e) {
+          debugPrint('⚠️ Error resetting state: $e');
+        }
       }
 
       // Force garbage collection if possible
-      await Future.delayed(const Duration(milliseconds: 100));
+      try {
+        await Future.delayed(const Duration(milliseconds: 100));
+      } catch (e) {
+        debugPrint('⚠️ Error during cleanup delay: $e');
+      }
 
       debugPrint('✅ Logout cleanup completed successfully');
     } catch (e) {
       debugPrint('❌ Error during logout cleanup: $e');
+      // Don't rethrow - we want to continue with logout even if cleanup fails
     }
   }
 

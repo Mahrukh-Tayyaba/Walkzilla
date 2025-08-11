@@ -48,7 +48,6 @@ class _DistanceScreenState extends State<DistanceScreen> {
             _errorMessage = '';
           });
         }
-        print('📏 No Health Connect permissions - showing 0 distance data');
         return;
       }
 
@@ -72,11 +71,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
           _errorMessage = '';
         });
       }
-
-      print(
-          '📏 Distance data loaded - Today: ${_currentDistance.toStringAsFixed(0)} m, Yesterday: ${_yesterdayDistance.toStringAsFixed(0)} m');
     } catch (e) {
-      print('❌ Error loading distance data: $e');
       if (mounted) {
         setState(() {
           _currentDistance = 0.0;
@@ -91,9 +86,9 @@ class _DistanceScreenState extends State<DistanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFFFF1DC),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new,
@@ -208,15 +203,9 @@ class _DistanceScreenState extends State<DistanceScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color(0xFFFFFEF7),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,49 +317,40 @@ class _DistanceScreenState extends State<DistanceScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFE3F2FD),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
               ),
-              child: Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withOpacity(0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFFEF7),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ],
-                    ),
-                    child: const Icon(Icons.lightbulb,
-                        color: Colors.blue, size: 24),
+                        child: const Icon(Icons.lightbulb,
+                            color: Colors.blue, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Daily Tip',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Daily Tip',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DailyContentService().getDailyTip('distance'),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 12),
+                  Text(
+                    DailyContentService().getDailyTip('distance'),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      height: 1.4,
                     ),
                   ),
                 ],
@@ -383,9 +363,9 @@ class _DistanceScreenState extends State<DistanceScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color(0xFFFFFEF7),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE0E0E0)),
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
               ),
               child: Row(
                 children: [
@@ -463,8 +443,9 @@ class _DistanceScreenState extends State<DistanceScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color(0xFFFFFEF7),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +487,7 @@ class _DistanceScreenState extends State<DistanceScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 50),
           ],
         ),
       ),

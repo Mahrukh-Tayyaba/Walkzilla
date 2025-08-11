@@ -285,8 +285,14 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
       await Future.wait(futures).timeout(timeout);
     } on TimeoutException {
       debugPrint('⏳ Lobby: Preload timeout, proceeding to game');
+      // Mark as complete to prevent hanging
+      _preloadedUser = true;
+      _preloadedOpponent = true;
     } catch (e) {
       debugPrint('❌ Lobby: Preload error before game: $e');
+      // Mark as complete to prevent hanging
+      _preloadedUser = true;
+      _preloadedOpponent = true;
     }
   }
 
@@ -306,6 +312,8 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
           '🎭 Lobby: Preloaded current user animations for $userCharacterId');
     } catch (e) {
       debugPrint('❌ Lobby: Failed to preload current user character: $e');
+      // Don't rethrow - continue without animations
+      _preloadedUser = true; // Mark as done to prevent retries
     }
   }
 
@@ -326,6 +334,8 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
           '🎭 Lobby: Preloaded opponent animations for $opponentCharacterId');
     } catch (e) {
       debugPrint('❌ Lobby: Failed to preload opponent character: $e');
+      // Don't rethrow - continue without animations
+      _preloadedOpponent = true; // Mark as done to prevent retries
     }
   }
 

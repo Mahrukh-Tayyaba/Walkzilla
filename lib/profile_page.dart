@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'services/username_service.dart';
 import 'services/fcm_notification_service.dart';
+import 'services/user_login_service.dart'; // Added import for UserLoginService
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -510,6 +511,17 @@ class _ProfilePageState extends State<ProfilePage> {
                       try {
                         debugPrint('🚪 Profile page logout started');
 
+                        // Call UserLoginService logout cleanup
+                        try {
+                          final userLoginService = UserLoginService();
+                          await userLoginService.onUserLogout();
+                          debugPrint(
+                              '✅ UserLoginService logout cleanup completed');
+                        } catch (e) {
+                          debugPrint(
+                              '⚠️ UserLoginService logout cleanup error: $e');
+                        }
+
                         // Clear any cached data
                         setState(() {
                           _userName = 'User';
@@ -527,15 +539,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         await FirebaseAuth.instance.signOut();
                         debugPrint('✅ Firebase sign out completed');
 
-                        if (context.mounted) {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const LoginScreen()),
-                            (route) => false,
-                          );
-                          debugPrint('✅ Navigation to login screen completed');
-                        }
+                        // The StreamBuilder in main.dart will automatically handle navigation
+                        debugPrint('✅ Profile logout completed successfully');
                       } catch (e) {
                         debugPrint('❌ Profile logout error: $e');
                         if (context.mounted) {

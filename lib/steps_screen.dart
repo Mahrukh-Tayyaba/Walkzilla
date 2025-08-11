@@ -121,9 +121,9 @@ class _StepsScreenState extends State<StepsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFFFF1DC),
         elevation: 0,
         shadowColor: Colors.black.withOpacity(0.1),
         leading: IconButton(
@@ -213,63 +213,8 @@ class _StepsScreenState extends State<StepsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: _buildStepsFunFactCard(),
               ),
+              const SizedBox(height: 50),
             ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: BottomNavigationBar(
-              currentIndex: 1, // Health section selected by default
-              onTap: _onItemTapped,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: Colors.blue[400],
-              unselectedItemColor: Colors.grey[400],
-              selectedLabelStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home_outlined),
-                  activeIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.favorite_outline_rounded),
-                  activeIcon: Icon(Icons.favorite_rounded),
-                  label: 'Health',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.group_outlined),
-                  activeIcon: Icon(Icons.group_rounded),
-                  label: 'Friends',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline_rounded),
-                  activeIcon: Icon(Icons.person_rounded),
-                  label: 'Profile',
-                ),
-              ],
-            ),
           ),
         ),
       ),
@@ -418,18 +363,6 @@ class _StepsScreenState extends State<StepsScreen> {
     );
   }
 
-  void _onItemTapped(int index) {
-    if (index == 0) {
-      // Navigate to Home screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Home()),
-      );
-    } else {
-      // No state change for other items
-    }
-  }
-
   // --- Steps Info Cards ---
   Widget _buildStepsDailyTipCard() {
     final dailyContentService = DailyContentService();
@@ -441,52 +374,40 @@ class _StepsScreenState extends State<StepsScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFE8F5E9), // light green
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.green.withOpacity(0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFEF7),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-            ),
-            child: const Icon(
-              Icons.lightbulb,
-              color: Colors.green,
-              size: 24,
-            ),
+                child:
+                    const Icon(Icons.lightbulb, color: Colors.green, size: 18),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Daily Tip',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Daily Tip',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  dailyTip,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 12),
+          Text(
+            dailyTip,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+              height: 1.4,
             ),
           ),
         ],
@@ -499,9 +420,9 @@ class _StepsScreenState extends State<StepsScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFEF7),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -597,15 +518,9 @@ class _StepsScreenState extends State<StepsScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFEF7),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

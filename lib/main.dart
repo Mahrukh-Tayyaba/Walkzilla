@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'splash_screen.dart';
+import 'home.dart';
 import 'providers/step_goal_provider.dart';
 import 'providers/streak_provider.dart';
 // import 'health_dashboard.dart';
@@ -281,7 +282,28 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: const SplashScreen(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SplashScreen();
+          }
+
+          // Handle errors gracefully
+          if (snapshot.hasError) {
+            print('Auth state stream error: ${snapshot.error}');
+            return const SplashScreen();
+          }
+
+          if (snapshot.hasData && snapshot.data != null) {
+            // User is logged in, go to home
+            return const Home();
+          }
+
+          // User is not logged in, go to welcome screen
+          return const SplashScreen();
+        },
+      ),
     );
   }
 }

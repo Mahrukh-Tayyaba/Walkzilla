@@ -44,12 +44,26 @@ class UserLoginService {
     try {
       print('UserLoginService: User logged out, cleaning up animations...');
 
-      // Clear animation cache
-      _animationService.clearCache();
+      // Clear animation cache with error handling
+      try {
+        _animationService.clearCache();
+        print('UserLoginService: Animation cache cleared successfully');
+      } catch (e) {
+        print('UserLoginService: Error clearing animation cache: $e');
+        // Try force memory cleanup as fallback
+        try {
+          _animationService.forceMemoryCleanup();
+          print('UserLoginService: Force memory cleanup completed');
+        } catch (fallbackError) {
+          print(
+              'UserLoginService: Force memory cleanup also failed: $fallbackError');
+        }
+      }
 
       print('UserLoginService: Cleanup completed');
     } catch (e) {
       print('UserLoginService: Error during logout cleanup: $e');
+      // Don't rethrow - we want logout to continue even if cleanup fails
     }
   }
 

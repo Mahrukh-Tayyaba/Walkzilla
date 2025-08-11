@@ -76,9 +76,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
 
       // Finally, refresh with current step data
       await _refreshStreakData();
-    } catch (e) {
-      debugPrint("❌ Error loading and refreshing streak data: $e");
-    }
+    } catch (e) {}
   }
 
   Future<void> _refreshStreakData() async {
@@ -104,13 +102,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
         final yesterdayData = await healthService.getStepsForDateRange(
             startOfYesterday, endOfYesterday);
         yesterdaySteps = yesterdayData;
-      } catch (e) {
-        debugPrint("❌ Could not fetch yesterday's steps: $e");
-      }
-
-      debugPrint("🔄 Streaks screen - refreshing streak data");
-      debugPrint(
-          "📊 Today's steps: $todaySteps, Yesterday's steps: $yesterdaySteps, Goal: $goalSteps");
+      } catch (e) {}
 
       // Get the goal set date from StepGoalProvider
       final goalSetDate = stepGoalProvider.getGoalSetDateForCurrentMonth();
@@ -118,11 +110,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
       // Use the enhanced method from streak provider
       await streakProvider.checkAndUpdateStreakWithYesterday(
           todaySteps, yesterdaySteps, goalSteps, goalSetDate);
-
-      debugPrint("✅ Streak data refreshed in streaks screen");
-    } catch (e) {
-      debugPrint("❌ Error refreshing streak data in streaks screen: $e");
-    }
+    } catch (e) {}
   }
 
   @override
@@ -136,16 +124,10 @@ class _StreaksScreenState extends State<StreaksScreen> {
         .getGoalMetDaysForMonth(_displayedMonth.year, _displayedMonth.month)
         .toList();
 
-    // Debug: Print streak dates for displayed month
-    debugPrint(
-        "📅 Streak dates for ${_displayedMonth.month}/${_displayedMonth.year}: ${streakDates.map((d) => '${d.month}/${d.day}').toList()}");
-    debugPrint(
-        "🔥 Current streak: $currentStreak, Best streak: $longestStreak");
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF1DC),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black87),
@@ -170,7 +152,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -178,40 +160,34 @@ class _StreaksScreenState extends State<StreaksScreen> {
               children: [
                 _buildStreakStat(
                   icon: Icons.local_fire_department_rounded,
-                  color: Colors.orange,
+                  color: const Color(0xFFED3E57),
                   label: 'Current Streak',
                   value: currentStreak,
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 _buildStreakStat(
                   icon: Icons.emoji_events_rounded,
-                  color: Colors.amber,
+                  color: const Color(0xFFED3E57),
                   label: 'Longest Streak',
                   value: longestStreak,
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Container(
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color(0xFFFFFEF7),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.grey.shade200, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha((0.04 * 255).round()),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
               ),
               child: SingleChildScrollView(
                 child: _buildCalendar(_displayedMonth, streakDates),
               ),
             ),
+            const SizedBox(height: 50),
           ],
         ),
       ),
@@ -228,9 +204,9 @@ class _StreaksScreenState extends State<StreaksScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: const Color(0xFFFFFEF7),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[200]!),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Column(
           children: [
@@ -241,7 +217,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: const Color(0xFFED3E57),
               ),
             ),
             const SizedBox(height: 4),
@@ -381,7 +357,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                 final cellIndex = week * 7 + weekday;
                 final dayNum = cellIndex - firstWeekday + 1;
                 if (cellIndex < firstWeekday || dayNum > daysInMonth) {
-                  return const SizedBox(width: 38, height: 38);
+                  return const SizedBox(width: 36, height: 36);
                 }
                 final date = DateTime(month.year, month.month, dayNum);
                 final dateAtMidnight =
@@ -392,13 +368,13 @@ class _StreaksScreenState extends State<StreaksScreen> {
                     d.month == date.month &&
                     d.day == date.day);
                 return Container(
-                  width: 38,
-                  height: 38,
+                  width: 36,
+                  height: 36,
                   margin:
-                      const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                      const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
                   decoration: BoxDecoration(
                     color: isStreak
-                        ? Colors.orange
+                        ? const Color(0xFFED3E57)
                         : (isToday ? Colors.grey[200] : null),
                     // Flame-like shape for streak days
                     borderRadius: isStreak
@@ -415,8 +391,8 @@ class _StreaksScreenState extends State<StreaksScreen> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Colors.orange.shade400,
-                              Colors.orange.shade600,
+                              const Color(0xFFED3E57),
+                              const Color(0xFFED3E57).withOpacity(0.8),
                             ],
                           )
                         : null,
@@ -424,8 +400,8 @@ class _StreaksScreenState extends State<StreaksScreen> {
                     boxShadow: isStreak
                         ? [
                             BoxShadow(
-                              color:
-                                  Colors.orange.withAlpha((0.3 * 255).round()),
+                              color: const Color(0xFFED3E57)
+                                  .withAlpha((0.3 * 255).round()),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),

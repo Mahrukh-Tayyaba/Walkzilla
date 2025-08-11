@@ -33,7 +33,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
   @override
   void initState() {
     super.initState();
-    debugPrint("🚀 Health Dashboard initState called");
     // Load data in background without blocking UI
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeHealth();
@@ -56,12 +55,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
   }
 
   Future<void> _initializeHealth() async {
-    debugPrint("🔧 _initializeHealth called");
     try {
-      debugPrint("🔄 Proceeding directly to fetchHealthData()");
       await fetchHealthData();
     } catch (e) {
-      debugPrint("Error initializing health: $e");
       // Show error state instead of simulated data
       if (mounted) {
         setState(() {
@@ -82,20 +78,14 @@ class _HealthDashboardState extends State<HealthDashboard> {
     if (!mounted) return;
 
     try {
-      debugPrint("🏥 Starting health data fetch for dashboard...");
-
       // Check permissions using the same method as calories screen
       bool hasPermissions =
           await _healthService.checkHealthConnectPermissions();
-      debugPrint("🔐 Health Connect permissions status: $hasPermissions");
 
       if (!hasPermissions) {
-        debugPrint("❌ No Health Connect permissions, requesting them...");
         bool granted = await _healthService.requestHealthConnectPermissions();
-        debugPrint("🔐 Permission request result: $granted");
 
         if (!granted) {
-          debugPrint("❌ Health Connect permissions not granted");
           if (mounted) {
             setState(() {
               _steps = 0;
@@ -107,15 +97,12 @@ class _HealthDashboardState extends State<HealthDashboard> {
         }
       }
 
-      debugPrint("🔄 Fetching today's steps for dashboard...");
-
       // Use the hybrid approach same as home.dart for real-time updated data
       int todaySteps = await _healthService.fetchHybridRealTimeSteps();
 
       double calculatedCalories = _calculateCaloriesFromSteps(todaySteps);
 
       // Fetch today's distance using the same method as distance_screen.dart
-      debugPrint("🔄 Fetching today's distance for dashboard...");
       final now = DateTime.now();
       final startOfToday = DateTime(now.year, now.month, now.day);
       double todayDistance = 0.0;
@@ -124,18 +111,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
           start: startOfToday,
           end: now,
         );
-        debugPrint("📏 Dashboard - Distance fetch successful: $todayDistance");
       } catch (distanceError) {
-        debugPrint("❌ Dashboard - Distance fetch failed: $distanceError");
         todayDistance = 0.0;
       }
-
-      debugPrint("📊 Dashboard - Today's steps: $todaySteps");
-      debugPrint(
-          "🔥 Dashboard - Calculated calories: $calculatedCalories kcal");
-      debugPrint("📏 Dashboard - Raw distance: $todayDistance");
-      debugPrint(
-          "📏 Dashboard - Distance: ${todayDistance.toStringAsFixed(0)} m");
 
       if (mounted) {
         setState(() {
@@ -147,10 +125,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
 
       // Update streak system based on today's steps and goal
       await _updateStreakIfNeeded(todaySteps);
-
-      debugPrint("✅ Dashboard updated - Steps: $_steps, Calories: $_calories");
     } catch (e) {
-      debugPrint("❌ Error fetching health data for dashboard: $e");
       if (mounted) {
         setState(() {
           _steps = 0;
@@ -180,9 +155,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
       final streakProvider = context.read<StreakProvider>();
       final goalSteps = stepGoalProvider.goalSteps;
 
-      debugPrint(
-          "🔥 Checking streak - Today's steps: $todaySteps, Goal: $goalSteps");
-
       // Get the goal set date from StepGoalProvider
       final goalSetDate = stepGoalProvider.getGoalSetDateForCurrentMonth();
 
@@ -203,10 +175,8 @@ class _HealthDashboardState extends State<HealthDashboard> {
       // Use the enhanced method that checks both yesterday and today
       await streakProvider.checkAndUpdateStreakWithYesterday(
           todaySteps, yesterdaySteps, goalSteps, goalSetDate);
-
-      debugPrint("✅ Streak check completed");
     } catch (e) {
-      debugPrint("❌ Error updating streak: $e");
+      // Error handling for streak update
     }
   }
 
@@ -215,8 +185,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
     if (!mounted) return;
 
     try {
-      debugPrint("🔄 Refreshing dashboard data with hybrid approach...");
-
       // Use hybrid approach for real-time updated steps
       final todaySteps = await _healthService.fetchHybridRealTimeSteps();
       final calculatedCalories = _calculateCaloriesFromSteps(todaySteps);
@@ -231,7 +199,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
           end: now,
         );
       } catch (e) {
-        debugPrint("❌ Distance fetch failed during refresh: $e");
+        // Distance fetch failed during refresh
       }
 
       if (mounted) {
@@ -244,11 +212,8 @@ class _HealthDashboardState extends State<HealthDashboard> {
 
       // Update streak with fresh data
       await _updateStreakIfNeeded(todaySteps);
-
-      debugPrint(
-          "✅ Dashboard refreshed - Steps: $_steps, Calories: $_calories");
     } catch (e) {
-      debugPrint("❌ Error refreshing dashboard data: $e");
+      // Error refreshing dashboard data
     }
   }
 
@@ -263,7 +228,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
       // Then refresh with current step data
       await _refreshStreakData();
     } catch (e) {
-      debugPrint("❌ Error loading and refreshing streak data: $e");
+      // Error loading and refreshing streak data
     }
   }
 
@@ -276,9 +241,6 @@ class _HealthDashboardState extends State<HealthDashboard> {
 
       // Get today's steps to check if goal is met using hybrid approach
       final todaySteps = await _healthService.fetchHybridRealTimeSteps();
-
-      debugPrint(
-          "🔄 Refreshing streak data - Today's steps: $todaySteps, Goal: $goalSteps");
 
       // Get the goal set date from StepGoalProvider
       final goalSetDate = stepGoalProvider.getGoalSetDateForCurrentMonth();
@@ -298,10 +260,8 @@ class _HealthDashboardState extends State<HealthDashboard> {
 
       await streakProvider.checkAndUpdateStreakWithYesterday(
           todaySteps, yesterdaySteps, goalSteps, goalSetDate);
-
-      debugPrint("✅ Streak data refreshed");
     } catch (e) {
-      debugPrint("❌ Error refreshing streak data: $e");
+      // Error refreshing streak data
     }
   }
 
@@ -452,7 +412,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A237E),
+                          backgroundColor: const Color(0xFF3B82F6),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -481,9 +441,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFFFF1DC),
         // elevation: 2,
         shadowColor: Colors.black.withOpacity(0.1),
         centerTitle: false,
@@ -512,18 +472,18 @@ class _HealthDashboardState extends State<HealthDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildDateSelector(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 const Text(
                   'Recent Activity',
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _buildStepsCard(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -539,72 +499,17 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       child: _buildMetricCard(
                         'Distance',
                         '${_distance.toStringAsFixed(0)} M',
-                        Icons.directions_walk,
+                        Icons.route,
                         Colors.blue,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 _buildDailyStreak(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 _buildGoalSection(),
-              ],
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: BottomNavigationBar(
-              currentIndex: _selectedIndex,
-              onTap: _onItemTapped,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: Colors.blue[400],
-              unselectedItemColor: Colors.grey[400],
-              selectedLabelStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home_outlined),
-                  activeIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.favorite_outline_rounded),
-                  activeIcon: Icon(Icons.favorite_rounded),
-                  label: 'Health',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.group_outlined),
-                  activeIcon: Icon(Icons.group_rounded),
-                  label: 'Friends',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline_rounded),
-                  activeIcon: Icon(Icons.person_rounded),
-                  label: 'Profile',
-                ),
+                const SizedBox(height: 50),
               ],
             ),
           ),
@@ -619,45 +524,54 @@ class _HealthDashboardState extends State<HealthDashboard> {
         List.generate(7, (index) => now.subtract(Duration(days: 6 - index)));
 
     return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: dates.map((date) {
-          final isSelected = date.day == now.day;
-          final dayName = DateFormat('E').format(date);
-          final dayNum = date.day.toString();
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFEF7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Container(
+        height: 80,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: dates.map((date) {
+            final isSelected = date.day == now.day;
+            final dayName = DateFormat('E').format(date);
+            final dayNum = date.day.toString();
 
-          return Container(
-            width: 45,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.orange : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  dayName,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black54,
-                    fontSize: 14,
+            return Container(
+              width: 42,
+              height: 60,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color:
+                    isSelected ? const Color(0xFFED3E57) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    dayName,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black54,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  dayNum,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 4),
+                  Text(
+                    dayNum,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -678,15 +592,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFFFFFEF7),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Row(
           children: [
@@ -701,11 +609,11 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2E7D32).withOpacity(0.1),
+                          color: const Color(0xFF1E7043).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.directions_walk,
-                            color: Color(0xFF2E7D32), size: 18),
+                            color: const Color(0xFF1E7043), size: 18),
                       ),
                       const SizedBox(width: 8),
                       const Text(
@@ -760,7 +668,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       width: 20,
                       height: height,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2E7D32),
+                        color: const Color(0xFF1E7043),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     );
@@ -798,31 +706,25 @@ class _HealthDashboardState extends State<HealthDashboard> {
         },
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 30),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFFFFFEF7),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: Border.all(color: Colors.grey.withOpacity(0.2)),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 16),
+                child: Icon(icon, color: color, size: 18),
               ),
-              const SizedBox(width: 8),
-              Flexible(
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -830,14 +732,14 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       title,
                       style: const TextStyle(
                         color: Colors.black87,
-                        fontSize: 13,
+                        fontSize: 15,
                       ),
                     ),
                     Text(
                       value,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
                       ),
@@ -869,15 +771,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFFFFFEF7),
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 15,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -887,12 +783,12 @@ class _HealthDashboardState extends State<HealthDashboard> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.orange[50],
+                    color: const Color(0xFFED3E57).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
                     Icons.local_fire_department_rounded,
-                    color: Colors.orange,
+                    color: const Color(0xFFED3E57),
                     size: 18,
                   ),
                 ),
@@ -911,13 +807,13 @@ class _HealthDashboardState extends State<HealthDashboard> {
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.orange,
+                    color: const Color(0xFFED3E57),
                   ),
                 ),
                 const SizedBox(width: 4),
                 const Icon(
                   Icons.local_fire_department_rounded,
-                  color: Colors.orange,
+                  color: const Color(0xFFED3E57),
                   size: 18,
                 ),
               ],
@@ -940,12 +836,15 @@ class _HealthDashboardState extends State<HealthDashboard> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: isCompleted ? Colors.orange : Colors.grey[100],
+                        color: isCompleted
+                            ? const Color(0xFFED3E57)
+                            : Colors.grey[100],
                         shape: BoxShape.circle,
                         boxShadow: isCompleted
                             ? [
                                 BoxShadow(
-                                  color: Colors.orange.withOpacity(0.2),
+                                  color:
+                                      const Color(0xFFED3E57).withOpacity(0.2),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
@@ -966,7 +865,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
                     Text(
                       DateFormat('E').format(date)[0],
                       style: TextStyle(
-                        color: isCompleted ? Colors.orange : Colors.grey[400],
+                        color: isCompleted
+                            ? const Color(0xFFED3E57)
+                            : const Color.fromRGBO(189, 189, 189, 1),
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),

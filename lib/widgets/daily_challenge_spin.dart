@@ -135,20 +135,21 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
     final double resultTopPadding = screenSize.height * 0.05;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF1DC),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Colors.black87, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Daily Challenge',
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.black87,
             fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -158,7 +159,7 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
             // Headline and subtitle at the top, only before spinning
             if (!_showResult) ...[
               const Padding(
-                padding: EdgeInsets.only(top: 24.0, left: 0, right: 0),
+                padding: EdgeInsets.only(top: 40.0, left: 0, right: 0),
                 child: SizedBox(
                   width: double.infinity,
                   child: Column(
@@ -170,7 +171,7 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: Colors.black87,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -178,8 +179,8 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
                       Text(
                         'to play a fun mini-game and earn extra points!',
                         style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.black87,
+                          fontSize: 14,
+                          color: Colors.black54,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -266,7 +267,7 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
                               child: Text(
                                 'SPIN',
                                 style: TextStyle(
-                                  color: Colors.blue[400],
+                                  color: const Color(0xFF3B82F6),
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -294,7 +295,7 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
                         style: TextStyle(
                           fontSize: 24,
                           color: Colors.black87,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -364,7 +365,7 @@ class WheelPainter extends CustomPainter {
 
       // Draw segment
       final paint = Paint()
-        ..color = color.withOpacity(0.8)
+        ..color = color.withOpacity(0.6)
         ..style = PaintingStyle.fill;
 
       canvas.drawArc(
@@ -394,7 +395,7 @@ class WheelPainter extends CustomPainter {
         text: TextSpan(
           text: segments[i]['line1'],
           style: TextStyle(
-            color: const Color(0xFF2D2D2D),
+            color: Colors.black87,
             fontSize: 14 * textScale,
             fontWeight: FontWeight.bold,
           ),
@@ -406,7 +407,7 @@ class WheelPainter extends CustomPainter {
         text: TextSpan(
           text: segments[i]['line2'],
           style: TextStyle(
-            color: const Color(0xFF2D2D2D),
+            color: Colors.black87,
             fontSize: 14 * textScale,
             fontWeight: FontWeight.bold,
           ),

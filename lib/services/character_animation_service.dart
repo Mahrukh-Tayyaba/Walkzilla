@@ -264,10 +264,23 @@ class CharacterAnimationService {
       final List<Sprite> spriteList = [];
       final frameKeys = frames.keys.toList()..sort();
 
-      // Create sprites with reduced memory footdebugPrint
-      debugPrint(
-          'CharacterAnimationService: Creating ${frameKeys.length} sprites');
-      for (final frameKey in frameKeys) {
+      // Only apply frame limiting for duo challenge characters (opponent characters)
+      final List<String> framesToLoad;
+      if (jsonPath.contains('idle') && characterId.contains('_')) {
+        // Only limit frames for opponent characters (duo challenge) - they have IDs like "abc123_cow"
+        // Current user keeps all frames for solo mode
+        framesToLoad = frameKeys.take(10).toList();
+        debugPrint(
+            'CharacterAnimationService: Loading only first ${framesToLoad.length} frames for duo challenge idle animation (out of ${frameKeys.length} total frames)');
+      } else {
+        // Load all frames for walking animations and current user animations
+        framesToLoad = frameKeys;
+        debugPrint(
+            'CharacterAnimationService: Loading all ${framesToLoad.length} frames for animation');
+      }
+
+      // Create sprites with appropriate memory footprint
+      for (final frameKey in framesToLoad) {
         final frame = frames[frameKey]['frame'];
         final sprite = Sprite(
           image,
@@ -419,14 +432,19 @@ class CharacterAnimationService {
 
   /// Force garbage collection and memory cleanup
   void forceMemoryCleanup() {
-    clearCache();
-    // Force garbage collection if available
-    try {
-      // This is a best-effort approach to free memory
-      debugPrint('CharacterAnimationService: Forcing memory cleanup');
-    } catch (e) {
-      debugPrint('CharacterAnimationService: Memory cleanup failed: $e');
-    }
+    debugPrint('CharacterAnimationService: Forcing memory cleanup');
+
+    // Clear all caches immediately
+    _cachedIdleAnimations.clear();
+    _cachedWalkingAnimations.clear();
+    _cachedIdleImages.clear();
+    _cachedWalkingImages.clear();
+    _isLoading.clear();
+    _isLoaded.clear();
+    _lastLoadTime.clear();
+    _lastLoadedCharacterId.clear();
+
+    debugPrint('CharacterAnimationService: All caches cleared');
   }
 
   /// Check memory usage and cleanup if needed
@@ -453,6 +471,34 @@ class CharacterAnimationService {
   /// Get current character ID that animations are loaded for
   String? getCurrentLoadedCharacterId() {
     return _lastLoadedCharacterId['current_user'];
+  }
+
+  /// Get current memory usage estimate
+  int getEstimatedMemoryUsage() {
+    int totalSize = 0;
+
+    // Estimate memory for animations
+    // Only duo challenge characters (with '_' in ID) have limited idle frames
+    for (final characterId in _cachedIdleAnimations.keys) {
+      if (characterId.contains('_')) {
+        // Duo challenge character: 10 frames for idle
+        totalSize += 10 * 1024; // ~10KB per idle animation
+      } else {
+        // Current user: all frames for idle
+        totalSize += 50 * 1024; // ~50KB per idle animation (estimate)
+      }
+    }
+
+    // Walking animations always load all frames
+    totalSize += _cachedWalkingAnimations.length *
+        50 *
+        1024; // ~50KB per walking animation (estimate)
+
+    // Estimate memory for images
+    totalSize += _cachedIdleImages.length * 512 * 1024; // ~512KB per image
+    totalSize += _cachedWalkingImages.length * 512 * 1024;
+
+    return totalSize;
   }
 }
 

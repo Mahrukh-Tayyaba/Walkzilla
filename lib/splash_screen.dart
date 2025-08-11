@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'welcome_screen.dart';
 import 'onboarding_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'home.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -43,23 +45,49 @@ class _SplashScreenState extends State<SplashScreen> {
     if (_isNavigating) return;
     _isNavigating = true;
 
-    // Check if onboarding has been completed
-    final prefs = await SharedPreferences.getInstance();
-    final isOnboardingCompleted =
-        prefs.getBool('isOnboardingCompleted') ?? false;
+    try {
+      // Check if user is already authenticated
+      final auth = FirebaseAuth.instance;
+      final currentUser = auth.currentUser;
 
-    Widget nextScreen;
-    if (isOnboardingCompleted) {
-      nextScreen = const WelcomeScreen();
-    } else {
-      nextScreen = const OnboardingScreen();
-    }
+      if (currentUser != null) {
+        // User is already logged in, go to home
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const Home()),
+          );
+        }
+        return;
+      }
 
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => nextScreen),
-      );
+      // Check if onboarding has been completed
+      final prefs = await SharedPreferences.getInstance();
+      final isOnboardingCompleted =
+          prefs.getBool('isOnboardingCompleted') ?? false;
+
+      Widget nextScreen;
+      if (isOnboardingCompleted) {
+        nextScreen = const WelcomeScreen();
+      } else {
+        nextScreen = const OnboardingScreen();
+      }
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => nextScreen),
+        );
+      }
+    } catch (e) {
+      print('Error in splash screen navigation: $e');
+      // Fallback to welcome screen on error
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        );
+      }
     }
   }
 
