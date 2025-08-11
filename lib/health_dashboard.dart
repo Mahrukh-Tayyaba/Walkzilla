@@ -531,7 +531,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
       ),
       child: Container(
         height: 80,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: dates.map((date) {
@@ -539,35 +539,39 @@ class _HealthDashboardState extends State<HealthDashboard> {
             final dayName = DateFormat('E').format(date);
             final dayNum = date.day.toString();
 
-            return Container(
-              width: 42,
-              height: 60,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color:
-                    isSelected ? const Color(0xFFED3E57) : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    dayName,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black54,
-                      fontSize: 14,
+            return Flexible(
+              child: Container(
+                height: 60,
+                constraints: BoxConstraints(
+                  minWidth: isSelected ? 44 : 42,
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                decoration: BoxDecoration(
+                  color:
+                      isSelected ? const Color(0xFFED3E57) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(isSelected ? 8 : 12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      dayName,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black54,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dayNum,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(height: 4),
+                    Text(
+                      dayNum,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           }).toList(),

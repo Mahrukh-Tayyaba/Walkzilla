@@ -99,6 +99,25 @@ class CoinService {
     }
   }
 
+  /// Add coins to a specific user by their user ID
+  Future<bool> addCoinsForUser(String userId, int amount) async {
+    try {
+      if (amount <= 0) {
+        print('Error: Cannot add non-positive coins: $amount');
+        return false;
+      }
+
+      await _firestore.collection('users').doc(userId).update({
+        'coins': FieldValue.increment(amount),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error adding coins to user $userId: $e');
+      return false;
+    }
+  }
+
   /// Check if user has enough coins
   Future<bool> hasEnoughCoins(int requiredAmount) async {
     final currentCoins = await getCurrentUserCoins();

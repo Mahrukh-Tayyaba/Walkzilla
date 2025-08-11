@@ -411,7 +411,7 @@ class _HomeState extends State<Home> {
               _buildDrawerItem(
                 icon: Icons.people_outlined,
                 title: "Friends",
-                color: Colors.green,
+                color: const Color(0xFFDC143C).withOpacity(0.7),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -672,11 +672,12 @@ class _FriendsPageState extends State<FriendsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(70),
         child: SafeArea(
           child: Container(
-            color: Colors.white,
+            color: const Color(0xFFFFF1DC),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -747,7 +748,7 @@ class _FriendsPageState extends State<FriendsPage>
         children: [
           // Tabs
           Material(
-            color: Colors.white,
+            color: const Color(0xFFFFF1DC),
             child: TabBar(
               controller: _tabController,
               labelColor: Colors.blue,
@@ -793,28 +794,24 @@ class _FriendsPageState extends State<FriendsPage>
                     }
 
                     return ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 4),
                       itemCount: friends.length,
                       itemBuilder: (context, index) {
                         final friend = friends[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                              horizontal: 12, vertical: 8),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey
-                                      .withAlpha((0.25 * 255).round()),
-                                  spreadRadius: 2,
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
+                              color: const Color(0xFFFFFEF7),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: Colors.grey.withOpacity(0.2)),
                             ),
                             child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
                               leading: Stack(
                                 children: [
                                   CircleAvatar(
@@ -831,11 +828,14 @@ class _FriendsPageState extends State<FriendsPage>
                               ),
                               title: Row(
                                 children: [
-                                  Text(
-                                    friend['displayName'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
+                                  Expanded(
+                                    child: Text(
+                                      friend['displayName'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -991,7 +991,8 @@ class _FriendsPageState extends State<FriendsPage>
                     }
 
                     return ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 4),
                       itemCount: requests.length,
                       itemBuilder: (context, index) {
                         final request = requests[index];
@@ -1033,7 +1034,8 @@ class _FriendsPageState extends State<FriendsPage>
                     }
 
                     return ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 4),
                       itemCount: invites.length,
                       itemBuilder: (context, index) {
                         final invite = invites[index];
@@ -1083,22 +1085,15 @@ class _FriendsPageState extends State<FriendsPage>
     required int steps,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withAlpha((0.25 * 255).round()),
-              spreadRadius: 2,
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          color: const Color(0xFFFFFEF7),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1193,22 +1188,15 @@ class _FriendsPageState extends State<FriendsPage>
     required String pendingSince,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withAlpha((0.12 * 255).round()),
-              spreadRadius: 1.0,
-              blurRadius: 12.0,
-              offset: const Offset(0, 4.0),
-            ),
-          ],
+          color: const Color(0xFFFFFEF7),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1445,9 +1433,9 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF1DC),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, size: 26, color: Color(0xFF23272F)),
@@ -1472,9 +1460,9 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
             // Search Section
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10.0),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                color: const Color(0xFFFFFEF7),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
               ),
               child: Row(
                 children: [
@@ -1603,9 +1591,9 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        color: const Color(0xFFFFFEF7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1641,11 +1629,14 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
                 Icon(Icons.local_fire_department,
                     size: 14, color: Colors.orange[400]),
                 const SizedBox(width: 4),
-                Text(
-                  'Level ${user['level']} • ${user['currentStreak']} day streak',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
+                Expanded(
+                  child: Text(
+                    'Level ${user['level']} • ${user['currentStreak']} day streak',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -1704,9 +1695,9 @@ class _InviteOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: const Color(0xFFFFFEF7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
       child: Material(
         color: Colors.transparent,

@@ -475,16 +475,16 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7C4DFF).withValues(alpha: 0.1),
+                  color: const Color(0xFFED3E57).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF7C4DFF)),
+                  border: Border.all(color: const Color(0xFFED3E57)),
                 ),
                 child: Text(
                   '🎯 Goal: $_stepGoal Steps',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF7C4DFF),
+                    color: Color(0xFFED3E57),
                   ),
                 ),
               ),
@@ -1036,6 +1036,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
         return;
       }
 
+      debugPrint(
+          '📡 DUO CHALLENGE: Firestore update received - gameEnded: ${data['gameEnded']}, winner: ${data['winner']}, quitBy: ${data['quitBy']}, forfeitBy: ${data['forfeitBy']}');
+
       final positions = (data['positions'] as Map<String, dynamic>?) ?? {};
       final initialSteps =
           (data['initialSteps'] as Map<String, dynamic>?) ?? {};
@@ -1044,6 +1047,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
       final winner = data['winner'] as String?;
       final matchStarted = data['matchStarted'] ?? false;
       final presence = (data['presence'] as Map<String, dynamic>?) ?? {};
+      final quitBy = data['quitBy'] as String?;
+      final forfeitBy = data['forfeitBy'] as String?;
 
       // NEW: Check if both players are ready and start match automatically
       if (!matchStarted && !_matchStarted) {
@@ -1057,6 +1062,42 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
           _startMatch();
           return;
         }
+      }
+
+      // NEW: Check if opponent quit or forfeited and current user should win
+      if (gameEnded &&
+          winner == _userId &&
+          ((quitBy != null && quitBy != _userId) ||
+              (forfeitBy != null && forfeitBy != _userId))) {
+        debugPrint(
+            '🎮 DUO CHALLENGE: Opponent quit/forfeited, user wins by default!');
+        debugPrint(
+            '🎮 DUO CHALLENGE: Quit/forfeit win check - quitBy: $quitBy, forfeitBy: $forfeitBy');
+        if (!_showingWinnerDialog && !_gameEnded) {
+          debugPrint(
+              '🎮 DUO CHALLENGE: Calling _handleUserWin for quit/forfeit win');
+          _handleUserWin();
+        } else {
+          debugPrint(
+              '🎮 DUO CHALLENGE: Quit/forfeit win blocked - _showingWinnerDialog: $_showingWinnerDialog, _gameEnded: $_gameEnded');
+        }
+        return;
+      }
+
+      // NEW: Check if game ended with user as winner (normal win, not quit/forfeit)
+      // Only handle if not already handled by quit/forfeit logic above
+      if (gameEnded &&
+          winner == _userId &&
+          quitBy == null &&
+          forfeitBy == null &&
+          !_showingWinnerDialog &&
+          !_gameEnded) {
+        debugPrint('🎮 DUO CHALLENGE: Game ended with user as winner!');
+        debugPrint(
+            '🎮 DUO CHALLENGE: Normal win check - quitBy: $quitBy, forfeitBy: $forfeitBy');
+        debugPrint('🎮 DUO CHALLENGE: Calling _handleUserWin for normal win');
+        _handleUserWin();
+        return;
       }
 
       // Detect opponent offline and start/stop wait timer (30s)
@@ -1103,6 +1144,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
                 _opponentWaitTimer = null;
                 if (mounted) setState(() => _showWaitingForOpponent = false);
                 // Forfeit win to user
+                debugPrint(
+                    '🎮 DUO CHALLENGE: Opponent forfeited due to offline - calling _handleUserWin');
                 await _firestore
                     .collection('duo_challenge_invites')
                     .doc(widget.inviteId)
@@ -1668,6 +1711,10 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
               _steps = challengeSteps;
             });
 
+            debugPrint(
+                '🔄 DUO CHALLENGE: Step counter update - calling _checkUserWalkingWithTiming');
+            debugPrint(
+                '🔄 DUO CHALLENGE: Current state before step check - _gameEnded: $_gameEnded, _showingWinnerDialog: $_showingWinnerDialog');
             _checkUserWalkingWithTiming(timestamp);
             _syncCharacterAnimation();
             await _updateStepsInFirestore(); // Firestore sync
@@ -2039,7 +2086,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
     final now = DateTime.now();
 
     debugPrint(
-      '🔍 DUO CHALLENGE: Checking walking state: previous=$_previousSteps, current=$_steps, isWalking=$_isUserWalking, initialized=$_isInitialized',
+      '🔍 DUO CHALLENGE: Checking walking state: previous=$_previousSteps, current=$_steps, isWalking=$_isUserWalking, initialized=$_isInitialized, _gameEnded=$_gameEnded, _showingWinnerDialog=$_showingWinnerDialog',
     );
 
     // GRACE PERIOD: Don't detect walking during initialization (like Solo Mode)
@@ -2051,13 +2098,22 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
     }
 
     // NEW: Check for win condition if match has started
+    // Only check if game hasn't ended and user hasn't already won
+    debugPrint(
+        '🏆 DUO CHALLENGE: About to check step goal win condition - _matchStarted: $_matchStarted, _steps: $_steps, _stepGoal: $_stepGoal, _gameEnded: $_gameEnded, _showingWinnerDialog: $_showingWinnerDialog');
     if (_matchStarted &&
         _steps >= _stepGoal &&
         !_gameEnded &&
         !_showingWinnerDialog) {
       debugPrint('🏆 DUO CHALLENGE: User reached step goal! User wins!');
+      debugPrint(
+          '🏆 DUO CHALLENGE: Step goal win check - _gameEnded: $_gameEnded, _showingWinnerDialog: $_showingWinnerDialog');
+      debugPrint('🏆 DUO CHALLENGE: Calling _handleUserWin for step goal win');
       _handleUserWin();
       return;
+    } else {
+      debugPrint(
+          '🏆 DUO CHALLENGE: Step goal win check blocked - _matchStarted: $_matchStarted, _steps: $_steps, _stepGoal: $_stepGoal, _gameEnded: $_gameEnded, _showingWinnerDialog: $_showingWinnerDialog');
     }
 
     // Decide walking state based strictly on whether steps increased
@@ -2139,8 +2195,14 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
 
   // NEW: Handle user win
   Future<void> _handleUserWin() async {
-    if (_showingWinnerDialog) return;
+    debugPrint(
+        '🔒 DUO CHALLENGE: _handleUserWin called - guards: _showingWinnerDialog=$_showingWinnerDialog, _gameEnded=$_gameEnded');
+    if (_showingWinnerDialog || _gameEnded) {
+      debugPrint('🔒 DUO CHALLENGE: _handleUserWin blocked by guards');
+      return;
+    }
 
+    debugPrint('🔒 DUO CHALLENGE: _handleUserWin proceeding - setting state');
     setState(() {
       _showingWinnerDialog = true;
       _gameEnded = true;
@@ -2150,8 +2212,10 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
 
     // Award coins to winner
     const int winnerCoins = 100;
+    debugPrint('💰 DUO CHALLENGE: Awarding $winnerCoins coins to winner');
     final coinService = CoinService();
     await coinService.addCoins(winnerCoins);
+    debugPrint('💰 DUO CHALLENGE: Coins awarded successfully');
 
     // Update Firestore with match result
     await _firestore
@@ -2285,8 +2349,20 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
   Future<void> _handleUserQuit() async {
     debugPrint('🚪 DUO CHALLENGE: User quit the challenge');
 
-    // Award coins to opponent
-    const int winnerCoins = 50;
+    // Award full coins to opponent (same as winning normally)
+    const int winnerCoins = 100;
+
+    // Add coins to opponent's account
+    if (_otherPlayerId != null && _otherPlayerId != 'waiting_for_opponent') {
+      try {
+        final coinService = CoinService();
+        await coinService.addCoinsForUser(_otherPlayerId!, winnerCoins);
+        debugPrint(
+            '🎮 DUO CHALLENGE: Added $winnerCoins coins to opponent $_otherPlayerId');
+      } catch (e) {
+        debugPrint('🎮 DUO CHALLENGE: Error adding coins to opponent: $e');
+      }
+    }
 
     // Update Firestore with quit result
     await _firestore
@@ -2746,8 +2822,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Duo Challenge Race'),
-        backgroundColor: const Color(0xFF7C4DFF),
+        title: const Text('Step Duel'),
+        backgroundColor: const Color(0xFFED3E57),
         automaticallyImplyLeading: false,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -2778,10 +2854,10 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
         AppBar().preferredSize.height -
         MediaQuery.of(context).padding.top;
 
-    // Track dimensions: stop at the finish line (right edge of the red box)
-    // Finish box is 100px wide and centered at finishLinePosition, so right edge is +50
-    // Extended by 200px to ensure full 2000 steps can be completed
-    final double trackWidth = finishLinePosition + 250;
+    // Track dimensions: ensure finish container is fully visible
+    // The finish line container is 100px wide and centered at finishLinePosition
+    // Need to extend track width to show the full container
+    final double trackWidth = finishLinePosition + 50;
     const double roadOriginalWidth = 1200;
     const double roadOriginalHeight = 395;
 
@@ -2796,9 +2872,9 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
     final double roadTopY = screenHeight - roadHeight;
 
     // Calculate how many times to repeat the background images
-    // Each image covers screenWidth, so we need trackWidth / screenWidth repeats
+    // Each image covers screenWidth, so we need to cover exactly up to the finish line
     final double contentLimit =
-        finishLinePosition + 50; // include finish box right edge
+        finishLinePosition; // Stop exactly at finish line
     final int buildingsRepeatCount = (contentLimit / screenWidth).ceil();
     final int roadRepeatCount = (contentLimit / screenWidth).ceil();
 
@@ -2855,7 +2931,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
           physics:
-              const AlwaysScrollableScrollPhysics(), // Enable manual scrolling
+              const ClampingScrollPhysics(), // Prevent overscroll beyond content
           child: SizedBox(
             width: trackWidth,
             height: screenHeight,
@@ -3013,16 +3089,16 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF7C4DFF).withValues(alpha: 0.1),
+                    color: const Color(0xFFED3E57).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF7C4DFF)),
+                    border: Border.all(color: const Color(0xFFED3E57)),
                   ),
                   child: Text(
                     '🎯 Goal: $_stepGoal Steps',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF7C4DFF),
+                      color: Color(0xFFED3E57),
                     ),
                   ),
                 ),
@@ -3039,7 +3115,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF7C4DFF),
+                            color: Color(0xFFED3E57),
                           ),
                         ),
                         Text(
@@ -3047,7 +3123,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF7C4DFF),
+                            color: Color(0xFFED3E57),
                           ),
                         ),
                       ],
@@ -3111,7 +3187,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
                           width: 24,
                           height: 24,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF7C4DFF),
+                            color: const Color(0xFFED3E57),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: Colors.white, width: 2),
                           ),
