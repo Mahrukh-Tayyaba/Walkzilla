@@ -333,8 +333,10 @@ class CharacterAnimationService {
 
     if (_isLoaded[characterId] ?? false) return;
 
-    while (_isLoading[characterId] == true) {
+    int waitedMs = 0;
+    while (_isLoading[characterId] == true && waitedMs < 5000) {
       await Future.delayed(const Duration(milliseconds: 50));
+      waitedMs += 50;
     }
 
     if (!(_isLoaded[characterId] ?? false)) {

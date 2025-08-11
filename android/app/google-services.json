@@ -12,7 +12,20 @@
           "package_name": "com.mt.walkzilla"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1043059024783-neq4asqh32fjs39tq3em1sg4qke1737e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mt.walkzilla",
+            "certificate_hash": "67e98ac2f6b238893d60013e8a3db7f7a413e5a7"
+          }
+        },
+        {
+          "client_id": "1043059024783-8mv19en8n1235jdk6l82aia5nav23hvo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC4a9RMzxkM50zLP80M-_Pmy8czAGqiEz4"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1043059024783-8mv19en8n1235jdk6l82aia5nav23hvo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1043059024783-30lpbs12taidsmjd48npmf0el3nsqap6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mt.walkzilla"
+              }
+            }
+          ]
         }
       }
     }

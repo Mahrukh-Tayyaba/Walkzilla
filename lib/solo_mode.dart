@@ -1142,6 +1142,7 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
   double _visibilityBuffer = 100; // Pixels outside viewport to keep showing
   // World positions for milestones once they are spawned (spawn at far-right)
   final Map<int, double> _milestoneWorldPositions = {};
+  int? _lastStepsInGame;
 
   SoloModeGame() {
     instance = this;
@@ -1151,8 +1152,11 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
   void setSteps(int steps) {
     try {
       _playerWorldX = steps * stepPixelRatio;
-      _triggerMilestonesForSteps(steps);
+      final int prevSteps =
+          _lastStepsInGame ?? steps; // avoid backfilling on first call
+      _triggerMilestonesForSteps(prevSteps, steps);
       _updateMilestoneBoardPositions();
+      _lastStepsInGame = steps;
     } catch (e) {
       debugPrint('❌ Error in setSteps: $e');
     }
@@ -1174,37 +1178,35 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
   }
 
   void _updateMilestoneBoardPositions() {
-    if (character == null) {
-      return; // Character not ready yet
-    }
-
-    milestoneBoards.forEach((int milestoneSteps, SpriteComponent board) {
-      final double screenX = screenXForMilestone(milestoneSteps);
-
-      // Update X position relative to player/world mapping
-      board.x = screenX;
-    });
+    // No-op: boards are placed at spawn and then moved by path scroll
   }
 
   // Spawn milestones on first reach: place at far-right edge of screen
-  void _triggerMilestonesForSteps(int steps) {
+  void _triggerMilestonesForSteps(int prevSteps, int steps) {
     if (character == null) return;
     final double playerScreenX = character!.x;
     final double screenWidth = size.x;
 
-    for (final entry in milestoneBoards.entries) {
+    // Ensure deterministic order from smallest to largest thresholds
+    final List<MapEntry<int, SpriteComponent>> entries = milestoneBoards.entries
+        .toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    for (final entry in entries) {
       final int threshold = entry.key;
       final SpriteComponent board = entry.value;
 
-      if (steps >= threshold &&
+      // Spawn only for thresholds just crossed now (no backfill of earlier ones)
+      if (prevSteps < threshold &&
+          steps >= threshold &&
           !_milestoneWorldPositions.containsKey(threshold)) {
         // World X so that board appears at the far-right edge
         final double spawnWorldX =
             _playerWorldX + (screenWidth - playerScreenX - board.size.x);
         _milestoneWorldPositions[threshold] = spawnWorldX;
 
-        // Ensure initial placement and add once
-        board.x = screenXForMilestone(threshold);
+        // Ensure initial placement at far-right; path scroll moves it afterward
+        board.x = screenWidth - board.size.x;
         board.priority = 2;
         if (!children.contains(board)) {
           add(board);

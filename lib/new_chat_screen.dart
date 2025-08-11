@@ -31,7 +31,6 @@ class _NewChatScreenState extends State<NewChatScreen> {
         builder: (context) => ChatDetailPage(
           name: friend['displayName'] ?? friend['username'] ?? 'Unknown',
           avatar: friend['profileImage'] ?? '',
-          online: friend['isOnline'] ?? false,
           otherUserId: friend['userId'],
         ),
       ),
@@ -239,29 +238,6 @@ class _NewChatScreenState extends State<NewChatScreen> {
                                   ? const Icon(Icons.person, size: 28)
                                   : null,
                             ),
-                            if (friend['isOnline'])
-                              Positioned(
-                                bottom: 2,
-                                right: 2,
-                                child: Container(
-                                  width: 13,
-                                  height: 13,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Center(
-                                    child: Container(
-                                      width: 9,
-                                      height: 9,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.green,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
                         title: Text(
@@ -272,15 +248,6 @@ class _NewChatScreenState extends State<NewChatScreen> {
                             fontWeight: FontWeight.bold,
                             fontSize: 19,
                             color: Colors.black,
-                          ),
-                        ),
-                        subtitle: Text(
-                          friend['isOnline'] ? 'Online' : 'Offline',
-                          style: TextStyle(
-                            color:
-                                friend['isOnline'] ? Colors.green : Colors.grey,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         trailing: const Icon(

@@ -119,9 +119,14 @@ class ChatService {
         final chatData = doc.data();
         final participants = List<String>.from(chatData['participants'] ?? []);
 
-        // Get the other user's ID
-        final otherUserId =
-            participants.firstWhere((id) => id != currentUser.uid);
+        // Get the other user's ID safely
+        final others =
+            participants.where((id) => id != currentUser.uid).toList();
+        if (others.isEmpty) {
+          // Skip malformed chat docs with no other participant
+          continue;
+        }
+        final otherUserId = others.first;
 
         // Get other user's data
         final userDoc =
@@ -141,7 +146,6 @@ class ChatService {
             'lastMessage': chatData['lastMessage'] ?? '',
             'lastMessageTime': chatData['lastMessageTime'],
             'unread': unreadCount,
-            'online': userData['isOnline'] ?? false,
             'otherUserId': otherUserId,
           });
         }

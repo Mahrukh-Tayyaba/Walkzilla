@@ -37,7 +37,6 @@ class FriendService {
             'profileImage': userData['profileImage'] ?? userData['photoURL'],
             'level': userData['level'] ?? 1,
             'currentStreak': userData['currentStreak'] ?? 0,
-            'isOnline': userData['isOnline'] ?? false,
             'lastActive': userData['lastActive'],
           });
         }
@@ -291,8 +290,12 @@ class FriendService {
         final friendshipData = doc.data();
         final users = List<String>.from(friendshipData['users'] ?? []);
 
-        // Get the other user's ID
-        final otherUserId = users.firstWhere((id) => id != currentUser.uid);
+        // Get the other user's ID safely
+        final others = users.where((id) => id != currentUser.uid).toList();
+        if (others.isEmpty) {
+          continue;
+        }
+        final otherUserId = others.first;
 
         // Get user data
         final userDoc =
@@ -308,7 +311,6 @@ class FriendService {
             'profileImage': userData['profileImage'] ?? userData['photoURL'],
             'level': userData['level'] ?? 1,
             'currentStreak': userData['currentStreak'] ?? 0,
-            'isOnline': userData['isOnline'] ?? false,
             'lastActive': userData['lastActive'],
             'todaySteps': userData['todaySteps'] ?? 0,
             'steps': userData['steps'] ?? 0,
@@ -403,7 +405,6 @@ class FriendService {
           'profileImage': userData['profileImage'] ?? userData['photoURL'],
           'level': userData['level'] ?? 1,
           'currentStreak': userData['currentStreak'] ?? 0,
-          'isOnline': userData['isOnline'] ?? false,
           'lastActive': userData['lastActive'],
         });
       }

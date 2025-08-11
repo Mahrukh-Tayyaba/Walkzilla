@@ -827,21 +827,6 @@ class _FriendsPageState extends State<FriendsPage>
                                         ? const Icon(Icons.person, size: 28)
                                         : null,
                                   ),
-                                  if (friend['isOnline'])
-                                    Positioned(
-                                      bottom: 2,
-                                      right: 2,
-                                      child: Container(
-                                        width: 12,
-                                        height: 12,
-                                        decoration: BoxDecoration(
-                                          color: Colors.green,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                              color: Colors.white, width: 2),
-                                        ),
-                                      ),
-                                    ),
                                 ],
                               ),
                               title: Row(
@@ -864,16 +849,6 @@ class _FriendsPageState extends State<FriendsPage>
                                         fontWeight: FontWeight.w500),
                                   ),
                                 ],
-                              ),
-                              subtitle: Text(
-                                friend['isOnline'] ? 'Online' : 'Offline',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: friend['isOnline']
-                                      ? Colors.green
-                                      : Colors.grey,
-                                  fontWeight: FontWeight.w500,
-                                ),
                               ),
                               onTap: () {
                                 showModalBottomSheet(
@@ -924,8 +899,6 @@ class _FriendsPageState extends State<FriendsPage>
                                                     steps: friend['steps']
                                                         .toString(),
                                                     color: Colors.orange,
-                                                    isOnline:
-                                                        friend['isOnline'],
                                                     friendUserId:
                                                         friend['userId'],
                                                   ),
@@ -954,7 +927,6 @@ class _FriendsPageState extends State<FriendsPage>
                                                     avatar: friend[
                                                             'profileImage'] ??
                                                         '',
-                                                    online: friend['isOnline'],
                                                     otherUserId:
                                                         friend['userId'],
                                                   ),

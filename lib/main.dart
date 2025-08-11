@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import 'splash_screen.dart';
 import 'providers/step_goal_provider.dart';
 import 'providers/streak_provider.dart';
-import 'health_dashboard.dart';
+// import 'health_dashboard.dart';
 import 'streaks_screen.dart';
 import 'widgets/duo_challenge_invite_dialog.dart';
 import 'services/user_document_cleanup_service.dart';
@@ -25,6 +25,7 @@ import 'services/friend_request_notification_service.dart';
 // Global navigator key to show dialogs from anywhere
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   // Handle background message (can be expanded later)
@@ -280,7 +281,7 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: kDebugMode ? const SplashScreen() : const HealthDashboard(),
+      home: const SplashScreen(),
     );
   }
 }

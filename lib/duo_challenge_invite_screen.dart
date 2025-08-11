@@ -317,23 +317,38 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                         ),
                         ElevatedButton(
                           onPressed: () async {
-                            await _firestore
-                                .collection('duo_challenge_invites')
-                                .doc(doc.id)
-                                .update({
-                              'status': 'accepted',
-                              'acceptedAt': FieldValue.serverTimestamp(),
-                            });
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => DuoChallengeLobby(
-                                  inviteId: doc.id,
-                                  otherUsername: userData['displayName'] ??
-                                      userData['username'] ??
-                                      'Friend',
+                            try {
+                              await _firestore
+                                  .collection('duo_challenge_invites')
+                                  .doc(doc.id)
+                                  .update({
+                                'status': 'accepted',
+                                'acceptedAt': FieldValue.serverTimestamp(),
+                              });
+                              if (!mounted) return;
+                              Future.microtask(() {
+                                if (!mounted) return;
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => DuoChallengeLobby(
+                                      inviteId: doc.id,
+                                      otherUsername: userData['displayName'] ??
+                                          userData['username'] ??
+                                          'Friend',
+                                    ),
+                                  ),
+                                );
+                              });
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Error accepting invite: ${e.toString()}'),
+                                  backgroundColor: Colors.red,
                                 ),
-                              ),
-                            );
+                              );
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF7C4DFF),
@@ -367,7 +382,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
       stream: _firestore
           .collection('duo_challenge_invites')
           .where('fromUserId', isEqualTo: currentUser.uid)
-          .orderBy('createdAt', descending: true)
+          .where('status', isEqualTo: 'pending')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -378,8 +393,24 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
               child: Text('Error loading invites',
                   style: TextStyle(color: Colors.red)));
         }
-        final invites = snapshot.data?.docs ?? [];
-        if (invites.isEmpty) {
+        final List<QueryDocumentSnapshot> invites =
+            List<QueryDocumentSnapshot>.from(snapshot.data?.docs ?? []);
+        // Sort client-side by createdAt descending to avoid composite index
+        invites.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aTs = aData['createdAt'] as Timestamp?;
+          final bTs = bData['createdAt'] as Timestamp?;
+          final aMs = aTs?.millisecondsSinceEpoch ?? 0;
+          final bMs = bTs?.millisecondsSinceEpoch ?? 0;
+          return bMs.compareTo(aMs);
+        });
+        // Extra guard: filter to only pending in case any non-pending slipped in
+        final List<QueryDocumentSnapshot> pendingInvites = invites.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return data['status'] == 'pending';
+        }).toList();
+        if (pendingInvites.isEmpty) {
           return const Center(child: Text('No invites sent yet.'));
         }
 
@@ -387,7 +418,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
         final Map<String, QueryDocumentSnapshot> groupedInvites = {};
         final Map<String, int> inviteCounts = {};
 
-        for (final doc in invites) {
+        for (final doc in pendingInvites) {
           final data = doc.data() as Map<String, dynamic>;
           final toUserId = data['toUserId'] as String;
 
@@ -422,10 +453,6 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                 String statusText = '';
                 if (data['status'] == 'pending') {
                   statusText = 'Pending';
-                } else if (data['status'] == 'accepted') {
-                  statusText = 'Accepted';
-                } else if (data['status'] == 'declined') {
-                  statusText = 'Declined';
                 }
                 return Container(
                   margin:
@@ -533,79 +560,14 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                             ),
                             Text(
                               statusText,
-                              style: TextStyle(
-                                color: data['status'] == 'pending'
-                                    ? Colors.orange
-                                    : (data['status'] == 'accepted'
-                                        ? Colors.green
-                                        : Colors.red),
+                              style: const TextStyle(
+                                color: Colors.orange,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                        if (data['status'] == 'accepted') ...[
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              DuoChallengeLobby(
-                                            inviteId: doc.id,
-                                            otherUsername:
-                                                userData['displayName'] ??
-                                                    userData['username'] ??
-                                                    'Friend',
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF7C4DFF),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text('Start'),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TextButton(
-                                    onPressed: () async {
-                                      // Cancel all invites to this user
-                                      final batch = _firestore.batch();
-                                      for (final inviteDoc in invites) {
-                                        final inviteData = inviteDoc.data()
-                                            as Map<String, dynamic>;
-                                        if (inviteData['toUserId'] ==
-                                            toUserId) {
-                                          batch.update(inviteDoc.reference,
-                                              {'status': 'declined'});
-                                        }
-                                      }
-                                      await batch.commit();
-                                    },
-                                    style: TextButton.styleFrom(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text('Cancel',
-                                        style: TextStyle(color: Colors.red)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        // Only pending invites are shown; no extra actions needed
                       ],
                     ),
                   ),

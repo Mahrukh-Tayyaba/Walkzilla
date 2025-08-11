@@ -380,6 +380,58 @@ class CharacterDataService {
   Map<String, String> getSpriteSheetsForCharacter(String characterId) {
     return spriteSheets[characterId] ?? spriteSheets['MyCharacter']!;
   }
+
+  /// Get current user's level data
+  Future<Map<String, dynamic>> getCurrentUserLevelData() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        debugPrint(
+            '🎭 CharacterDataService: No current user, using default level data');
+        return {'level': 1};
+      }
+
+      debugPrint(
+          '🎭 CharacterDataService: Getting level data for current user: ${user.uid}');
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) {
+        debugPrint(
+            '🎭 CharacterDataService: Current user document does not exist, using default level data');
+        return {'level': 1};
+      }
+
+      final userData = userDoc.data()!;
+      return {
+        'level': userData['level'] ?? 1,
+      };
+    } catch (e) {
+      debugPrint(
+          '❌ CharacterDataService: Error getting current user level data: $e');
+      return {'level': 1};
+    }
+  }
+
+  /// Get level data for a specific user
+  Future<Map<String, dynamic>> getUserLevelData(String userId) async {
+    try {
+      debugPrint(
+          '🎭 CharacterDataService: Getting level data for user: $userId');
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        debugPrint(
+            '🎭 CharacterDataService: User document does not exist, using default level data');
+        return {'level': 1};
+      }
+
+      final userData = userDoc.data()!;
+      return {
+        'level': userData['level'] ?? 1,
+      };
+    } catch (e) {
+      debugPrint('❌ CharacterDataService: Error getting user level data: $e');
+      return {'level': 1};
+    }
+  }
 }
 
 extension _SpriteSheetPathNormalization on CharacterDataService {

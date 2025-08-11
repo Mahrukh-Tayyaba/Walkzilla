@@ -19,7 +19,6 @@ import 'services/network_service.dart';
 
 import 'widgets/daily_challenge_spin.dart';
 import 'widgets/reward_notification_widget.dart';
-import 'widgets/connection_status_widget.dart';
 
 import 'services/leveling_migration_service.dart';
 import 'challenges_screen.dart';
@@ -75,6 +74,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   String _lastProcessedGlbPath = ''; // Cache last processed GLB path
   Timer? _glbUpdateTimer; // Debounce GLB updates
 
+  // Pending duo invites badge
+  int _pendingDuoInviteCount = 0;
+  StreamSubscription<QuerySnapshot>? _pendingInviteCountSub;
+
   // Leaderboard listeners
   StreamSubscription<QuerySnapshot>? _weeklyRewardListener;
   StreamSubscription<QuerySnapshot>? _dailyRewardListener;
@@ -123,6 +126,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         _migrateCurrentUserCharacter();
         _initializeLeaderboardData();
         _initializeDuoChallengeService();
+        _listenPendingDuoInviteCount();
         _listenForAcceptedInvitesAsSender();
         _listenForDeclinedInvitesAsSender();
         _startCoinListener();
@@ -1877,6 +1881,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _acceptedInviteListener?.cancel();
     _declinedInviteListener?.cancel();
+    _pendingInviteCountSub?.cancel();
     _userDataListener?.cancel();
     _glbUpdateTimer?.cancel(); // Cancel GLB update timer
     _weeklyRewardListener?.cancel(); // Cancel weekly reward listener
@@ -1897,6 +1902,28 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
     debugPrint('🧹 Home screen disposed - all connections cleaned up');
     super.dispose();
+  }
+
+  /// Listen to count of pending duo challenge invites for current user
+  void _listenPendingDuoInviteCount() {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+    _pendingInviteCountSub?.cancel();
+    _pendingInviteCountSub = _firestore
+        .collection('duo_challenge_invites')
+        .where('toUserId', isEqualTo: currentUser.uid)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snapshot) {
+      final count = snapshot.docs.length;
+      if (mounted && count != _pendingDuoInviteCount) {
+        setState(() {
+          _pendingDuoInviteCount = count;
+        });
+      }
+    }, onError: (e) {
+      debugPrint('Error listening invite count: $e');
+    });
   }
 
   @override
@@ -1949,15 +1976,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           elevation: 0,
           actions: [
-            // Connection status indicator
-            Container(
-              margin: const EdgeInsets.only(right: 8.0, top: 8.0, bottom: 8.0),
-              child: ConnectionStatusWidget(
-                onRetry: () {
-                  _refreshDataOnReconnection();
-                },
-              ),
-            ),
             Padding(
               padding:
                   const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
@@ -2219,18 +2237,50 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 );
                               },
                             ),
-                            _buildCornerButton(
-                              icon: Icons.emoji_events,
-                              label: 'Challenges',
-                              color: Colors.blue,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const ChallengesScreen()),
-                                );
-                              },
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                _buildCornerButton(
+                                  icon: Icons.emoji_events,
+                                  label: 'Challenges',
+                                  color: Colors.blue,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const ChallengesScreen()),
+                                    );
+                                  },
+                                ),
+                                if (_pendingDuoInviteCount > 0)
+                                  Positioned(
+                                    right: -2,
+                                    top: -2,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white, width: 2),
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 20,
+                                        minHeight: 20,
+                                      ),
+                                      child: Text(
+                                        _pendingDuoInviteCount.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             // Health Button (Moved from original position)
                             _buildCornerButton(
@@ -2379,7 +2429,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               _buildDrawerItem(
                 icon: Icons.notifications_active_outlined,
                 title: "Notifications",
-                notificationCount: 2,
                 color: Colors.blue,
                 onTap: () {
                   Navigator.pop(context);

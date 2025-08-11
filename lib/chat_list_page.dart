@@ -226,7 +226,6 @@ class ChatListPage extends StatelessWidget {
                           chatId: chat['chatId'],
                           name: chat['name'],
                           avatar: chat['avatar'] ?? '',
-                          online: chat['online'],
                         ),
                       ),
                     );

@@ -43,6 +43,10 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
   Map<String, dynamic>? _preOpponentCharacterData;
   String? _opponentUserId;
 
+  // User level data
+  Map<String, dynamic>? _currentUserLevelData;
+  Map<String, dynamic>? _opponentLevelData;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +55,13 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
 
     // Start preloading current user's character immediately
     _preloadCurrentUserCharacter();
+
+    // Derive opponent from invite document and preload immediately (works even before presence appears)
+    _deriveOpponentFromInviteAndPreload();
+
+    // Fetch user level data
+    _fetchUserLevelData();
+
     _leftCoinsController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -62,6 +73,55 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
 
     // Listen for game start
     _listenForGameStart();
+  }
+
+  Future<void> _deriveOpponentFromInviteAndPreload() async {
+    try {
+      final doc = await _firestore
+          .collection('duo_challenge_invites')
+          .doc(widget.inviteId)
+          .get();
+      if (!doc.exists) return;
+      final data = doc.data() as Map<String, dynamic>;
+      final fromUserId = data['fromUserId'] as String?;
+      final toUserId = data['toUserId'] as String?;
+      if (fromUserId == null || toUserId == null) return;
+      final oppId = _userId == fromUserId ? toUserId : fromUserId;
+      if (oppId.isEmpty) return;
+      _opponentUserId = oppId;
+
+      // Fetch opponent's level data
+      _opponentLevelData = await _characterDataService.getUserLevelData(oppId);
+      if (mounted) {
+        setState(() {});
+      }
+
+      if (!_preloadedOpponent) {
+        await _preloadOpponentCharacter(oppId);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Lobby: Failed to derive opponent from invite: $e');
+    }
+  }
+
+  Future<void> _fetchUserLevelData() async {
+    try {
+      // Fetch current user's level data
+      _currentUserLevelData =
+          await _characterDataService.getCurrentUserLevelData();
+
+      // Fetch opponent's level data if we have their ID
+      if (_opponentUserId != null) {
+        _opponentLevelData =
+            await _characterDataService.getUserLevelData(_opponentUserId!);
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('⚠️ Lobby: Failed to fetch user level data: $e');
+    }
   }
 
   void _showInsufficientCoinsDialog() {
@@ -173,7 +233,7 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
         _firestore.collection('duo_challenge_invites').doc(widget.inviteId);
     _gameStartSubscription = docRef.snapshots().listen((doc) async {
       if (!doc.exists) return;
-      final data = doc.data() as Map<String, dynamic>;
+      final data = (doc.data() as Map<String, dynamic>?) ?? <String, dynamic>{};
       final gameStarted = data['gameStarted'] ?? false;
       final presence = (data['lobbyPresence'] ?? {}) as Map<String, dynamic>;
 
@@ -194,7 +254,11 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
       }
 
       if (gameStarted && !_redirectedToGame && mounted) {
+        // Ensure preloads are done before navigation
+        await _ensurePreloadsCompleteWithTimeout(const Duration(seconds: 5));
+
         _redirectedToGame = true;
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => DuoChallengeGameScreen(
@@ -208,6 +272,22 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
         );
       }
     });
+  }
+
+  Future<void> _ensurePreloadsCompleteWithTimeout(Duration timeout) async {
+    final List<Future<void>> futures = [];
+    if (!_preloadedUser) futures.add(_preloadCurrentUserCharacter());
+    if (!_preloadedOpponent && _opponentUserId != null) {
+      futures.add(_preloadOpponentCharacter(_opponentUserId!));
+    }
+    if (futures.isEmpty) return;
+    try {
+      await Future.wait(futures).timeout(timeout);
+    } on TimeoutException {
+      debugPrint('⏳ Lobby: Preload timeout, proceeding to game');
+    } catch (e) {
+      debugPrint('❌ Lobby: Preload error before game: $e');
+    }
   }
 
   Future<void> _preloadCurrentUserCharacter() async {
@@ -286,7 +366,16 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final DocumentSnapshot doc = snapshot.data!;
+          if (!doc.exists) {
+            // Invite was removed; go back safely
+            Future.microtask(() {
+              if (mounted) Navigator.of(context).pop();
+            });
+            return const SizedBox.shrink();
+          }
+          final data =
+              (doc.data() as Map<String, dynamic>?) ?? <String, dynamic>{};
           final presence =
               (data['lobbyPresence'] ?? {}) as Map<String, dynamic>;
           final usersPresent =
@@ -296,14 +385,14 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
           final leftPlayer = {
             'username': 'You',
             'avatar': _auth.currentUser?.photoURL,
-            'level': 1,
+            'level': _currentUserLevelData?['level'] ?? 1,
             'coins': 50,
           };
           final rightPlayer = usersPresent >= 2
               ? {
                   'username': widget.otherUsername ?? 'Friend',
                   'avatar': null,
-                  'level': 1,
+                  'level': _opponentLevelData?['level'] ?? 1,
                   'coins': 50,
                 }
               : {
@@ -323,8 +412,8 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
               if (mounted) setState(() => _showCenterAmount = true);
             });
 
-            // Signal game start after 3 seconds to allow sprite sheets to preload
-            Future.delayed(const Duration(seconds: 3), () async {
+            // Signal game start after 5 seconds to allow sprite sheets to preload
+            Future.delayed(const Duration(seconds: 5), () async {
               if (mounted && !_redirectedToGame) {
                 // Ensure we have attempted preloading for both before starting
                 if (!_preloadedUser) {
@@ -332,6 +421,20 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
                 }
                 if (!_preloadedOpponent && _opponentUserId != null) {
                   await _preloadOpponentCharacter(_opponentUserId!);
+                }
+                // Double-check that both character data exist before start
+                if (_preUserCharacterData == null) {
+                  try {
+                    _preUserCharacterData = await _characterDataService
+                        .getCurrentUserCharacterData();
+                  } catch (_) {}
+                }
+                if (_preOpponentCharacterData == null &&
+                    _opponentUserId != null) {
+                  try {
+                    _preOpponentCharacterData = await _characterDataService
+                        .getUserCharacterData(_opponentUserId!);
+                  } catch (_) {}
                 }
                 _firestore
                     .collection('duo_challenge_invites')

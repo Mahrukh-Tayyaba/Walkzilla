@@ -8,7 +8,7 @@ class FriendProfilePage extends StatelessWidget {
   final String avatar;
   final String steps;
   final Color color;
-  final bool isOnline;
+
   final String friendUserId; // Add friendUserId parameter
 
   const FriendProfilePage({
@@ -17,7 +17,6 @@ class FriendProfilePage extends StatelessWidget {
     required this.avatar,
     required this.steps,
     required this.color,
-    required this.isOnline,
     required this.friendUserId, // Add this parameter
   });
 
@@ -85,20 +84,6 @@ class FriendProfilePage extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (isOnline)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                   const SizedBox(height: 16),

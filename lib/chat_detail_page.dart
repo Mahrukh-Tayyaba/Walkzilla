@@ -8,7 +8,7 @@ class ChatDetailPage extends StatefulWidget {
   final String? chatId;
   final String name;
   final String avatar;
-  final bool online;
+
   final String? otherUserId; // For new chats
 
   const ChatDetailPage({
@@ -16,7 +16,6 @@ class ChatDetailPage extends StatefulWidget {
     this.chatId,
     required this.name,
     required this.avatar,
-    required this.online,
     this.otherUserId,
   });
 
@@ -214,7 +213,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                                 '0', // You can pass actual steps if available
                             color:
                                 Colors.orange, // Or use a color if you have one
-                            isOnline: widget.online,
+
                             friendUserId: widget.otherUserId!,
                           ),
                         ),
@@ -239,31 +238,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                               fontSize: 20,
                               color: Colors.black,
                             ),
-                          ),
-                          Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: widget.online
-                                      ? Colors.green
-                                      : Colors.grey,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                widget.online ? 'Online now' : 'Offline',
-                                style: TextStyle(
-                                  color: widget.online
-                                      ? Colors.green
-                                      : Colors.grey,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
