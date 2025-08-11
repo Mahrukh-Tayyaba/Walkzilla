@@ -133,6 +133,18 @@ class StepCounterService {
     print('Step counter reset');
   }
 
+  /// Reset step baseline (useful for new games)
+  static Future<bool> resetStepBaseline() async {
+    try {
+      await _methodChannel.invokeMethod('resetStepBaseline');
+      print('Step baseline reset for new game');
+      return true;
+    } catch (e) {
+      print('Error resetting step baseline: $e');
+      return false;
+    }
+  }
+
   /// Check if step sensor is available
   static Future<bool> isSensorAvailable() async {
     try {

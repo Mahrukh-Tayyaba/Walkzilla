@@ -92,7 +92,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
   bool _matchStarted = false;
   bool _showingWinnerDialog = false;
   bool _showingQuitDialog = false;
-  static const int _stepGoal = 2000; // Updated step goal to 2000
+  static const int _stepGoal = 2000; // Keep original step goal at 2000
   bool _showingMatchStartDialog = false;
   bool _countdownCompleted = false; // Track if countdown has finished
 
@@ -194,6 +194,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
     _stepSubscription?.cancel();
     _scrollController.dispose();
     _healthService.stopRealTimeStepMonitoring();
+
+    // Reset the step counter baseline when disposing
+    StepCounterService.resetStepBaseline();
+    debugPrint('🔄 DUO CHALLENGE: Step counter baseline reset on dispose');
+
     super.dispose();
   }
 
@@ -317,6 +322,12 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
       // If match is already started, join the ongoing match
       if (matchStarted) {
         debugPrint('🎮 DUO CHALLENGE: Joining ongoing match');
+
+        // Reset step baseline even when joining ongoing match
+        await StepCounterService.resetStepBaseline();
+        debugPrint(
+            '🔄 DUO CHALLENGE: Step counter baseline reset when joining ongoing match');
+
         setState(() {
           _matchStarted = true;
         });
@@ -398,6 +409,10 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
   // NEW: Start the match when both players are ready
   Future<void> _startMatch() async {
     debugPrint('🎮 DUO CHALLENGE: Starting match with both players!');
+
+    // Reset the step counter baseline for this new match
+    await StepCounterService.resetStepBaseline();
+    debugPrint('🔄 DUO CHALLENGE: Step counter baseline reset for new match');
 
     await _firestore
         .collection('duo_challenge_invites')
@@ -1581,6 +1596,10 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
     );
 
     try {
+      // Reset the step counter baseline for this new game
+      await StepCounterService.resetStepBaseline();
+      debugPrint('🔄 DUO CHALLENGE: Step counter baseline reset for new game');
+
       // Force reset walking state to ensure correct initial state
       if (mounted) {
         setState(() {
@@ -2323,6 +2342,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
 
   // NEW: Return to home screen
   void _returnToHome() {
+    // Reset the step counter baseline when leaving the game
+    StepCounterService.resetStepBaseline();
+    debugPrint(
+        '🔄 DUO CHALLENGE: Step counter baseline reset when leaving game');
+
     try {
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
@@ -2636,6 +2660,11 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
   }
 
   Future<void> _endGame(String winnerId) async {
+    // Reset the step counter baseline when game ends
+    await StepCounterService.resetStepBaseline();
+    debugPrint(
+        '🔄 DUO CHALLENGE: Step counter baseline reset after game ended');
+
     final winnerUsername =
         winnerId == _userId ? 'You' : (widget.otherUsername ?? 'Opponent');
 
@@ -2751,7 +2780,8 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
 
     // Track dimensions: stop at the finish line (right edge of the red box)
     // Finish box is 100px wide and centered at finishLinePosition, so right edge is +50
-    final double trackWidth = finishLinePosition + 50;
+    // Extended by 200px to ensure full 2000 steps can be completed
+    final double trackWidth = finishLinePosition + 250;
     const double roadOriginalWidth = 1200;
     const double roadOriginalHeight = 395;
 

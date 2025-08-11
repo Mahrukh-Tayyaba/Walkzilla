@@ -49,6 +49,12 @@ class MainActivity: FlutterActivity(), SensorEventListener {
                     "getSensorAvailability" -> {
                         result.success(stepSensor != null)
                     }
+                    "resetStepBaseline" -> {
+                        // Reset the step baseline for new games
+                        initialStepCount = -1
+                        lastStepCount = 0
+                        result.success(true)
+                    }
                     else -> {
                         result.notImplemented()
                     }
