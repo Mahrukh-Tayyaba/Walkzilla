@@ -241,7 +241,7 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Color(0xFFFFF1DC),
         body: Center(
           child: CircularProgressIndicator(),
         ),
@@ -257,9 +257,9 @@ class _ShopScreenState extends State<ShopScreen> {
         );
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF1DC),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -277,16 +277,9 @@ class _ShopScreenState extends State<ShopScreen> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-              border: Border.all(color: const Color(0xFFF5E9B9), width: 1),
+              color: const Color(0xFFFFFEF7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.withOpacity(0.2)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -337,13 +330,7 @@ class _ShopScreenState extends State<ShopScreen> {
                   bottomLeft: Radius.circular(16),
                   bottomRight: Radius.circular(16),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
               ),
               child: Center(
                 child: _buildItemPreview(displayItem),
@@ -356,7 +343,7 @@ class _ShopScreenState extends State<ShopScreen> {
             flex: 45,
             child: Container(
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: Color(0xFFFFFEF7),
                 border: Border(
                   top: BorderSide(color: Color(0xFFE5E7EB), width: 1),
                 ),
@@ -366,6 +353,7 @@ class _ShopScreenState extends State<ShopScreen> {
                   : _buildBuyPreview(),
             ),
           ),
+          const SizedBox(height: 50),
         ],
       ),
     );
@@ -376,15 +364,9 @@ class _ShopScreenState extends State<ShopScreen> {
       width: double.infinity,
       height: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFEF7),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -431,8 +413,9 @@ class _ShopScreenState extends State<ShopScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(25),
+              color: const Color(0xFFFFFEF7),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.withOpacity(0.2)),
             ),
             child: Row(
               children: [
@@ -447,19 +430,12 @@ class _ShopScreenState extends State<ShopScreen> {
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color:
-                            !showOwnedItems ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: !showOwnedItems
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
+                        color: !showOwnedItems
+                            ? const Color(0xFFED3E57)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
                       child: Center(
                         child: Text(
                           'Buy',
@@ -467,7 +443,7 @@ class _ShopScreenState extends State<ShopScreen> {
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: !showOwnedItems
-                                ? Colors.black
+                                ? Colors.white
                                 : Colors.grey[600],
                           ),
                         ),
@@ -486,19 +462,12 @@ class _ShopScreenState extends State<ShopScreen> {
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color:
-                            showOwnedItems ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: showOwnedItems
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
+                        color: showOwnedItems
+                            ? const Color(0xFFED3E57)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
                       child: Center(
                         child: Text(
                           'Owned',
@@ -506,7 +475,7 @@ class _ShopScreenState extends State<ShopScreen> {
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: showOwnedItems
-                                ? Colors.black
+                                ? Colors.white
                                 : Colors.grey[600],
                           ),
                         ),
@@ -570,24 +539,17 @@ class _ShopScreenState extends State<ShopScreen> {
               onTap: () => handleItemSelect(item),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.orange[50] : Colors.grey[50],
-                  borderRadius: BorderRadius.circular(12),
+                  color:
+                      isSelected ? Colors.orange[50] : const Color(0xFFFFFEF7),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isWorn
                         ? Colors.green
                         : isSelected
                             ? Colors.orange
-                            : Colors.grey[300]!,
+                            : Colors.grey.withOpacity(0.2),
                     width: isWorn || isSelected ? 2 : 1,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                      spreadRadius: 1,
-                    ),
-                  ],
                 ),
                 child: Column(
                   children: [
@@ -647,7 +609,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     Expanded(
                       flex: 2,
                       child: Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.8),
                           borderRadius: const BorderRadius.only(
@@ -661,14 +623,14 @@ class _ShopScreenState extends State<ShopScreen> {
                             Text(
                               item.name,
                               style: const TextStyle(
-                                fontSize: 11,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -676,12 +638,12 @@ class _ShopScreenState extends State<ShopScreen> {
                                   Row(
                                     children: [
                                       const Icon(Icons.monetization_on,
-                                          size: 10, color: Colors.amber),
-                                      const SizedBox(width: 2),
+                                          size: 14, color: Colors.amber),
+                                      const SizedBox(width: 4),
                                       Text(
                                         item.price.toString(),
                                         style: const TextStyle(
-                                          fontSize: 10,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.black,
                                         ),
@@ -692,21 +654,21 @@ class _ShopScreenState extends State<ShopScreen> {
                                   onTap: () => handleBuyClick(item),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 2),
+                                        horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
                                       color: showOwnedItems
                                           ? (item.isWorn
                                               ? Colors.grey
                                               : Colors.green)
                                           : Colors.black,
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
                                       showOwnedItems
                                           ? (item.isWorn ? 'Wearing' : 'Wear')
                                           : 'Buy',
                                       style: const TextStyle(
-                                        fontSize: 8,
+                                        fontSize: 12,
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -741,6 +703,7 @@ class _ShopScreenState extends State<ShopScreen> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(

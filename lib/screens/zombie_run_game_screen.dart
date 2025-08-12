@@ -1,4 +1,5 @@
 import 'dart:async' as async;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -63,6 +64,7 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
   // Presence and disconnect handling
   async.Timer? _presenceTimer;
   async.Timer? _opponentWaitTimer;
+  async.Timer? _zombieCollisionTimer;
   bool _showWaitingForOpponent = false;
   int _waitingSecondsLeft = 0;
 
@@ -96,6 +98,12 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
   static const int _stepGoal = 2000; // Keep original step goal at 2000
   bool _showingMatchStartDialog = false;
   bool _countdownCompleted = false; // Track if countdown has finished
+
+  // Zombie collision detection
+  bool _zombieTouchedPlayer = false;
+  bool _bothPlayersReachedGoal = false;
+  bool _gameLostToZombie = false;
+  double? _zombiePosition; // Track zombie position for collision detection
 
   // Callback functions to update character animations
   CharacterDisplayGame? _userGameInstance;
@@ -178,6 +186,14 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
     // Immediate presence ping so presence map exists right away
     _pingPresence();
 
+    // Start zombie collision detection timer (check every 100ms)
+    _zombieCollisionTimer =
+        async.Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (mounted && _matchStarted && !_gameEnded) {
+        _checkZombieCollision();
+      }
+    });
+
     // Mark as initialized after 3 seconds to prevent false walking detection
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
@@ -194,6 +210,7 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
     WidgetsBinding.instance.removeObserver(this);
     _presenceTimer?.cancel();
     _opponentWaitTimer?.cancel();
+    _zombieCollisionTimer?.cancel();
     _gameStateSubscription?.cancel();
     _stepSubscription?.cancel();
     _scrollController.removeListener(_onScroll);
@@ -457,7 +474,7 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
             borderRadius: BorderRadius.circular(16),
           ),
           title: const Text(
-            '🏁 Match Starting...',
+            '🧟 Zombie Run Challenge!',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -469,8 +486,28 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Both players are ready!',
+                'This is a TEAM-BASED game!',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '🏃‍♂️ Both players must reach 2000 steps to win',
                 style: TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '🧟 If the zombie touches either player, BOTH lose!',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -484,12 +521,32 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: const Color(0xFF7C4DFF)),
                 ),
-                child: Text(
-                  '🎯 Goal: $_stepGoal Steps',
-                  style: const TextStyle(
+                child: const Text(
+                  '🎯 Goal: 2000 Steps (Both Players)',
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF7C4DFF),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: const Text(
+                  '💰 Reward: 100 Coins Each (If Both Win)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
                   ),
                 ),
               ),
@@ -1153,9 +1210,14 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
 
             if (calculatedOpponentSteps >= _stepGoal) {
               debugPrint(
-                '😢 DUO CHALLENGE: Opponent reached step goal! Opponent wins!',
+                '🎯 DUO CHALLENGE: Opponent reached step goal! Checking for team victory...',
               );
-              _handleOpponentWin();
+              // Check if both players have reached the goal
+              if (_steps >= _stepGoal && calculatedOpponentSteps >= _stepGoal) {
+                _handleBothPlayersWin();
+              } else {
+                debugPrint('🎯 Opponent reached goal, waiting for user...');
+              }
               return;
             }
           }
@@ -2045,8 +2107,375 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
 
     // Check if user reached finish line
     if (_userPosition >= finishLinePosition) {
-      await _endGame(_userId);
+      _handleUserReachedGoal();
     }
+  }
+
+  // Check if zombie touches either player
+  void _checkZombieCollision() {
+    if (_gameEnded || _zombieTouchedPlayer) return;
+
+    // Get zombie position from the game widget
+    final zombieX = _getZombiePosition();
+    final zombieY = _getZombieYPosition();
+
+    // Check collision with user character
+    final userCharacterX = _userPosition;
+    final userCharacterY = _getCharacterYPosition();
+
+    // Check collision with opponent character
+    final opponentCharacterX = _opponentPosition;
+    final opponentCharacterY = _getCharacterYPosition();
+
+    // Character dimensions (approximate collision box)
+    const characterWidth = 280.0;
+    const characterHeight = 200.0;
+
+    // Check if zombie touches user character
+    if (_isColliding(zombieX, zombieY, userCharacterX, userCharacterY,
+        characterWidth, characterHeight)) {
+      debugPrint('🧟 ZOMBIE TOUCHED USER! Game Over!');
+      _handleZombieTouch();
+      return;
+    }
+
+    // Check if zombie touches opponent character
+    if (_isColliding(zombieX, zombieY, opponentCharacterX, opponentCharacterY,
+        characterWidth, characterHeight)) {
+      debugPrint('🧟 ZOMBIE TOUCHED OPPONENT! Game Over!');
+      _handleZombieTouch();
+      return;
+    }
+  }
+
+  // Simple collision detection
+  bool _isColliding(double zombieX, double zombieY, double characterX,
+      double characterY, double characterWidth, double characterHeight) {
+    final zombieSize = 150.0; // Zombie size from the game
+
+    return zombieX < characterX + characterWidth &&
+        zombieX + zombieSize > characterX &&
+        zombieY < characterY + characterHeight &&
+        zombieY + zombieSize > characterY;
+  }
+
+  // Get zombie position from the game widget
+  double _getZombiePosition() {
+    // This will be updated by the zombie game widget
+    return _zombiePosition ?? 0.0;
+  }
+
+  // Get character Y position (calculated in build method)
+  double _getCharacterYPosition() {
+    // This will be calculated based on screen dimensions
+    final screenHeight = MediaQuery.of(context).size.height;
+    const roadHeight = 200.0;
+    const characterHeight = 280.0;
+    final roadTopY = screenHeight - roadHeight;
+    return roadTopY - characterHeight + 20;
+  }
+
+  // Get zombie Y position
+  double _getZombieYPosition() {
+    final screenHeight = MediaQuery.of(context).size.height;
+    const roadHeight = 200.0;
+    final roadTopY = screenHeight - roadHeight;
+    return roadTopY - 50; // Same as zombie positioning in the game
+  }
+
+  // Handle zombie touch - both players lose
+  void _handleZombieTouch() {
+    if (_zombieTouchedPlayer) return; // Prevent multiple calls
+
+    setState(() {
+      _zombieTouchedPlayer = true;
+      _gameLostToZombie = true;
+      _gameEnded = true;
+    });
+
+    debugPrint('🧟 GAME OVER: Zombie touched a player! Both players lose!');
+
+    // Update Firestore with zombie game over result
+    _updateFirestoreZombieGameOver();
+
+    _showZombieGameOverDialog();
+  }
+
+  // Update Firestore with zombie game over result
+  Future<void> _updateFirestoreZombieGameOver() async {
+    try {
+      await _firestore
+          .collection('duo_challenge_invites')
+          .doc(widget.inviteId)
+          .update({
+        'gameEnded': true,
+        'gameResult': 'zombie_game_over',
+        'winner': 'none',
+        'winnerUsername': 'No Winner',
+        'userSteps': _steps,
+        'opponentSteps': _opponentSteps,
+        'userCoins': 0,
+        'opponentCoins': 0,
+        'matchEndTime': FieldValue.serverTimestamp(),
+        'zombieTouched': true,
+      });
+      debugPrint('✅ ZOMBIE GAME OVER: Firestore updated successfully');
+    } catch (e) {
+      debugPrint('❌ ZOMBIE GAME OVER: Error updating Firestore: $e');
+    }
+  }
+
+  // Handle when user reaches the goal
+  void _handleUserReachedGoal() {
+    if (_gameEnded) return;
+
+    debugPrint('🎯 User reached the goal! Checking if both players won...');
+
+    // Check if both players have reached the goal
+    if (_steps >= _stepGoal && _opponentSteps >= _stepGoal) {
+      _handleBothPlayersWin();
+    } else {
+      debugPrint('🎯 User reached goal, waiting for opponent...');
+      // User reached goal but opponent hasn't - keep playing
+    }
+  }
+
+  // Handle when both players win
+  void _handleBothPlayersWin() {
+    if (_gameEnded || _bothPlayersReachedGoal) return;
+
+    setState(() {
+      _bothPlayersReachedGoal = true;
+      _gameEnded = true;
+    });
+
+    debugPrint('🏆 BOTH PLAYERS WIN! Team victory!');
+
+    // Award coins to both players
+    _awardTeamVictoryCoins();
+
+    // Update Firestore with team victory result
+    _updateFirestoreTeamVictory();
+
+    _showTeamVictoryDialog();
+  }
+
+  // Award coins to both players for team victory
+  Future<void> _awardTeamVictoryCoins() async {
+    try {
+      // Award coins to current user
+      final coinService = CoinService();
+      final success = await coinService.addCoins(100);
+      if (success) {
+        final newCoins = await coinService.getCurrentUserCoins();
+        debugPrint(
+            '💰 TEAM VICTORY: User awarded 100 coins. New total: $newCoins');
+      } else {
+        debugPrint('❌ TEAM VICTORY: Failed to award coins to user');
+      }
+    } catch (e) {
+      debugPrint('❌ TEAM VICTORY: Error awarding coins to user: $e');
+    }
+  }
+
+  // Update Firestore with team victory result
+  Future<void> _updateFirestoreTeamVictory() async {
+    try {
+      await _firestore
+          .collection('duo_challenge_invites')
+          .doc(widget.inviteId)
+          .update({
+        'gameEnded': true,
+        'gameResult': 'team_victory',
+        'winner': 'both_players',
+        'winnerUsername': 'Both Players',
+        'userSteps': _steps,
+        'opponentSteps': _opponentSteps,
+        'userCoins': 100,
+        'opponentCoins': 100,
+        'matchEndTime': FieldValue.serverTimestamp(),
+        'zombieTouched': false,
+      });
+      debugPrint('✅ TEAM VICTORY: Firestore updated successfully');
+    } catch (e) {
+      debugPrint('❌ TEAM VICTORY: Error updating Firestore: $e');
+    }
+  }
+
+  // Show zombie game over dialog
+  void _showZombieGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.red[50],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '🧟 GAME OVER!',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'The zombie touched a player!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Both players lose! No coins awarded.',
+                style: TextStyle(fontSize: 16, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Returning to home in 3 seconds...',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                try {
+                  Navigator.of(context).pop(); // Close dialog
+                } catch (e) {
+                  debugPrint(
+                      '🎮 DUO CHALLENGE: Error closing zombie game over dialog: $e');
+                }
+                _returnToHome();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Back to Home'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Auto-return to home after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        try {
+          Navigator.of(context).pop(); // Close dialog
+        } catch (e) {
+          debugPrint(
+              '🎮 DUO CHALLENGE: Error auto-closing zombie game over dialog: $e');
+        }
+        _returnToHome();
+      }
+    });
+  }
+
+  // Show team victory dialog
+  void _showTeamVictoryDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.green[50],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '🏆 TEAM VICTORY!',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Both players reached 2000 steps!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '🎉 Congratulations! You both outran the zombie!',
+                style: TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: const Text(
+                  '💰 +100 Coins Each!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Returning to home in 3 seconds...',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                try {
+                  Navigator.of(context).pop(); // Close dialog
+                } catch (e) {
+                  debugPrint(
+                      '🎮 DUO CHALLENGE: Error closing team victory dialog: $e');
+                }
+                _returnToHome();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Back to Home'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Auto-return to home after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        try {
+          Navigator.of(context).pop(); // Close dialog
+        } catch (e) {
+          debugPrint(
+              '🎮 DUO CHALLENGE: Error auto-closing team victory dialog: $e');
+        }
+        _returnToHome();
+      }
+    });
   }
 
   void _checkUserWalkingWithTiming(DateTime timestamp) {
@@ -2711,6 +3140,24 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
     }
   }
 
+  Widget _buildZombieAnimation() {
+    return GameWidget(
+      game: ZombieAnimationGame(
+        onZombiePositionChanged: (position) {
+          setState(() {
+            _zombiePosition = position;
+          });
+        },
+      ),
+      loadingBuilder: (context) =>
+          const SizedBox.shrink(), // Show nothing while loading
+      errorBuilder: (context, error) {
+        debugPrint('❌ Game: Zombie animation widget error: $error');
+        return const SizedBox.shrink(); // Show nothing on error
+      },
+    );
+  }
+
   void _autoScrollToUser() {
     if (!_scrollController.hasClients) return;
 
@@ -2978,6 +3425,17 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
                         fit: BoxFit.fill,
                       );
                     }),
+                  ),
+                ),
+                // Zombie animation layer (behind characters)
+                Positioned(
+                  bottom: roadHeight -
+                      50, // Position above the path but behind characters
+                  left: 0,
+                  child: SizedBox(
+                    width: trackWidth,
+                    height: 150,
+                    child: _buildZombieAnimation(),
                   ),
                 ),
                 // Finish line marker (positioned at actual finish line location)
@@ -3651,5 +4109,133 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
     idleAnimation = null;
     walkingAnimation = null;
     super.onRemove();
+  }
+}
+
+// Zombie animation game component for background animation
+class ZombieAnimationGame extends FlameGame {
+  SpriteAnimationComponent? zombie;
+  double zombiePosition = 0.0;
+  static const double zombieSpeed = 1.0; // 1 pixel per frame for slow movement
+  bool _isLoading = false;
+  bool _loadAttempted = false;
+
+  // Callback to communicate zombie position to main game
+  final Function(double)? onZombiePositionChanged;
+
+  ZombieAnimationGame({this.onZombiePositionChanged});
+
+  @override
+  Color backgroundColor() => Colors.transparent;
+
+  @override
+  Future<void> onLoad() async {
+    // Start loading zombie animation
+    _loadZombieAnimation();
+  }
+
+  Future<void> _loadZombieAnimation() async {
+    if (_isLoading) return;
+
+    _isLoading = true;
+
+    try {
+      debugPrint('🧟 Game: Starting zombie animation load...');
+
+      // Try to load zombie animation directly from sprite sheet
+      final zombieAnimation = await _loadZombieSpriteAnimation();
+
+      if (zombieAnimation != null) {
+        zombie = SpriteAnimationComponent(
+          animation: zombieAnimation,
+          size: Vector2(150, 150), // Smaller size for background
+          anchor: Anchor.bottomCenter,
+        );
+
+        // Position zombie at the bottom center
+        zombie!.position = Vector2(size.x / 2, size.y);
+        add(zombie!);
+
+        debugPrint('🧟 Game: Zombie animation loaded successfully');
+      } else {
+        debugPrint(
+            '🧟 Game: Zombie animation loading failed - no animation created');
+        // Retry after a delay if not loaded
+        if (!_loadAttempted) {
+          _loadAttempted = true;
+          Future.delayed(const Duration(seconds: 2), () {
+            _loadZombieAnimation();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Game: Failed to load zombie animation: $e');
+      // Retry after a delay if failed
+      if (!_loadAttempted) {
+        _loadAttempted = true;
+        Future.delayed(const Duration(seconds: 2), () {
+          _loadZombieAnimation();
+        });
+      }
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<SpriteAnimation?> _loadZombieSpriteAnimation() async {
+    try {
+      // Load zombie animation directly from sprite sheet without using CharacterAnimationService
+      final jsonPath = 'images/sprite_sheets/Zombie.json';
+
+      // Load JSON data
+      final jsonStr = await assets.readFile(jsonPath);
+      final jsonData = json.decode(jsonStr);
+
+      // Load image
+      final String imageName = jsonData['meta']['image'];
+      final image = await images.load(imageName);
+
+      // Extract frame data
+      final frames = jsonData['frames'] as Map<String, dynamic>;
+      final frameKeys = frames.keys.toList()..sort();
+
+      // Create sprites for each frame (same approach as CharacterAnimationService)
+      final sprites = <Sprite>[];
+      for (final key in frameKeys) {
+        final frame = frames[key]['frame'];
+        final sprite = Sprite(
+          image,
+          srcPosition: Vector2(frame['x'].toDouble(), frame['y'].toDouble()),
+          srcSize: Vector2(frame['w'].toDouble(), frame['h'].toDouble()),
+        );
+        sprites.add(sprite);
+      }
+
+      // Create animation with slow speed (0.1 seconds per frame)
+      return SpriteAnimation.spriteList(sprites, stepTime: 0.1);
+    } catch (e) {
+      debugPrint('❌ Game: Error loading zombie sprite animation: $e');
+      return null;
+    }
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    // Move zombie slowly to the right if loaded
+    if (zombie != null) {
+      zombiePosition += zombieSpeed;
+
+      // Reset position when zombie goes off screen
+      if (zombiePosition > size.x + 150) {
+        zombiePosition = -150;
+      }
+
+      zombie!.position.x = zombiePosition;
+
+      // Notify main game of zombie position change
+      onZombiePositionChanged?.call(zombiePosition);
+    }
   }
 }

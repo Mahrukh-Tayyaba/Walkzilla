@@ -298,6 +298,13 @@ class _ZombieRunLobbyState extends State<ZombieRunLobby>
     }
   }
 
+  // Zombie animation will be loaded in the game screen to prevent crashes
+  Future<void> _preloadZombieAnimation() async {
+    // Skip zombie preloading in lobby to prevent crashes
+    // Will be loaded safely in the game screen
+    debugPrint('🧟 Lobby: Skipping zombie preload to prevent crashes');
+  }
+
   Future<void> _startGame() async {
     try {
       // Update the invite document to start the game
@@ -408,8 +415,8 @@ class _ZombieRunLobbyState extends State<ZombieRunLobby>
               if (mounted) setState(() => _showCenterAmount = true);
             });
 
-            // Preload characters after 5 seconds to allow sprite sheets to preload
-            Future.delayed(const Duration(seconds: 5), () async {
+            // Preload characters and zombie animation after 10 seconds to allow sprite sheets to preload
+            Future.delayed(const Duration(seconds: 10), () async {
               if (mounted) {
                 // Ensure we have attempted preloading for both
                 if (!_preloadedUser) {
@@ -432,6 +439,9 @@ class _ZombieRunLobbyState extends State<ZombieRunLobby>
                         .getUserCharacterData(_opponentUserId!);
                   } catch (_) {}
                 }
+
+                // Preload zombie animation for the game
+                await _preloadZombieAnimation();
 
                 // Auto-start the game
                 _startGame();
