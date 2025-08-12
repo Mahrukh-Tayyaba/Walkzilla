@@ -13,7 +13,7 @@ import 'services/username_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
 import 'services/user_login_service.dart';
-import 'services/leveling_migration_service.dart';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'main.dart' show navigatorKey;
 import 'services/notification_service.dart';
@@ -146,9 +146,6 @@ class LoginScreenState extends State<LoginScreen> {
 
         // Initialize coins for existing users who don't have coins field
         await _coinService.initializeCoinsForExistingUsers();
-
-        // Initialize leveling data for existing users who don't have leveling fields
-        await LevelingMigrationService.initializeCurrentUserLevelingData();
       }
 
       // Save FCM token if not already present or if changed

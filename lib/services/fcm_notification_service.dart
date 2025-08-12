@@ -13,6 +13,15 @@ class FCMNotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _isInitialized = false;
 
+  // Callback for zombie run invites
+  static Function(Map<String, dynamic>)? _zombieRunInviteCallback;
+
+  // Set callback for zombie run invites
+  static void setZombieRunInviteCallback(
+      Function(Map<String, dynamic>) callback) {
+    _zombieRunInviteCallback = callback;
+  }
+
   // Initialize the service
   static Future<void> initialize() async {
     if (_isInitialized) return;
@@ -56,6 +65,13 @@ class FCMNotificationService {
   // Handle foreground messages
   static void _handleForegroundMessage(RemoteMessage message) {
     print('Received foreground message: ${message.messageId}');
+    print('Message data: ${message.data}');
+
+    // Handle zombie run challenge invites specifically
+    if (message.data['type'] == 'zombie_run_challenge_invite') {
+      _handleZombieRunInvite(message.data);
+      return;
+    }
 
     if (message.notification != null) {
       _showLocalNotification(
@@ -69,6 +85,13 @@ class FCMNotificationService {
   // Handle background messages
   static void _handleBackgroundMessage(RemoteMessage message) {
     print('Received background message: ${message.messageId}');
+    print('Message data: ${message.data}');
+
+    // Handle zombie run challenge invites specifically
+    if (message.data['type'] == 'zombie_run_challenge_invite') {
+      _handleZombieRunInvite(message.data);
+      return;
+    }
 
     if (message.notification != null) {
       _showLocalNotification(
@@ -76,6 +99,24 @@ class FCMNotificationService {
         message.notification!.body ?? '',
         message.data['type'] ?? 'general',
       );
+    }
+  }
+
+  // Handle zombie run challenge invites
+  static void _handleZombieRunInvite(Map<String, dynamic> data) {
+    print('Handling zombie run challenge invite: $data');
+
+    // Get the invite data
+    final String? inviteId = data['inviteId'];
+    final String? inviterUsername = data['inviterUsername'];
+
+    if (inviteId != null && inviterUsername != null) {
+      // Trigger the ZombieRunService to show the invite dialog
+      if (_zombieRunInviteCallback != null) {
+        _zombieRunInviteCallback!(data);
+      } else {
+        print('Zombie run invite callback not set');
+      }
     }
   }
 

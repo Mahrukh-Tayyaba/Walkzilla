@@ -13,12 +13,12 @@ import 'providers/streak_provider.dart';
 // import 'health_dashboard.dart';
 import 'streaks_screen.dart';
 import 'widgets/duo_challenge_invite_dialog.dart';
-import 'services/user_document_cleanup_service.dart';
+
 import 'widgets/reward_notification_widget.dart';
 import 'services/health_service.dart';
 import 'services/coin_service.dart';
 import 'services/network_service.dart';
-import 'services/leveling_migration_service.dart';
+
 import 'services/notification_service.dart';
 import 'services/fcm_notification_service.dart';
 import 'services/friend_request_notification_service.dart';
@@ -52,16 +52,7 @@ void main() async {
       // Initialize Firebase Functions
       print('Firebase Functions initialized successfully');
 
-      // Initialize cleanup service to remove unnecessary fields from existing user documents
-      final cleanupService = UserDocumentCleanupService();
-      await cleanupService.cleanupAllUserDocuments();
-      print('User document cleanup completed');
-
       // Streak refresh disabled after initial rollout; service remains available for manual use
-
-      // Initialize challenges_won field for existing users
-      await LevelingMigrationService.initializeChallengesWonForAllUsers();
-      print('Challenges_won field initialization completed');
     } catch (e) {
       print('Error initializing Firebase: $e');
       // Continue without Firebase for now

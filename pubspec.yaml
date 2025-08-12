@@ -159,6 +159,8 @@ flutter:
     - assets/images/sprite_sheets/yellowStar_idle.png
     - assets/images/sprite_sheets/yellowStar_walking.json
     - assets/images/sprite_sheets/yellowStar_walking.png
+    - assets/images/sprite_sheets/Zombie.json
+    - assets/images/sprite_sheets/Zombie.png
     - assets/images/dragon_wingdown.png
     - assets/images/dragon_wingup.png 
     - assets/images/dragon_wingmiddle.png
@@ -173,6 +175,9 @@ flutter:
     - assets/images/20kMile.png
     - assets/images/25kMile.png
     - assets/images/path2.png
+    - assets/images/sky-zombie.png
+    - assets/images/trees-zombie.png
+    - assets/images/path-zombie.png
     - assets/gifs/ground.gif
     - assets/gifs/logo.gif
     - assets/gifs/tagline.gif

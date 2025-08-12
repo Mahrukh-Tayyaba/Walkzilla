@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'duo_challenge_invite_screen.dart';
+import 'zombie_run_invite_screen.dart';
 
 class ChallengesScreen extends StatefulWidget {
   const ChallengesScreen({super.key});
@@ -52,13 +53,9 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   }
 
   void _handleZombieRun() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Zombie Run Challenge!'),
-        backgroundColor: const Color(0xFF4CAF50),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ZombieRunInviteScreen()),
     );
   }
 
@@ -145,20 +142,19 @@ class _ChallengesScreenState extends State<ChallengesScreen>
                 // Challenge Cards
                 Expanded(
                   child: Center(
-                    child: Row(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         // Zombie Run Card
                         SizedBox(
-                          width: 170,
-                          height: 200,
+                          width: 220,
+                          height: 250,
                           child: _ChallengeCard(
                             title: 'Zombie Run',
                             icon: const Icon(
                               FontAwesomeIcons.skull,
                               color: Colors.white,
-                              size: 36,
+                              size: 45,
                             ),
                             gradient: const LinearGradient(
                               colors: [
@@ -184,17 +180,17 @@ class _ChallengesScreenState extends State<ChallengesScreen>
                             onTapCancel: () => _zombieController.reverse(),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(height: 20),
                         // Step Duel Card
                         SizedBox(
-                          width: 170,
-                          height: 200,
+                          width: 220,
+                          height: 250,
                           child: _ChallengeCard(
                             title: 'Step Duel',
                             icon: const Icon(
                               FontAwesomeIcons.khanda,
                               color: Colors.white,
-                              size: 36,
+                              size: 45,
                             ),
                             gradient: const LinearGradient(
                               colors: [

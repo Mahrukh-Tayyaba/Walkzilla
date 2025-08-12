@@ -60,9 +60,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F8FF),
+      backgroundColor: const Color(0xFFFFF1DC),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFFFF1DC),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -355,6 +355,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               ),
                             ),
                     ),
+                    const SizedBox(height: 50),
                   ],
                 );
               },
@@ -371,15 +372,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       child: Container(
         height: 38,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha((0.05 * 255).round()),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: const Color(0xFFFFFEF7),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Row(
           children: [
@@ -388,9 +383,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 onTap: () => setState(() => isDaily = true),
                 child: Container(
                   height: 30,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
                   decoration: BoxDecoration(
                     color:
-                        isDaily ? const Color(0xFF3B82F6) : Colors.transparent,
+                        isDaily ? const Color(0xFFED3E57) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,
@@ -410,9 +406,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 onTap: () => setState(() => isDaily = false),
                 child: Container(
                   height: 30,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
                   decoration: BoxDecoration(
                     color:
-                        !isDaily ? const Color(0xFF3B82F6) : Colors.transparent,
+                        !isDaily ? const Color(0xFFED3E57) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   alignment: Alignment.center,
@@ -483,10 +480,19 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           backgroundColor: Colors.white,
                           child: CircleAvatar(
                             radius: 28,
-                            backgroundImage: NetworkImage(user['image'] ?? ''),
-                            onBackgroundImageError: (exception, stackTrace) {
-                              // Handle image loading error
-                            },
+                            backgroundColor: podiumColors[i],
+                            child: Text(
+                              (user['name'] as String?)?.isNotEmpty == true
+                                  ? (user['name'] as String)
+                                      .substring(0, 1)
+                                      .toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -507,10 +513,19 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                       backgroundColor: Colors.white,
                       child: CircleAvatar(
                         radius: 18,
-                        backgroundImage: NetworkImage(user['image'] ?? ''),
-                        onBackgroundImageError: (exception, stackTrace) {
-                          // Handle image loading error
-                        },
+                        backgroundColor: podiumColors[i],
+                        child: Text(
+                          (user['name'] as String?)?.isNotEmpty == true
+                              ? (user['name'] as String)
+                                  .substring(0, 1)
+                                  .toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -521,7 +536,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   height: heights[i],
                   decoration: BoxDecoration(
                     color: blockColors[i],
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -602,18 +617,11 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
+              color: const Color(0xFFFFFEF7),
+              borderRadius: BorderRadius.circular(8),
               border: isCurrentUser
                   ? Border.all(color: Colors.yellow, width: 2)
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha((0.07 * 255).round()),
-                  blurRadius: 12,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+                  : Border.all(color: Colors.grey.withOpacity(0.2)),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -629,11 +637,20 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   ),
                   const SizedBox(width: 10),
                   CircleAvatar(
-                    backgroundImage: NetworkImage(user['image'] ?? ''),
+                    backgroundColor: const Color(0xFFED3E57),
                     radius: 22,
-                    onBackgroundImageError: (exception, stackTrace) {
-                      // Handle image loading error
-                    },
+                    child: Text(
+                      (user['name'] as String?)?.isNotEmpty == true
+                          ? (user['name'] as String)
+                              .substring(0, 1)
+                              .toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(

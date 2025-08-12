@@ -10,7 +10,6 @@ import 'profile_page.dart';
 
 import 'chat_list_page.dart';
 import 'chat_detail_page.dart';
-import 'friend_profile_page.dart';
 import 'challenges_screen.dart';
 import 'streaks_screen.dart';
 import 'services/friend_service.dart';
@@ -700,44 +699,25 @@ class _FriendsPageState extends State<FriendsPage>
                     ),
                   ],
                 ),
-                Row(
-                  children: [
-                    // Search icon
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.search,
-                            color: Colors.black, size: 24),
-                        onPressed: () {},
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Add friend icon
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF03A9F4),
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.person_add,
-                            color: Colors.white, size: 26),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            barrierDismissible: true,
-                            builder: (context) => _AddFriendDialog(),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                // Add friend icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF03A9F4),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.person_add,
+                        color: Colors.white, size: 26),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: true,
+                        builder: (context) => _AddFriendDialog(),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -826,29 +806,13 @@ class _FriendsPageState extends State<FriendsPage>
                                   ),
                                 ],
                               ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      friend['displayName'],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.local_fire_department,
-                                      color: Colors.orange, size: 18),
-                                  Text(
-                                    ' ${friend['currentStreak']} days',
-                                    style: const TextStyle(
-                                        color: Colors.orange,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500),
-                                  ),
-                                ],
+                              title: Text(
+                                friend['displayName'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                               onTap: () {
                                 showModalBottomSheet(
@@ -877,37 +841,6 @@ class _FriendsPageState extends State<FriendsPage>
                                           ),
                                           ListTile(
                                             leading: const Icon(
-                                                Icons.account_circle,
-                                                color: Colors.lightBlue,
-                                                size: 28),
-                                            title: const Text('View Profile',
-                                                style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight:
-                                                        FontWeight.w500)),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      FriendProfilePage(
-                                                    name: friend['displayName'],
-                                                    avatar: friend[
-                                                            'profileImage'] ??
-                                                        '',
-                                                    steps: friend['steps']
-                                                        .toString(),
-                                                    color: Colors.orange,
-                                                    friendUserId:
-                                                        friend['userId'],
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                          ListTile(
-                                            leading: const Icon(
                                                 Icons.chat_bubble_outline,
                                                 color: Colors.lightBlue,
                                                 size: 26),
@@ -932,21 +865,6 @@ class _FriendsPageState extends State<FriendsPage>
                                                   ),
                                                 ),
                                               );
-                                            },
-                                          ),
-                                          ListTile(
-                                            leading: const Icon(
-                                                Icons.emoji_events,
-                                                color: Colors.lightBlue,
-                                                size: 26),
-                                            title: const Text('Challenge',
-                                                style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight:
-                                                        FontWeight.w500)),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              // TODO: Navigate to challenge
                                             },
                                           ),
                                           const SizedBox(height: 10),
@@ -1624,22 +1542,12 @@ class _AddFriendDialogState extends State<_AddFriendDialog> {
               ),
             ),
             const SizedBox(height: 2),
-            Row(
-              children: [
-                Icon(Icons.local_fire_department,
-                    size: 14, color: Colors.orange[400]),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    'Level ${user['level']} • ${user['currentStreak']} day streak',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+            Text(
+              'Level ${user['level']}',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
             ),
           ],
         ),

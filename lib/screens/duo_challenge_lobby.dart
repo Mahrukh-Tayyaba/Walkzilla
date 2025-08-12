@@ -43,10 +43,6 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
   Map<String, dynamic>? _preOpponentCharacterData;
   String? _opponentUserId;
 
-  // User level data
-  Map<String, dynamic>? _currentUserLevelData;
-  Map<String, dynamic>? _opponentLevelData;
-
   @override
   void initState() {
     super.initState();
@@ -58,9 +54,6 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
 
     // Derive opponent from invite document and preload immediately (works even before presence appears)
     _deriveOpponentFromInviteAndPreload();
-
-    // Fetch user level data
-    _fetchUserLevelData();
 
     _leftCoinsController = AnimationController(
       vsync: this,
@@ -90,37 +83,11 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
       if (oppId.isEmpty) return;
       _opponentUserId = oppId;
 
-      // Fetch opponent's level data
-      _opponentLevelData = await _characterDataService.getUserLevelData(oppId);
-      if (mounted) {
-        setState(() {});
-      }
-
       if (!_preloadedOpponent) {
         await _preloadOpponentCharacter(oppId);
       }
     } catch (e) {
       debugPrint('⚠️ Lobby: Failed to derive opponent from invite: $e');
-    }
-  }
-
-  Future<void> _fetchUserLevelData() async {
-    try {
-      // Fetch current user's level data
-      _currentUserLevelData =
-          await _characterDataService.getCurrentUserLevelData();
-
-      // Fetch opponent's level data if we have their ID
-      if (_opponentUserId != null) {
-        _opponentLevelData =
-            await _characterDataService.getUserLevelData(_opponentUserId!);
-      }
-
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      debugPrint('⚠️ Lobby: Failed to fetch user level data: $e');
     }
   }
 
@@ -385,20 +352,17 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
           final leftPlayer = {
             'username': 'You',
             'avatar': _auth.currentUser?.photoURL,
-            'level': _currentUserLevelData?['level'] ?? 1,
             'coins': 50,
           };
           final rightPlayer = usersPresent >= 2
               ? {
                   'username': widget.otherUsername ?? 'Friend',
                   'avatar': null,
-                  'level': _opponentLevelData?['level'] ?? 1,
                   'coins': 50,
                 }
               : {
                   'username': 'Waiting...',
                   'avatar': null,
-                  'level': 1,
                   'coins': 50,
                   'isLoading': true,
                 };
@@ -610,39 +574,6 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
                                 size: 60,
                                 color: Colors.grey[400],
                               ),
-                  ),
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.yellow[700],
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.star, size: 16, color: Colors.white),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${player['level']}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ],
               ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'friend_profile_page.dart';
 import 'services/chat_service.dart';
 import 'services/health_service.dart';
 
@@ -200,49 +199,28 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       color: Colors.black, size: 28),
                   onPressed: () => Navigator.pop(context),
                 ),
-                GestureDetector(
-                  onTap: () async {
-                    if (widget.otherUserId != null) {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FriendProfilePage(
-                            name: widget.name,
-                            avatar: widget.avatar,
-                            steps:
-                                '0', // You can pass actual steps if available
-                            color:
-                                Colors.orange, // Or use a color if you have one
-
-                            friendUserId: widget.otherUserId!,
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundImage: NetworkImage(widget.avatar),
+                      radius: 22,
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          widget.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                            color: Colors.black,
                           ),
                         ),
-                      );
-                    }
-                  },
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundImage: NetworkImage(widget.avatar),
-                        radius: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            widget.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),

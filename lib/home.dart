@@ -12,15 +12,15 @@ import 'login_screen.dart';
 import 'services/health_service.dart';
 import 'services/character_service.dart';
 import 'services/character_migration_service.dart';
-import 'services/leaderboard_migration_service.dart';
+
 import 'services/duo_challenge_service.dart';
 import 'services/coin_service.dart';
 import 'services/network_service.dart';
+import 'services/zombie_run_service.dart';
 
 import 'widgets/daily_challenge_spin.dart';
 import 'widgets/reward_notification_widget.dart';
 
-import 'services/leveling_migration_service.dart';
 import 'challenges_screen.dart';
 import 'notification_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,6 +69,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   StreamSubscription<DocumentSnapshot>?
       _userDataListener; // Listen for user data changes
   DuoChallengeService? _duoChallengeService;
+  ZombieRunService? _zombieRunService;
   StreamSubscription<QuerySnapshot>? _acceptedInviteListener;
   StreamSubscription<QuerySnapshot>? _declinedInviteListener;
   Timer? _connectionStatusTimer;
@@ -134,15 +135,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         _loadUserData();
         _startCharacterPreloading();
         _migrateCurrentUserCharacter();
-        _initializeLeaderboardData();
         _initializeDuoChallengeService();
+        _initializeZombieRunService();
         _listenPendingDuoInviteCount();
         _listenForAcceptedInvitesAsSender();
         _listenForDeclinedInvitesAsSender();
         _startCoinListener();
         _startRewardListener();
         _startConnectionStatusMonitoring();
-        _initializeLevelingData();
 
         // Check for monthly goal after a delay to ensure providers are loaded
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -534,6 +534,40 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('Error initializing duo challenge service: $e');
       _duoChallengeService = null;
+    }
+  }
+
+  void _initializeZombieRunService() {
+    try {
+      // Check if navigatorKey is available
+      if (navigatorKey.currentContext == null) {
+        debugPrint(
+            'Navigator key not ready, delaying zombie run service initialization');
+        // Retry after a short delay
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _initializeZombieRunService();
+          }
+        });
+        return;
+      }
+
+      // Initialize the zombie run service with the global navigator key
+      _zombieRunService = ZombieRunService(
+        navigatorKey: navigatorKey,
+      );
+
+      // Initialize the service and set up FCM callback
+      _zombieRunService?.initialize();
+
+      // Start listening for invites
+      _zombieRunService?.startListeningForInvites();
+
+      // Check for existing pending invites
+      _zombieRunService?.checkForExistingInvites();
+    } catch (e) {
+      debugPrint('Error initializing zombie run service: $e');
+      _zombieRunService = null;
     }
   }
 
@@ -1806,14 +1840,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     });
   }
 
-  void _initializeLeaderboardData() {
-    LeaderboardMigrationService()
-        .initializeUserLeaderboardData(_auth.currentUser?.uid ?? '')
-        .catchError((error) {
-      debugPrint('Failed to initialize leaderboard data: $error');
-    });
-  }
-
   void _listenForAcceptedInvitesAsSender() {
     // Don't start listeners if logging out
     if (_isLoggingOut) {
@@ -1954,6 +1980,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _weeklyRewardListener?.cancel(); // Cancel weekly reward listener
     _dailyRewardListener?.cancel(); // Cancel daily reward listener
     _duoChallengeService?.stopListeningForInvites();
+    _zombieRunService?.stopListeningForInvites();
     _healthService.stopRealTimeStepMonitoring();
     _connectionStatusTimer?.cancel();
 
@@ -1965,6 +1992,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     _weeklyRewardListener = null; // Clear weekly reward listener
     _dailyRewardListener = null; // Clear daily reward listener
     _duoChallengeService = null;
+    _zombieRunService = null;
     _userDataListenerStarted = false; // Reset listener flag
 
     debugPrint('🧹 Home screen disposed - all connections cleaned up');
@@ -2903,16 +2931,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
         ),
       );
-    }
-  }
-
-  // Initialize leveling data for current user
-  void _initializeLevelingData() async {
-    try {
-      await LevelingMigrationService.initializeCurrentUserLevelingData();
-      debugPrint('✅ Leveling data initialization completed');
-    } catch (e) {
-      debugPrint('❌ Error initializing leveling data: $e');
     }
   }
 
