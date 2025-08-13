@@ -157,14 +157,6 @@ class _ChallengesScreenState extends State<ChallengesScreen>
             Navigator.pop(context);
           },
         ),
-        title: const Text(
-          'Challenges',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -302,6 +294,9 @@ class _ChallengesScreenState extends State<ChallengesScreen>
                             isLocked: true,
                           ),
                         ),
+                        const SizedBox(
+                            height:
+                                20), // Add bottom spacing to prevent overflow
                       ],
                     ),
                   ),

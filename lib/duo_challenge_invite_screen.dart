@@ -45,8 +45,8 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        title: const Text('Invite Friend to Duo Challenge',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: const Text('Invite Friend to Step Duel',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black,
