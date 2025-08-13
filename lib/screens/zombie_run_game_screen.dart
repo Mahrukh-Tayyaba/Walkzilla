@@ -1,5 +1,4 @@
 import 'dart:async' as async;
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -47,7 +46,8 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
 
   // Step-based racing system variables
   double _userPosition = 200.0; // Start characters in visible area
-  double _opponentPosition = 200.0; // Start characters in visible area
+  double _opponentPosition =
+      210.0; // Start opponent at 210m for better visibility
   bool _isUserWalking = false;
   bool _isOpponentWalking = false;
   final ScrollController _scrollController = ScrollController();
@@ -180,7 +180,9 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
 
     // Start presence heartbeat every 10 seconds
     _presenceTimer = async.Timer.periodic(const Duration(seconds: 10), (_) {
-      _pingPresence();
+      if (mounted) {
+        _pingPresence();
+      }
     });
 
     // Immediate presence ping so presence map exists right away
@@ -277,14 +279,16 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
         _userRawSteps = currentDeviceSteps;
 
         // For first player, create a placeholder opponent immediately
-        setState(() {
-          _otherPlayerId = 'waiting_for_opponent';
-          _opponentPosition = 200.0;
-          _opponentSteps = 0; // Initialize to zero
-          _isOpponentWalking = false;
-          _steps = 0; // Ensure user steps start at zero
-          _previousSteps = 0; // Ensure previous steps start at zero
-        });
+        if (mounted) {
+          setState(() {
+            _otherPlayerId = 'waiting_for_opponent';
+            _opponentPosition = 200.0;
+            _opponentSteps = 0; // Initialize to zero
+            _isOpponentWalking = false;
+            _steps = 0; // Ensure user steps start at zero
+            _previousSteps = 0; // Ensure previous steps start at zero
+          });
+        }
         debugPrint(
             '👥 DUO CHALLENGE: First player - created placeholder opponent');
         debugPrint(
@@ -350,9 +354,11 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
         debugPrint(
             '🔄 DUO CHALLENGE: Step counter baseline reset when joining ongoing match');
 
-        setState(() {
-          _matchStarted = true;
-        });
+        if (mounted) {
+          setState(() {
+            _matchStarted = true;
+          });
+        }
       }
 
       // Load opponent's initial step count if available
@@ -460,9 +466,11 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
   void _showMatchStartDialog() {
     if (_showingMatchStartDialog) return;
 
-    setState(() {
-      _showingMatchStartDialog = true;
-    });
+    if (mounted) {
+      setState(() {
+        _showingMatchStartDialog = true;
+      });
+    }
 
     showDialog(
       context: context,
@@ -1142,13 +1150,23 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
             _showWaitingForOpponent = true;
             _opponentWaitTimer =
                 async.Timer.periodic(const Duration(seconds: 1), (t) async {
-              if (!mounted) return;
-              setState(() => _waitingSecondsLeft--);
+              if (!mounted) {
+                t.cancel();
+                return;
+              }
+
+              if (mounted) {
+                setState(() => _waitingSecondsLeft--);
+              }
+
               // Check if opponent came back
               final snap = await _firestore
                   .collection('duo_challenge_invites')
                   .doc(widget.inviteId)
                   .get();
+
+              if (!mounted) return;
+
               final p =
                   (snap.data()?['presence'] as Map<String, dynamic>?) ?? {};
               final op = (p[otherId] as Map<String, dynamic>?) ?? {};
@@ -1156,6 +1174,7 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
               final ls = ts?.toDate();
               final backOnline =
                   ls != null && DateTime.now().difference(ls).inSeconds <= 10;
+
               if (backOnline) {
                 t.cancel();
                 _opponentWaitTimer = null;
@@ -1164,6 +1183,9 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
                 t.cancel();
                 _opponentWaitTimer = null;
                 if (mounted) setState(() => _showWaitingForOpponent = false);
+
+                if (!mounted) return;
+
                 // Forfeit win to user
                 await _firestore
                     .collection('duo_challenge_invites')
@@ -1180,7 +1202,10 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
                   'winnerCoins': 100,
                   'matchEndTime': FieldValue.serverTimestamp(),
                 }, SetOptions(merge: true));
-                _handleUserWin();
+
+                if (mounted) {
+                  _handleUserWin();
+                }
               }
             });
           }
@@ -3141,6 +3166,7 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
   }
 
   Widget _buildZombieAnimation() {
+    debugPrint('🧟 Game: Building zombie animation widget');
     return GameWidget(
       game: ZombieAnimationGame(
         onZombiePositionChanged: (position) {
@@ -3149,11 +3175,29 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
           });
         },
       ),
-      loadingBuilder: (context) =>
-          const SizedBox.shrink(), // Show nothing while loading
+      loadingBuilder: (context) {
+        debugPrint('🧟 Game: Zombie animation widget is loading');
+        return Container(
+          width: 200,
+          height: 200,
+          child: Image.asset(
+            'assets/images/ZOMBIE.png',
+            width: 200,
+            height: 200,
+            fit: BoxFit.contain,
+          ),
+        );
+      },
       errorBuilder: (context, error) {
         debugPrint('❌ Game: Zombie animation widget error: $error');
-        return const SizedBox.shrink(); // Show nothing on error
+        return Container(
+          width: 200,
+          height: 200,
+          color: Colors.orange,
+          child: const Center(
+            child: Text('❌', style: TextStyle(fontSize: 20)),
+          ), // Show orange box with error symbol on error
+        );
       },
     );
   }
@@ -3281,7 +3325,7 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Duo Challenge Race'),
+        title: const Text('Zombie Run'),
         backgroundColor: const Color(0xFF7C4DFF),
         automaticallyImplyLeading: false,
         leading: IconButton(
@@ -3427,14 +3471,14 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
                     }),
                   ),
                 ),
-                // Zombie animation layer (behind characters)
+                // Zombie animation layer (behind characters) - positioned on left side
                 Positioned(
                   bottom: roadHeight -
-                      50, // Position above the path but behind characters
-                  left: 0,
+                      40, // Position above the path but behind characters (moved up 10px)
+                  left: 0, // Start from left side
                   child: SizedBox(
-                    width: trackWidth,
-                    height: 150,
+                    width: 200,
+                    height: 200,
                     child: _buildZombieAnimation(),
                   ),
                 ),
@@ -3468,7 +3512,7 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
                       (characterWidth / 2), // Position based on track location
                   top: roadTopY -
                       characterHeight +
-                      20, // Positioned exactly on top of path (feet touching)
+                      45, // Positioned exactly on top of path (feet touching) - moved down 25px
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
@@ -3496,7 +3540,7 @@ class _ZombieRunGameScreenState extends State<ZombieRunGameScreen>
                       (characterWidth / 2), // Positioned exactly on top of path
                   top: roadTopY -
                       characterHeight +
-                      20, // Positioned exactly on top of path (feet touching)
+                      45, // Positioned exactly on top of path (feet touching) - moved down 25px
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
@@ -4114,11 +4158,10 @@ class Character extends SpriteAnimationComponent with KeyboardHandler {
 
 // Zombie animation game component for background animation
 class ZombieAnimationGame extends FlameGame {
-  SpriteAnimationComponent? zombie;
-  double zombiePosition = 0.0;
+  Widget? zombie;
+  double zombiePosition = 0.0; // Start zombie at 0m (left side)
   static const double zombieSpeed = 1.0; // 1 pixel per frame for slow movement
   bool _isLoading = false;
-  bool _loadAttempted = false;
 
   // Callback to communicate zombie position to main game
   final Function(double)? onZombiePositionChanged;
@@ -4130,92 +4173,33 @@ class ZombieAnimationGame extends FlameGame {
 
   @override
   Future<void> onLoad() async {
-    // Start loading zombie animation
-    _loadZombieAnimation();
+    // Start loading zombie image
+    _loadZombieImage();
   }
 
-  Future<void> _loadZombieAnimation() async {
+  Future<void> _loadZombieImage() async {
     if (_isLoading) return;
 
     _isLoading = true;
 
     try {
-      debugPrint('🧟 Game: Starting zombie animation load...');
+      debugPrint('🧟 Game: Starting zombie image load...');
+      debugPrint('🧟 Game: Using Image.asset for ZOMBIE.png...');
 
-      // Try to load zombie animation directly from sprite sheet
-      final zombieAnimation = await _loadZombieSpriteAnimation();
+      // Use Image.asset instead of Flame engine sprite loading
+      zombie = Image.asset(
+        'assets/images/ZOMBIE.png',
+        width: 200,
+        height: 200,
+        fit: BoxFit.contain,
+      );
 
-      if (zombieAnimation != null) {
-        zombie = SpriteAnimationComponent(
-          animation: zombieAnimation,
-          size: Vector2(150, 150), // Smaller size for background
-          anchor: Anchor.bottomCenter,
-        );
-
-        // Position zombie at the bottom center
-        zombie!.position = Vector2(size.x / 2, size.y);
-        add(zombie!);
-
-        debugPrint('🧟 Game: Zombie animation loaded successfully');
-      } else {
-        debugPrint(
-            '🧟 Game: Zombie animation loading failed - no animation created');
-        // Retry after a delay if not loaded
-        if (!_loadAttempted) {
-          _loadAttempted = true;
-          Future.delayed(const Duration(seconds: 2), () {
-            _loadZombieAnimation();
-          });
-        }
-      }
+      debugPrint('🧟 Game: Zombie image loaded successfully with Image.asset');
     } catch (e) {
-      debugPrint('❌ Game: Failed to load zombie animation: $e');
-      // Retry after a delay if failed
-      if (!_loadAttempted) {
-        _loadAttempted = true;
-        Future.delayed(const Duration(seconds: 2), () {
-          _loadZombieAnimation();
-        });
-      }
+      debugPrint('❌ Game: Failed to load zombie image: $e');
+      debugPrint('❌ Game: Error details: ${e.toString()}');
     } finally {
       _isLoading = false;
-    }
-  }
-
-  Future<SpriteAnimation?> _loadZombieSpriteAnimation() async {
-    try {
-      // Load zombie animation directly from sprite sheet without using CharacterAnimationService
-      final jsonPath = 'images/sprite_sheets/Zombie.json';
-
-      // Load JSON data
-      final jsonStr = await assets.readFile(jsonPath);
-      final jsonData = json.decode(jsonStr);
-
-      // Load image
-      final String imageName = jsonData['meta']['image'];
-      final image = await images.load(imageName);
-
-      // Extract frame data
-      final frames = jsonData['frames'] as Map<String, dynamic>;
-      final frameKeys = frames.keys.toList()..sort();
-
-      // Create sprites for each frame (same approach as CharacterAnimationService)
-      final sprites = <Sprite>[];
-      for (final key in frameKeys) {
-        final frame = frames[key]['frame'];
-        final sprite = Sprite(
-          image,
-          srcPosition: Vector2(frame['x'].toDouble(), frame['y'].toDouble()),
-          srcSize: Vector2(frame['w'].toDouble(), frame['h'].toDouble()),
-        );
-        sprites.add(sprite);
-      }
-
-      // Create animation with slow speed (0.1 seconds per frame)
-      return SpriteAnimation.spriteList(sprites, stepTime: 0.1);
-    } catch (e) {
-      debugPrint('❌ Game: Error loading zombie sprite animation: $e');
-      return null;
     }
   }
 
@@ -4223,19 +4207,16 @@ class ZombieAnimationGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
 
-    // Move zombie slowly to the right if loaded
-    if (zombie != null) {
-      zombiePosition += zombieSpeed;
+    // Update logical position for collision detection
+    zombiePosition += zombieSpeed;
 
-      // Reset position when zombie goes off screen
-      if (zombiePosition > size.x + 150) {
-        zombiePosition = -150;
-      }
-
-      zombie!.position.x = zombiePosition;
-
-      // Notify main game of zombie position change
-      onZombiePositionChanged?.call(zombiePosition);
+    // Reset zombie position when it goes off-screen to the right
+    if (zombiePosition > 1000) {
+      // Reset after moving 1000 pixels
+      zombiePosition = 0.0; // Reset logical position
     }
+
+    // Notify main game of zombie position change
+    onZombiePositionChanged?.call(zombiePosition);
   }
 }

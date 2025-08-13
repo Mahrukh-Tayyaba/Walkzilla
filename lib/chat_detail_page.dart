@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/chat_service.dart';
 import 'services/health_service.dart';
+import 'utils/user_avatar_helper.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final String? chatId;
@@ -70,15 +71,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       });
     } catch (e) {
       print('Error sending message: $e');
-      // Show error message to user
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send message: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Error sending message
     }
   }
 
@@ -134,21 +127,14 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       try {
                         final healthService = HealthService();
                         final int steps = await healthService.fetchStepsData();
-                        final fancyMsg = "🚶‍♂️ I've walked " +
+                        final fancyMsg = "��‍♂️ I've walked " +
                             _formatSteps(steps) +
                             " steps today! 🏆";
                         setState(() {
                           _controller.text = fancyMsg;
                         });
                       } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Could not fetch steps: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
+                        // Could not fetch steps
                       }
                     },
                   ),
@@ -201,8 +187,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 ),
                 Row(
                   children: [
-                    CircleAvatar(
-                      backgroundImage: NetworkImage(widget.avatar),
+                    UserAvatarHelper.buildAvatar(
+                      userId: widget.otherUserId ?? widget.name, // Use otherUserId if available, otherwise use name
+                      displayName: widget.name,
+                      profileImage: widget.avatar,
                       radius: 22,
                     ),
                     const SizedBox(width: 12),
@@ -429,7 +417,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   ),
                   const SizedBox(width: 8),
                   CircleAvatar(
-                    backgroundColor: const Color(0xFF03A9F4),
+                    backgroundColor: const Color(0xFFed3e57),
                     radius: 22,
                     child: IconButton(
                       icon: const Icon(Icons.send, color: Colors.white),
@@ -470,7 +458,7 @@ class _ShareOption extends StatelessWidget {
               color: Color(0xFFF5FAFF),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: const Color(0xFF03A9F4), size: 32),
+            child: Icon(icon, color: const Color(0xFFed3e57), size: 32),
           ),
           const SizedBox(height: 8),
           Text(

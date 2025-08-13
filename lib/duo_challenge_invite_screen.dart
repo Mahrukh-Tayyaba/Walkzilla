@@ -8,6 +8,7 @@ import 'services/coin_service.dart';
 import 'services/duo_challenge_service.dart';
 import 'main.dart';
 import 'screens/duo_challenge_lobby.dart';
+import 'utils/user_avatar_helper.dart';
 
 class DuoChallengeInviteScreen extends StatefulWidget {
   const DuoChallengeInviteScreen({super.key});
@@ -42,18 +43,19 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
         title: const Text('Invite Friend to Duo Challenge',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black,
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFF7C4DFF),
+          labelColor: const Color(0xFFed3e57),
           unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFF7C4DFF),
+          indicatorColor: const Color(0xFFed3e57),
           tabs: const [
             Tab(icon: Icon(Icons.group_add), text: 'Invite Friends'),
             Tab(icon: Icon(Icons.inbox), text: 'Requests'),
@@ -156,26 +158,12 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                         ],
                       ),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              const Color(0xFF7C4DFF).withOpacity(0.1),
-                          child: Text(
-                            (userData['displayName'] ??
-                                        userData['username'] ??
-                                        '?')
-                                    .toString()
-                                    .isNotEmpty
-                                ? (userData['displayName'] ??
-                                        userData['username'] ??
-                                        '?')
-                                    .toString()[0]
-                                    .toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF7C4DFF)),
-                          ),
+                        leading: UserAvatarHelper.buildAvatar(
+                          userId: friend['userId'],
+                          displayName: userData['displayName'] ??
+                              userData['username'] ??
+                              'Unknown',
+                          profileImage: userData['profileImageUrl'],
                         ),
                         title: Text(
                             userData['displayName'] ??
@@ -206,7 +194,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                               )
                             : IconButton(
                                 icon: const Icon(Icons.add,
-                                    color: Color(0xFF7C4DFF)),
+                                    color: Color(0xFFed3e57)),
                                 onPressed: _isInviting
                                     ? null
                                     : () {
@@ -272,23 +260,12 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                   margin:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF7C4DFF).withOpacity(0.1),
-                      child: Text(
-                        (userData['displayName'] ?? userData['username'] ?? '?')
-                                .toString()
-                                .isNotEmpty
-                            ? (userData['displayName'] ??
-                                    userData['username'] ??
-                                    '?')
-                                .toString()[0]
-                                .toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF7C4DFF)),
-                      ),
+                    leading: UserAvatarHelper.buildAvatar(
+                      userId: data['fromUserId'],
+                      displayName: userData['displayName'] ??
+                          userData['username'] ??
+                          'Unknown',
+                      profileImage: userData['profileImageUrl'],
                     ),
                     title: Text(
                         '${userData['displayName'] ?? userData['username'] ?? 'Unknown'} invited you!',
@@ -351,7 +328,7 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C4DFF),
+                            backgroundColor: const Color(0xFFed3e57),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -481,26 +458,12 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
                           children: [
                             Stack(
                               children: [
-                                CircleAvatar(
-                                  backgroundColor:
-                                      const Color(0xFF7C4DFF).withOpacity(0.1),
-                                  child: Text(
-                                    (userData['displayName'] ??
-                                                userData['username'] ??
-                                                '?')
-                                            .toString()
-                                            .isNotEmpty
-                                        ? (userData['displayName'] ??
-                                                userData['username'] ??
-                                                '?')
-                                            .toString()[0]
-                                            .toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF7C4DFF)),
-                                  ),
+                                UserAvatarHelper.buildAvatar(
+                                  userId: data['toUserId'],
+                                  displayName: userData['displayName'] ??
+                                      userData['username'] ??
+                                      'Unknown',
+                                  profileImage: userData['profileImageUrl'],
                                 ),
                                 if (inviteCount > 1)
                                   Positioned(
@@ -638,23 +601,12 @@ class _DuoChallengeInviteScreenState extends State<DuoChallengeInviteScreen>
       duoChallengeService.listenForInviteAcceptedBySender(
           inviteDocRef.id, friendDisplayName);
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Duo challenge invite sent successfully!'),
-            backgroundColor: Color(0xFF7C4DFF)),
-      );
       // Navigate to the "Invites Sent" tab instead of going back
       if (mounted && _tabController.index != 2) {
         _tabController.animateTo(2);
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error sending invite:  [31m${e.toString()} [0m'),
-            backgroundColor: Colors.red),
-      );
+      // Error handling without snackbar
     } finally {
       if (mounted) {
         setState(() {

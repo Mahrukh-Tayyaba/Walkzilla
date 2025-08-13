@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'chat_detail_page.dart';
 import 'services/friend_service.dart';
+import 'utils/user_avatar_helper.dart';
 
 class NewChatScreen extends StatefulWidget {
   const NewChatScreen({super.key});
@@ -63,7 +64,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
                   child: Text(
                     'Start New Chat',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
@@ -229,14 +230,12 @@ class _NewChatScreenState extends State<NewChatScreen> {
                             horizontal: 20, vertical: 8),
                         leading: Stack(
                           children: [
-                            CircleAvatar(
-                              backgroundImage: friend['profileImage'] != null
-                                  ? NetworkImage(friend['profileImage'])
-                                  : null,
-                              radius: 28,
-                              child: friend['profileImage'] == null
-                                  ? const Icon(Icons.person, size: 28)
-                                  : null,
+                            UserAvatarHelper.buildAvatar(
+                              userId: friend['userId'],
+                              displayName: friend['displayName'] ??
+                                  friend['username'] ??
+                                  'Unknown',
+                              profileImage: friend['profileImage'],
                             ),
                           ],
                         ),
@@ -252,7 +251,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
                         ),
                         trailing: const Icon(
                           Icons.chat_bubble_outline,
-                          color: Color(0xFF03A9F4),
+                          color: Color(0xFFed3e57),
                           size: 24,
                         ),
                         onTap: () => _startChat(friend),

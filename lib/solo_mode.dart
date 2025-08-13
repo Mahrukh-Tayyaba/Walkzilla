@@ -844,17 +844,12 @@ class _SoloModeState extends State<SoloMode> {
         elevation: 0,
         titleSpacing: 0,
         automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new),
-              onPressed: () => Navigator.of(context).pop(),
-              splashRadius: 20,
-              color: Colors.black,
-              padding: const EdgeInsets.only(left: 8, right: 4),
-              constraints: const BoxConstraints(),
-            ),
-          ],
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios, size: 24, color: Colors.black54),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
       ),
       body: _isLoading

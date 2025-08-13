@@ -86,9 +86,9 @@ class _DistanceScreenState extends State<DistanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF1DC),
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF1DC),
+        backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new,

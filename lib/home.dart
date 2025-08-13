@@ -411,26 +411,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                               try {
                                 stepGoalProvider.setCurrentMonthGoal(stepGoal);
                                 Navigator.of(context).pop();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(hasCurrentGoal
-                                        ? 'Monthly goal updated!'
-                                        : 'Monthly goal set successfully!'),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                );
+                                // Goal set/updated successfully
                               } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(e
-                                        .toString()
-                                        .replaceAll('Exception: ', '')),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                                // Error occurred while setting goal
                               }
                             },
                             style: ElevatedButton.styleFrom(
@@ -492,19 +475,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   /// Show connection warning
   void _showConnectionWarning() {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Connection lost. Trying to reconnect...'),
-          backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Retry',
-            onPressed: () => _networkService.forceReconnect(),
-          ),
-        ),
-      );
-    }
+    // SnackBar removed
   }
 
   void _initializeDuoChallengeService() {
@@ -798,39 +769,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   // Add user feedback methods
   void _showSuccessMessage(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    // SnackBar removed
   }
 
   void _showWarningMessage(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
+    // SnackBar removed
   }
 
   void _showInfoMessage(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.blue,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    // SnackBar removed
   }
 
   // Show sync help dialog
@@ -973,18 +920,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   // Show step increase notification
   void _showStepIncreaseNotification(int stepIncrease) {
-    if (mounted) {
-      // Show a subtle notification for step increases
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('+$stepIncrease steps! 🚶‍♂️'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(8),
-        ),
-      );
-    }
+    // Step increase notification removed
   }
 
   Future<void> _fetchStepsData() async {
@@ -1673,12 +1609,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         setState(() {
           _isLoggingOut = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error signing out: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Error signing out
       }
     }
   }
@@ -2443,12 +2374,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   onLongPress: () {
                     // Manual refresh on long press
                     _loadUserData();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Refreshing user data...'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
+                    // Refreshing user data
                   },
                   child: Row(
                     children: [
@@ -2916,22 +2842,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   // Add a method to show debug messages
   void _showDebugMessage(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.blue,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Copy',
-            onPressed: () {
-              // You can add clipboard functionality here
-              debugPrint("Debug message: $message");
-            },
-          ),
-        ),
-      );
-    }
+    // Debug message display removed
   }
 
   // Add a method to check Health Connect availability

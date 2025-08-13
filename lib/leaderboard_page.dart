@@ -60,9 +60,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF1DC),
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF1DC),
+        backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -73,7 +73,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
-            fontSize: 28,
+            fontSize: 24,
           ),
         ),
         centerTitle: false,

@@ -130,19 +130,20 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
       screenSize.width * 0.85,
       screenSize.height * 0.5,
     );
-    // Padding values
-    final double initialTopPadding = screenSize.height * 0.18;
-    final double resultTopPadding = screenSize.height * 0.05;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF1DC),
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF1DC),
+        backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: Colors.black87, size: 20),
-          onPressed: () => Navigator.pop(context),
+          icon:
+              const Icon(Icons.arrow_back_ios, size: 24, color: Colors.black54),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
         title: const Text(
           'Daily Challenge',
@@ -154,190 +155,191 @@ class _DailyChallengeSpinState extends State<DailyChallengeSpin>
         ),
       ),
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            // Headline and subtitle at the top, only before spinning
-            if (!_showResult) ...[
-              const Padding(
-                padding: EdgeInsets.only(top: 40.0, left: 0, right: 0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Spin the wheel!',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        textAlign: TextAlign.center,
+            // The main area always fills the screen. We overlay the header text (pre-spin)
+            // and animate the wheel between center (pre-spin) and top (post-spin).
+            Expanded(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Wheel — animates to top after result is shown
+                  AnimatedAlign(
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeInOutBack,
+                    alignment:
+                        _showResult ? Alignment.topCenter : Alignment.center,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: _showResult ? 40.0 : 0.0),
+                      child: _buildWheel(wheelSize),
+                    ),
+                  ),
+
+                  // The two lines of text — only visible BEFORE the spin result.
+                  if (!_showResult)
+                    const Positioned(
+                      top: 40.0,
+                      left: 20.0,
+                      right: 20.0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Spin the wheel!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'to play a fun mini-game and earn extra points!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        'to play a fun mini-game and earn extra points!',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.black54,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                    ),
+                ],
+              ),
+            ),
+
+            // Result section — only visible AFTER the spin result.
+            if (_showResult && _resultIndex != null) ...[
+              const SizedBox(height: 20),
+              const Text(
+                'You got:',
+                style: TextStyle(
+                  fontSize: 24,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${_games[_resultIndex!]['line1']} ${_games[_resultIndex!]['line2']}',
+                style: TextStyle(
+                  fontSize: 32,
+                  color: _games[_resultIndex!]['color'],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: 200,
+                child: ElevatedButton(
+                  onPressed: _navigateToGame,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _games[_resultIndex!]['color'],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    'Play Now',
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
-            // AnimatedAlign for the wheel
-            AnimatedAlign(
-              duration: const Duration(milliseconds: 700),
-              curve: Curves.easeInOutBack,
-              alignment: _showResult ? Alignment.topCenter : Alignment.center,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: _showResult ? 40.0 : 0.0,
-                ),
-                child: Container(
-                  width: wheelSize,
-                  height: wheelSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.18),
-                        blurRadius: 24,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWheel(double wheelSize) {
+    return Container(
+      width: wheelSize,
+      height: wheelSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
+            spreadRadius: 2,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Wheel
+          AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              final double angle = _spinTween == null
+                  ? _currentAngle
+                  : _spinTween!.evaluate(_animation);
+              return Transform.rotate(
+                angle: angle,
+                child: CustomPaint(
+                  size: Size(wheelSize, wheelSize),
+                  painter: WheelPainter(
+                    segments: _games,
+                    textScale: 0.8,
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Wheel
-                      AnimatedBuilder(
-                        animation: _animation,
-                        builder: (context, child) {
-                          final double angle = _spinTween == null
-                              ? _currentAngle
-                              : _spinTween!.evaluate(_animation);
-                          return Transform.rotate(
-                            angle: angle,
-                            child: CustomPaint(
-                              size: Size(wheelSize, wheelSize),
-                              painter: WheelPainter(
-                                segments: _games,
-                                textScale: 0.8,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      // White triangle pointer above the center circle
-                      Positioned(
-                        top: (wheelSize / 2) - 48,
-                        child: CustomPaint(
-                          size: const Size(36, 28),
-                          painter: WhiteTrianglePointerPainter(),
-                        ),
-                      ),
-                      // Center Button (white circle)
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 10,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _startSpin,
-                            customBorder: const CircleBorder(),
-                            child: Center(
-                              child: Text(
-                                'SPIN',
-                                style: TextStyle(
-                                  color: const Color(0xFF3B82F6),
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                ),
+              );
+            },
+          ),
+          // White triangle pointer above the center circle
+          Positioned(
+            top: (wheelSize / 2) - 48,
+            child: CustomPaint(
+              size: const Size(36, 28),
+              painter: WhiteTrianglePointerPainter(),
+            ),
+          ),
+          // Center Button (white circle)
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _startSpin,
+                customBorder: const CircleBorder(),
+                child: const Center(
+                  child: Text(
+                    'SPIN',
+                    style: TextStyle(
+                      color: Color(0xFF3B82F6),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
             ),
-            // Show result at the bottom if spin is done
-            if (_showResult && _resultIndex != null)
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 32.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'You got:',
-                        style: TextStyle(
-                          fontSize: 24,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${_games[_resultIndex!]['line1']} ${_games[_resultIndex!]['line2']}',
-                        style: TextStyle(
-                          fontSize: 32,
-                          color: _games[_resultIndex!]['color'],
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Center(
-                        child: SizedBox(
-                          width: 200,
-                          child: ElevatedButton(
-                            onPressed: _navigateToGame,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _games[_resultIndex!]['color'],
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 0, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: const Text(
-                              'Play Now',
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -365,7 +367,7 @@ class WheelPainter extends CustomPainter {
 
       // Draw segment
       final paint = Paint()
-        ..color = color.withOpacity(0.6)
+        ..color = color.withValues(alpha: 0.6)
         ..style = PaintingStyle.fill;
 
       canvas.drawArc(

@@ -3836,27 +3836,11 @@ class HealthService {
               .update({'hasHealthPermissions': true});
         }
 
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Permissions granted! You should now see Steps, Distance, and Total Calories.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+        // Permissions granted successfully
       } else {
         debugPrint("❌ Fresh permission request denied");
 
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Permission request was denied. Please try again or check Health Connect settings.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+        // Permission request denied
       }
     } catch (e) {
       debugPrint("❌ Error requesting fresh permissions: $e");
@@ -3866,14 +3850,7 @@ class HealthService {
         Navigator.pop(context);
       }
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Error occurred during permission request
     }
   }
 }

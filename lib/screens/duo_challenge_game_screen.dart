@@ -631,7 +631,7 @@ class _DuoChallengeGameScreenState extends State<DuoChallengeGameScreen>
                     style: const TextStyle(
                       fontSize: 72,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF7C4DFF),
+                      color: Colors.blue,
                     ),
                   ),
                 ),

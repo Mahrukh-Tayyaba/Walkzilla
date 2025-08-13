@@ -9,7 +9,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F4F4), // Already set to F7F4F4
+      backgroundColor: const Color(0xFFFFF6E9), // Updated to match app theme
       body: Padding(
         padding:
             const EdgeInsets.only(bottom: 100), // This will shift everything up

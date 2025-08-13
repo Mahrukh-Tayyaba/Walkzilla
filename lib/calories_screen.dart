@@ -98,10 +98,10 @@ class _CaloriesScreenState extends State<CaloriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: const Key('calories_screen_scaffold'),
-      backgroundColor: const Color(0xFFFFF1DC),
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
         key: const Key('calories_screen_appbar'),
-        backgroundColor: const Color(0xFFFFF1DC),
+        backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new,

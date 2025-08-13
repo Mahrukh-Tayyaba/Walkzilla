@@ -18,22 +18,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: "Meet Walkzilla",
       description:
           "Your friendly walking companion to keep you motivated every day",
-      iconType: OnboardingIconType.dino,
-      iconColor: Color(0xFF4CAF50),
+      imageAsset: "assets/images/1.png",
       backgroundColor: Color(0xFF4CAF50),
     ),
     OnboardingPage(
       title: "Track Your Steps",
       description: "Monitor your daily steps and build healthy walking habits",
-      iconType: OnboardingIconType.trex,
-      iconColor: Color(0xFF2196F3),
+      imageAsset: "assets/images/2.png",
       backgroundColor: Color(0xFF2196F3),
     ),
     OnboardingPage(
       title: "Challenge Friends",
       description: "Connect with friends and compete in fun walking challenges",
-      iconType: OnboardingIconType.bone,
-      iconColor: Color(0xFF9C27B0),
+      imageAsset: "assets/images/3.png",
       backgroundColor: Color(0xFF9C27B0),
     ),
   ];
@@ -155,32 +152,47 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: const EdgeInsets.all(20.0),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _nextPage,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF424242),
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFEB14C), Color(0xFFFF9A0E)],
                     ),
-                    elevation: 0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _currentPage == _pages.length - 1
-                            ? 'Get Started'
-                            : 'Continue',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xFFFEB14C).withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
                       ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward, size: 20),
                     ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _nextPage,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _currentPage == _pages.length - 1
+                              ? 'Get Started'
+                              : 'Continue',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward, size: 20),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -248,7 +260,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ],
                 ),
-                child: _buildIcon(page.iconType, Colors.white),
+                child: ClipOval(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Image.asset(
+                      page.imageAsset,
+                      fit: BoxFit.contain,
+                      width: 160,
+                      height: 160,
+                    ),
+                  ),
+                ),
               ),
 
               SizedBox(height: 40),
@@ -257,7 +279,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Text(
                 page.title,
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF424242),
                 ),
@@ -282,198 +304,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ],
     );
   }
-
-  Widget _buildIcon(OnboardingIconType iconType, Color color) {
-    switch (iconType) {
-      case OnboardingIconType.dino:
-        return _buildDinoIcon(color);
-      case OnboardingIconType.trex:
-        return _buildTrexIcon(color);
-      case OnboardingIconType.bone:
-        return _buildBoneIcon(color);
-    }
-  }
-
-  Widget _buildDinoIcon(Color color) {
-    return CustomPaint(
-      size: Size(120, 120),
-      painter: DinoPainter(color),
-    );
-  }
-
-  Widget _buildTrexIcon(Color color) {
-    return CustomPaint(
-      size: Size(120, 120),
-      painter: TrexPainter(color),
-    );
-  }
-
-  Widget _buildBoneIcon(Color color) {
-    return CustomPaint(
-      size: Size(120, 120),
-      painter: BonePainter(color),
-    );
-  }
-}
-
-class DinoPainter extends CustomPainter {
-  final Color color;
-
-  DinoPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    // Draw a simple dinosaur shape
-    final path = Path();
-    path.moveTo(size.width * 0.3, size.height * 0.7);
-    path.lineTo(size.width * 0.2, size.height * 0.6);
-    path.lineTo(size.width * 0.15, size.height * 0.5);
-    path.lineTo(size.width * 0.2, size.height * 0.4);
-    path.lineTo(size.width * 0.3, size.height * 0.3);
-    path.lineTo(size.width * 0.5, size.height * 0.25);
-    path.lineTo(size.width * 0.7, size.height * 0.3);
-    path.lineTo(size.width * 0.8, size.height * 0.4);
-    path.lineTo(size.width * 0.85, size.height * 0.5);
-    path.lineTo(size.width * 0.8, size.height * 0.6);
-    path.lineTo(size.width * 0.7, size.height * 0.7);
-    path.close();
-
-    canvas.drawPath(path, paint);
-
-    // Draw eyes
-    final eyePaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(size.width * 0.35, size.height * 0.35),
-      size.width * 0.03,
-      eyePaint,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.45, size.height * 0.35),
-      size.width * 0.03,
-      eyePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class TrexPainter extends CustomPainter {
-  final Color color;
-
-  TrexPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    // Draw a T-Rex shape
-    final path = Path();
-    path.moveTo(size.width * 0.2, size.height * 0.6);
-    path.lineTo(size.width * 0.15, size.height * 0.5);
-    path.lineTo(size.width * 0.2, size.height * 0.4);
-    path.lineTo(size.width * 0.3, size.height * 0.35);
-    path.lineTo(size.width * 0.5, size.height * 0.3);
-    path.lineTo(size.width * 0.7, size.height * 0.35);
-    path.lineTo(size.width * 0.8, size.height * 0.4);
-    path.lineTo(size.width * 0.85, size.height * 0.5);
-    path.lineTo(size.width * 0.8, size.height * 0.6);
-    path.lineTo(size.width * 0.7, size.height * 0.65);
-    path.lineTo(size.width * 0.5, size.height * 0.7);
-    path.lineTo(size.width * 0.3, size.height * 0.65);
-    path.close();
-
-    canvas.drawPath(path, paint);
-
-    // Draw eyes
-    final eyePaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(size.width * 0.35, size.height * 0.4),
-      size.width * 0.02,
-      eyePaint,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.45, size.height * 0.4),
-      size.width * 0.02,
-      eyePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class BonePainter extends CustomPainter {
-  final Color color;
-
-  BonePainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    // Draw bone shape
-    final path = Path();
-    path.moveTo(size.width * 0.3, size.height * 0.4);
-    path.lineTo(size.width * 0.4, size.height * 0.35);
-    path.lineTo(size.width * 0.45, size.height * 0.4);
-    path.lineTo(size.width * 0.55, size.height * 0.4);
-    path.lineTo(size.width * 0.6, size.height * 0.35);
-    path.lineTo(size.width * 0.7, size.height * 0.4);
-    path.lineTo(size.width * 0.7, size.height * 0.6);
-    path.lineTo(size.width * 0.6, size.height * 0.65);
-    path.lineTo(size.width * 0.55, size.height * 0.6);
-    path.lineTo(size.width * 0.45, size.height * 0.6);
-    path.lineTo(size.width * 0.4, size.height * 0.65);
-    path.lineTo(size.width * 0.3, size.height * 0.6);
-    path.close();
-
-    canvas.drawPath(path, paint);
-
-    // Add shadow
-    final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.1)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(path.shift(Offset(2, 2)), shadowPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-enum OnboardingIconType {
-  dino,
-  trex,
-  bone,
 }
 
 class OnboardingPage {
   final String title;
   final String description;
-  final OnboardingIconType iconType;
-  final Color iconColor;
+  final String imageAsset;
   final Color backgroundColor;
 
   OnboardingPage({
     required this.title,
     required this.description,
-    required this.iconType,
-    required this.iconColor,
+    required this.imageAsset,
     required this.backgroundColor,
   });
 }

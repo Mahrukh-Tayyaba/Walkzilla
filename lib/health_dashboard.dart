@@ -133,17 +133,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
           _distance = 0.0;
         });
 
-        // Show error message to user
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-                'Failed to load health data. Please check permissions.'),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: () => fetchHealthData(),
-            ),
-          ),
-        );
+        // Error handling without snackbar
       }
     }
   }
@@ -388,27 +378,9 @@ class _HealthDashboardState extends State<HealthDashboard> {
                             // Update streak after goal change
                             await _updateStreakIfNeeded(_steps);
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Monthly step goal set!'),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            );
+                            // Goal set successfully without snackbar
                           } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    e.toString().replaceAll('Exception: ', '')),
-                                backgroundColor: Colors.red,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            );
+                            // Error handling without snackbar
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -441,23 +413,28 @@ class _HealthDashboardState extends State<HealthDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF1DC),
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF1DC),
+        backgroundColor: const Color(0xFFFFF6E9),
         // elevation: 2,
         shadowColor: Colors.black.withOpacity(0.1),
         centerTitle: false,
+        automaticallyImplyLeading: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: Colors.black87, size: 20),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios, size: 24, color: Colors.black54),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
-        title: const Text(
-          'Dashboard',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
+        title: const Padding(
+          padding: EdgeInsets.only(left: 16.0),
+          child: Text(
+            'Dashboard',
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -509,7 +486,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
                 _buildDailyStreak(),
                 const SizedBox(height: 20),
                 _buildGoalSection(),
-                const SizedBox(height: 50),
+                const SizedBox(height: 30),
               ],
             ),
           ),
@@ -531,7 +508,7 @@ class _HealthDashboardState extends State<HealthDashboard> {
       ),
       child: Container(
         height: 80,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: dates.map((date) {
@@ -539,13 +516,11 @@ class _HealthDashboardState extends State<HealthDashboard> {
             final dayName = DateFormat('E').format(date);
             final dayNum = date.day.toString();
 
-            return Flexible(
+            return Expanded(
               child: Container(
                 height: 60,
-                constraints: BoxConstraints(
-                  minWidth: isSelected ? 44 : 42,
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 1),
                 decoration: BoxDecoration(
                   color:
                       isSelected ? const Color(0xFFED3E57) : Colors.transparent,
@@ -553,22 +528,27 @@ class _HealthDashboardState extends State<HealthDashboard> {
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       dayName,
                       style: TextStyle(
                         color: isSelected ? Colors.white : Colors.black54,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       dayNum,
                       style: TextStyle(
                         color: isSelected ? Colors.white : Colors.black,
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ),
@@ -834,49 +814,55 @@ class _HealthDashboardState extends State<HealthDashboard> {
                 final isToday = date.year == today.year &&
                     date.month == today.month &&
                     date.day == today.day;
-                return Column(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: isCompleted
-                            ? const Color(0xFFED3E57)
-                            : Colors.grey[100],
-                        shape: BoxShape.circle,
-                        boxShadow: isCompleted
-                            ? [
-                                BoxShadow(
-                                  color:
-                                      const Color(0xFFED3E57).withOpacity(0.2),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
-                        border: isToday
-                            ? Border.all(
-                                color: Colors.black.withOpacity(0.15), width: 2)
-                            : null,
+                return Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: isCompleted
+                              ? const Color(0xFFED3E57)
+                              : Colors.grey[100],
+                          shape: BoxShape.circle,
+                          boxShadow: isCompleted
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFFED3E57)
+                                        .withOpacity(0.2),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                          border: isToday
+                              ? Border.all(
+                                  color: Colors.black.withOpacity(0.15),
+                                  width: 2)
+                              : null,
+                        ),
+                        child: Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: isCompleted ? Colors.white : Colors.grey[300],
+                        ),
                       ),
-                      child: Icon(
-                        Icons.check_rounded,
-                        size: 20,
-                        color: isCompleted ? Colors.white : Colors.grey[300],
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('E').format(date)[0],
+                        style: TextStyle(
+                          color: isCompleted
+                              ? const Color(0xFFED3E57)
+                              : const Color.fromRGBO(189, 189, 189, 1),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      DateFormat('E').format(date)[0],
-                      style: TextStyle(
-                        color: isCompleted
-                            ? const Color(0xFFED3E57)
-                            : const Color.fromRGBO(189, 189, 189, 1),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 );
               }),
             ),

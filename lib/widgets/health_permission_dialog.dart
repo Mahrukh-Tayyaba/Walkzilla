@@ -237,12 +237,7 @@ class _HealthPermissionDialogState extends State<HealthPermissionDialog> {
                               }
                               Navigator.of(context).pop(true);
                             } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Failed to get health permissions. Please try again.'),
-                                ),
-                              );
+                              // SnackBar removed
                             }
                           }
                         : null,

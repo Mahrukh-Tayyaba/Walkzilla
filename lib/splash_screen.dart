@@ -15,6 +15,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   VideoPlayerController? _videoController;
+  VoidCallback? _videoListener;
   bool _isVideoInitialized = false;
   bool _hasError = false;
   bool _isNavigating = false;
@@ -26,13 +27,42 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeVideo() async {
-    // Skip video for now to prevent emulator crashes
-    if (mounted) {
+    try {
+      final controller =
+          VideoPlayerController.asset('assets/videos/splash_screen.mp4');
+      _videoController = controller;
+
+      await controller.initialize();
+      await controller.setLooping(false);
+      await controller.setVolume(0);
+
+      if (!mounted) return;
       setState(() {
-        _hasError = true;
+        _isVideoInitialized = true;
+        _hasError = false;
       });
 
-      // Navigate after 2 seconds
+      // Navigate when the video finishes
+      _videoListener = () {
+        if (!mounted || _isNavigating) return;
+        final value = controller.value;
+        if (value.isInitialized &&
+            !value.isPlaying &&
+            value.position >= value.duration) {
+          _navigateToNextScreen();
+        }
+      };
+      controller.addListener(_videoListener!);
+
+      await controller.play();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _hasError = true;
+        _isVideoInitialized = false;
+      });
+
+      // Fallback: short delay then navigate
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted && !_isNavigating) {
           _navigateToNextScreen();
@@ -93,6 +123,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
+    if (_videoController != null && _videoListener != null) {
+      _videoController!.removeListener(_videoListener!);
+    }
     _videoController?.dispose();
     super.dispose();
   }
@@ -110,9 +143,15 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Widget _buildVideoUI() {
-    return AspectRatio(
-      aspectRatio: _videoController!.value.aspectRatio,
-      child: VideoPlayer(_videoController!),
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: _videoController!.value.size.width,
+          height: _videoController!.value.size.height,
+          child: VideoPlayer(_videoController!),
+        ),
+      ),
     );
   }
 

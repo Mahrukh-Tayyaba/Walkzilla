@@ -52,50 +52,135 @@ class _ChallengesScreenState extends State<ChallengesScreen>
     super.dispose();
   }
 
-  void _handleZombieRun() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ZombieRunInviteScreen()),
-    );
-  }
-
   void _handleStepDuel() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Step Duel Challenge!'),
-        backgroundColor: const Color(0xFFE91E63),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    // Step Duel Challenge notification removed
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const DuoChallengeInviteScreen()),
     );
   }
 
+  void _handleZombieRunLocked() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          contentPadding: const EdgeInsets.all(24),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 300,
+              minWidth: 250,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.lock,
+                      color: Colors.orange,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Zombie Run Locked',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Message
+                const Text(
+                  'Zombie Run challenge will be unlocked when you reach Level 10!',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF666666),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                // Button
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Got it!',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF4CAF50),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF6E9),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFF6E9),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios, size: 24, color: Colors.black54),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        title: const Text(
+          'Challenges',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF7F8FA), Colors.white, Color(0xFFE3F2FD)],
-          ),
+          color: Color(0xFFFFF6E9),
         ),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
                 // Header
                 const Text(
                   'Choose Challenge',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.w900,
                     color: Color(0xFF1A1A1A),
                     shadows: [
@@ -145,43 +230,7 @@ class _ChallengesScreenState extends State<ChallengesScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Zombie Run Card
-                        SizedBox(
-                          width: 220,
-                          height: 250,
-                          child: _ChallengeCard(
-                            title: 'Zombie Run',
-                            icon: const Icon(
-                              FontAwesomeIcons.skull,
-                              color: Colors.white,
-                              size: 45,
-                            ),
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFFE8F5E8),
-                                Color(0xFFF0F8F0),
-                                Color(0xFFE3F2FD),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            circleGradient: const LinearGradient(
-                              colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            shadowColor: const Color(0xFF4CAF50),
-                            accentColor: const Color(0xFF4CAF50),
-                            scaleAnimation: _zombieScale,
-                            rotationAnimation: _zombieRotation,
-                            onTap: _handleZombieRun,
-                            onTapDown: () => _zombieController.forward(),
-                            onTapUp: () => _zombieController.reverse(),
-                            onTapCancel: () => _zombieController.reverse(),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        // Step Duel Card
+                        // Step Duel Card (First)
                         SizedBox(
                           width: 220,
                           height: 250,
@@ -216,6 +265,43 @@ class _ChallengesScreenState extends State<ChallengesScreen>
                             onTapCancel: () => _duelController.reverse(),
                           ),
                         ),
+                        const SizedBox(height: 20),
+                        // Zombie Run Card (Second) - Locked
+                        SizedBox(
+                          width: 220,
+                          height: 250,
+                          child: _ChallengeCard(
+                            title: 'Zombie Run',
+                            icon: const Icon(
+                              FontAwesomeIcons.skull,
+                              color: Colors.white,
+                              size: 45,
+                            ),
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFE8F5E8),
+                                Color(0xFFF0F8F0),
+                                Color(0xFFE3F2FD),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            circleGradient: const LinearGradient(
+                              colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shadowColor: const Color(0xFF4CAF50),
+                            accentColor: const Color(0xFF4CAF50),
+                            scaleAnimation: _zombieScale,
+                            rotationAnimation: _zombieRotation,
+                            onTap: _handleZombieRunLocked,
+                            onTapDown: () => _zombieController.forward(),
+                            onTapUp: () => _zombieController.reverse(),
+                            onTapCancel: () => _zombieController.reverse(),
+                            isLocked: true,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -242,6 +328,7 @@ class _ChallengeCard extends StatefulWidget {
   final VoidCallback onTapDown;
   final VoidCallback onTapUp;
   final VoidCallback onTapCancel;
+  final bool isLocked;
 
   const _ChallengeCard({
     required this.title,
@@ -256,6 +343,7 @@ class _ChallengeCard extends StatefulWidget {
     required this.onTapDown,
     required this.onTapUp,
     required this.onTapCancel,
+    this.isLocked = false,
   });
 
   @override
@@ -321,91 +409,121 @@ class _ChallengeCardState extends State<_ChallengeCard>
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Stack(
                     children: [
-                      // Icon Circle
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          gradient: widget.circleGradient,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: widget.shadowColor.withOpacity(0.4),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
+                      // Lock Icon (if locked)
+                      if (widget.isLocked)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.9),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.orange.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ],
+                            child: const Icon(
+                              Icons.lock,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
                         ),
-                        child: widget.icon,
-                      ),
-                      const SizedBox(height: 12),
-                      // Title
-                      Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A1A),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      // Decorative elements
-                      Row(
+                      // Main content
+                      Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          AnimatedBuilder(
-                            animation: _pulseAnimation,
-                            builder: (context, child) {
-                              return Opacity(
-                                opacity: _pulseAnimation.value,
-                                child: Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFF2196F3),
-                                  ),
+                          // Icon Circle
+                          Container(
+                            width: 70,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              gradient: widget.circleGradient,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: widget.shadowColor.withOpacity(0.4),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
                                 ),
-                              );
-                            },
+                              ],
+                            ),
+                            child: widget.icon,
                           ),
-                          const SizedBox(width: 6),
-                          AnimatedBuilder(
-                            animation: _pulseAnimation,
-                            builder: (context, child) {
-                              return Opacity(
-                                opacity: _pulseAnimation.value,
-                                child: Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFFE91E63),
-                                  ),
-                                ),
-                              );
-                            },
+                          const SizedBox(height: 12),
+                          // Title
+                          Text(
+                            widget.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(width: 6),
-                          AnimatedBuilder(
-                            animation: _pulseAnimation,
-                            builder: (context, child) {
-                              return Opacity(
-                                opacity: _pulseAnimation.value,
-                                child: Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFF4CAF50),
-                                  ),
-                                ),
-                              );
-                            },
+                          const SizedBox(height: 8),
+                          // Decorative elements
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AnimatedBuilder(
+                                animation: _pulseAnimation,
+                                builder: (context, child) {
+                                  return Opacity(
+                                    opacity: _pulseAnimation.value,
+                                    child: Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Color(0xFF2196F3),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                              AnimatedBuilder(
+                                animation: _pulseAnimation,
+                                builder: (context, child) {
+                                  return Opacity(
+                                    opacity: _pulseAnimation.value,
+                                    child: Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Color(0xFFE91E63),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                              AnimatedBuilder(
+                                animation: _pulseAnimation,
+                                builder: (context, child) {
+                                  return Opacity(
+                                    opacity: _pulseAnimation.value,
+                                    child: Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Color(0xFF4CAF50),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),

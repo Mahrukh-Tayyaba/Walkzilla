@@ -138,12 +138,7 @@ class DuoChallengeInviteDialog extends StatelessWidget {
 
       if (context.mounted) {
         Navigator.of(context).pop('accepted');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Challenge accepted!'),
-            backgroundColor: Color(0xFF7C4DFF),
-          ),
-        );
+        // SnackBar removed
         // Navigate to the lobby screen
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -162,12 +157,7 @@ class DuoChallengeInviteDialog extends StatelessWidget {
         } catch (popError) {
           // Dialog might already be closed, ignore the error
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error accepting invite: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // SnackBar removed
       }
     }
   }
@@ -276,22 +266,12 @@ class DuoChallengeInviteDialog extends StatelessWidget {
 
       if (context.mounted) {
         Navigator.of(context).pop('declined');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Challenge declined.'),
-            backgroundColor: Colors.grey,
-          ),
-        );
+        // SnackBar removed
       }
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error declining invite: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // SnackBar removed
       }
     }
   }

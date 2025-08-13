@@ -332,14 +332,7 @@ class _ZombieRunLobbyState extends State<ZombieRunLobby>
       }
     } catch (e) {
       print('❌ Error starting game: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error starting game: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Error handling without snackbar
     }
   }
 

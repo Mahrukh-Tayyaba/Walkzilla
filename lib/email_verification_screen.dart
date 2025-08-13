@@ -81,21 +81,11 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
     try {
       await widget.userCredential.user!.sendEmailVerification();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email sent! Check your inbox.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Verification email sent successfully
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sending verification email: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Error sending verification email
       }
     }
   }
@@ -110,22 +100,12 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
     try {
       await widget.userCredential.user!.sendEmailVerification();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email resent!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Verification email resent successfully
         _startResendCountdown();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error resending verification email: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Error resending verification email
       }
     } finally {
       if (mounted) {
@@ -150,14 +130,7 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
       if (user != null && user.emailVerified) {
         // Email is verified, proceed with account creation
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Email verified successfully! Setting up your account...'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
+          // Email verified successfully
         }
         await _completeSignup();
       } else {
@@ -192,13 +165,7 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
         // If username is not reserved for this user, delete the auth account and show error
         await widget.userCredential.user!.delete();
         if (mounted) {
-          ScaffoldMessenger.of(context).clearSnackBars();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  "Username is no longer available. Please try another one."),
-            ),
-          );
+          // Username is no longer available
         }
         return;
       }
@@ -251,9 +218,7 @@ class EmailVerificationScreenState extends State<EmailVerificationScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error completing signup: $e")),
-        );
+        // Error completing signup
       }
     }
   }

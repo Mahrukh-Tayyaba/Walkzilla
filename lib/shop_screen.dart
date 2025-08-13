@@ -147,41 +147,14 @@ class _ShopScreenState extends State<ShopScreen> {
         // Close buy preview
         closeBuyPreview();
 
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Successfully bought ${item.name}!'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-
         // Reload shop data to reflect changes
         await _loadShopData();
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ Failed to buy item. Check your coins!'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
+        // No Snackbar: silent failure path
       }
     } catch (e) {
       print('❌ Error buying item: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
+      // No Snackbar on error
     }
   }
 
@@ -190,40 +163,33 @@ class _ShopScreenState extends State<ShopScreen> {
       final success = await _shopService.wearItem(item.id);
 
       if (success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Now wearing ${item.name}!'),
-              backgroundColor: Colors.blue,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
+        // Update the current worn item immediately
+        setState(() {
+          currentWornItem = item.id;
+          // Update the buyPreviewItem to reflect the new wearing status
+          if (buyPreviewItem != null && buyPreviewItem!.id == item.id) {
+            // Create a new ShopItem instance with updated wearing status
+            buyPreviewItem = ShopItem(
+              id: buyPreviewItem!.id,
+              name: buyPreviewItem!.name,
+              description: buyPreviewItem!.description,
+              price: buyPreviewItem!.price,
+              imagePath: buyPreviewItem!.imagePath,
+              glbFilePath: buyPreviewItem!.glbFilePath,
+              isOwned: buyPreviewItem!.isOwned,
+              isWorn: true, // Mark as currently worn
+            );
+          }
+        });
 
         // Reload shop data to reflect changes
         await _loadShopData();
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ Failed to wear item!'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
+        // No Snackbar: silent failure path
       }
     } catch (e) {
       print('❌ Error wearing item: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
+      // No Snackbar on error
     }
   }
 
@@ -241,7 +207,7 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFFFFF1DC),
+        backgroundColor: Color(0xFFFFF6E9),
         body: Center(
           child: CircularProgressIndicator(),
         ),
@@ -257,13 +223,18 @@ class _ShopScreenState extends State<ShopScreen> {
         );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF1DC),
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF1DC),
+        backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          icon:
+              const Icon(Icons.arrow_back_ios, size: 24, color: Colors.black54),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
         title: const Text(
           'Shop',
@@ -786,7 +757,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 decoration: BoxDecoration(
                   color: isOwned
-                      ? Colors.green
+                      ? (buyPreviewItem!.isWorn ? Colors.grey : Colors.green)
                       : (userCoins >= buyPreviewItem!.price
                           ? Colors.black
                           : Colors.grey[200]),
@@ -797,7 +768,7 @@ class _ShopScreenState extends State<ShopScreen> {
                   children: [
                     Text(
                       isOwned
-                          ? 'Wear'
+                          ? (buyPreviewItem!.isWorn ? 'Wearing' : 'Wear')
                           : (userCoins >= buyPreviewItem!.price
                               ? 'Buy'
                               : 'Not enough coins'),

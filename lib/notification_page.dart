@@ -74,9 +74,9 @@ class _NotificationPageState extends State<NotificationPage> {
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
         title: const Text(
           'Notifications',

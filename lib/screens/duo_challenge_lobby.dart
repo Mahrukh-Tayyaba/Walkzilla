@@ -322,10 +322,10 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
         _firestore.collection('duo_challenge_invites').doc(widget.inviteId);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
         title: const Text('Duo Challenge Lobby'),
-        backgroundColor: const Color(0xFF7C4DFF),
+        backgroundColor: const Color(0xFFED3E57),
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: docRef.snapshots(),
@@ -634,7 +634,7 @@ class _DuoChallengeLobbyState extends State<DuoChallengeLobby>
   Widget _buildPrizePotBox(int usersPresent, bool showAmount) {
     return Container(
       width: 70,
-      height: 70,
+      height: 80,
       decoration: BoxDecoration(
         color: Colors.black87,
         borderRadius: BorderRadius.circular(12),

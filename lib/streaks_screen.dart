@@ -125,12 +125,12 @@ class _StreaksScreenState extends State<StreaksScreen> {
         .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF1DC),
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF1DC),
+        backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -508,13 +508,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
         // Close loading dialog
         navigator.pop();
 
-        // Show success message
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Streak data cleared successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Streak data cleared successfully without snackbar
       }
     } catch (e) {
       // Check if widget is still mounted before accessing context
@@ -522,13 +516,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
         // Close loading dialog
         navigator.pop();
 
-        // Show error message
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('Error clearing streak data: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Error clearing streak data without snackbar
       }
     }
   }
@@ -611,13 +599,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
         // Close loading dialog
         navigator.pop();
 
-        // Show success message
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Streak history restored successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Streak history restored successfully without snackbar
       }
     } catch (e) {
       // Check if widget is still mounted before accessing context
@@ -625,13 +607,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
         // Close loading dialog
         navigator.pop();
 
-        // Show error message
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('Error restoring streak history: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Error restoring streak history without snackbar
       }
     }
   }
@@ -673,10 +649,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.close, size: 22),
-                          onPressed:
-                              stepGoalProvider.isGoalLockedForCurrentMonth()
-                                  ? null
-                                  : () => Navigator.of(context).pop(),
+                          onPressed: () => Navigator.of(context).pop(),
                           splashRadius: 20,
                         ),
                       ],
@@ -901,15 +874,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                                           .setCurrentMonthGoal(stepGoal);
                                       Navigator.of(context).pop();
                                     } catch (e) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(e
-                                              .toString()
-                                              .replaceAll('Exception: ', '')),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
+                                      // Error handling without snackbar
                                     }
                                   },
                             style: ElevatedButton.styleFrom(

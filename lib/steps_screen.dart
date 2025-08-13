@@ -121,9 +121,9 @@ class _StepsScreenState extends State<StepsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF1DC),
+      backgroundColor: const Color(0xFFFFF6E9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF1DC),
+        backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
         shadowColor: Colors.black.withOpacity(0.1),
         leading: IconButton(
@@ -326,15 +326,7 @@ class _StepsScreenState extends State<StepsScreen> {
                         onPressed: () {
                           stepGoalProvider.setCurrentMonthGoal(tempGoalSteps);
                           Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Monthly step goal set!'),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
+                          // Goal set successfully without snackbar
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A237E),
