@@ -421,20 +421,18 @@ class _HealthDashboardState extends State<HealthDashboard> {
         centerTitle: false,
         automaticallyImplyLeading: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 24, color: Colors.black54),
+          icon:
+              const Icon(Icons.arrow_back_ios, size: 24, color: Colors.black54),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
-        title: const Padding(
-          padding: EdgeInsets.only(left: 16.0),
-          child: Text(
-            'Dashboard',
-            style: TextStyle(
-              color: Colors.black87,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
+        title: const Text(
+          'Dashboard',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),

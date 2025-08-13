@@ -228,7 +228,7 @@ class _ShopScreenState extends State<ShopScreen> {
         backgroundColor: const Color(0xFFFFF6E9),
         elevation: 0,
         automaticallyImplyLeading: false,
-        titleSpacing: 20,
+        titleSpacing: 0,
         leading: IconButton(
           icon:
               const Icon(Icons.arrow_back_ios, size: 24, color: Colors.black54),
