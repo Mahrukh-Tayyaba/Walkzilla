@@ -49,9 +49,9 @@ class _FlappyDragonGameState extends State<FlappyDragonGame>
 
   // Dragon animation images
   final List<String> dragonImages = [
-    'assets/images/dragon_wingdown.png',
-    'assets/images/dragon_wingmiddle.png',
-    'assets/images/dragon_wingup.png',
+    'assets/images/dragon_wingdown.webp',
+    'assets/images/dragon_wingmiddle.webp',
+    'assets/images/dragon_wingup.webp',
   ];
 
   @override

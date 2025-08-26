@@ -18,19 +18,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: "Meet Walkzilla",
       description:
           "Your friendly walking companion to keep you motivated every day",
-      imageAsset: "assets/images/1.png",
+      imageAsset: "assets/images/1.webp",
       backgroundColor: Color(0xFF4CAF50),
     ),
     OnboardingPage(
       title: "Track Your Steps",
       description: "Monitor your daily steps and build healthy walking habits",
-      imageAsset: "assets/images/2.png",
+      imageAsset: "assets/images/2.webp",
       backgroundColor: Color(0xFF2196F3),
     ),
     OnboardingPage(
       title: "Challenge Friends",
       description: "Connect with friends and compete in fun walking challenges",
-      imageAsset: "assets/images/3.png",
+      imageAsset: "assets/images/3.webp",
       backgroundColor: Color(0xFF9C27B0),
     ),
   ];

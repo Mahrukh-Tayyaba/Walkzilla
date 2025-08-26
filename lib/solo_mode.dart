@@ -1301,16 +1301,16 @@ class SoloModeGame extends FlameGame with KeyboardEvents {
 
       // Load all milestone boards
       final milestoneImages = {
-        500: '500mile.png',
-        1000: '1000mile.png',
-        2000: '2000mile.png',
-        4000: '4000mile.png',
-        6000: '6000mile.png',
-        8000: '8000mile.png',
-        10000: '10kMile.png',
-        15000: '15kMile.png',
-        20000: '20kMile.png',
-        25000: '25kMile.png',
+        500: '500mile.webp',
+        1000: '1000mile.webp',
+        2000: '2000mile.webp',
+        4000: '4000mile.webp',
+        6000: '6000mile.webp',
+        8000: '8000mile.webp',
+        10000: '10kMile.webp',
+        15000: '15kMile.webp',
+        20000: '20kMile.webp',
+        25000: '25kMile.webp',
       };
 
       for (final entry in milestoneImages.entries) {

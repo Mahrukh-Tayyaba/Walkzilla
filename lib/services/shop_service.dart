@@ -68,7 +68,7 @@ class ShopService {
       'description':
           'Your personal character with unique features and benefits.',
       'price': 0,
-      'imagePath': 'assets/images/shop_items/MyCharacter.png',
+      'imagePath': 'assets/images/shop_items/MyCharacter.webp',
       'glbFilePath': 'assets/web/home/MyCharacter_home.glb',
     },
     {
@@ -76,7 +76,7 @@ class ShopService {
       'name': 'Blossom',
       'description': 'Beautiful blossom with premium quality and design.',
       'price': 50,
-      'imagePath': 'assets/images/shop_items/blossom.png',
+      'imagePath': 'assets/images/shop_items/blossom.webp',
       'glbFilePath': 'assets/web/home/blossom_home.glb',
     },
     {
@@ -84,7 +84,7 @@ class ShopService {
       'name': 'Sun',
       'description': 'Bright sun with advanced capabilities.',
       'price': 50,
-      'imagePath': 'assets/images/shop_items/sun.png',
+      'imagePath': 'assets/images/shop_items/sun.webp',
       'glbFilePath': 'assets/web/home/sun_home.glb',
     },
     {
@@ -92,7 +92,7 @@ class ShopService {
       'name': 'Cloud',
       'description': 'Fluffy cloud with exclusive features.',
       'price': 50,
-      'imagePath': 'assets/images/shop_items/cloud.png',
+      'imagePath': 'assets/images/shop_items/cloud.webp',
       'glbFilePath': 'assets/web/home/cloud_home.glb',
     },
     {
@@ -100,7 +100,7 @@ class ShopService {
       'name': 'Cool',
       'description': 'Cool character with superior performance.',
       'price': 50,
-      'imagePath': 'assets/images/shop_items/cool.png',
+      'imagePath': 'assets/images/shop_items/cool.webp',
       'glbFilePath': 'assets/web/home/cool_home.glb',
     },
     {
@@ -108,7 +108,7 @@ class ShopService {
       'name': 'Cow',
       'description': 'Friendly cow with innovative technology.',
       'price': 50,
-      'imagePath': 'assets/images/shop_items/cow.png',
+      'imagePath': 'assets/images/shop_items/cow.webp',
       'glbFilePath': 'assets/web/home/cow_home.glb',
     },
     {
@@ -116,7 +116,7 @@ class ShopService {
       'name': 'Monster',
       'description': 'Scary monster with premium materials.',
       'price': 50,
-      'imagePath': 'assets/images/shop_items/monster.png',
+      'imagePath': 'assets/images/shop_items/monster.webp',
       'glbFilePath': 'assets/web/home/monster_home.glb',
     },
     {
@@ -124,7 +124,7 @@ class ShopService {
       'name': 'Blue Star',
       'description': 'Shining blue star with luxury design.',
       'price': 50,
-      'imagePath': 'assets/images/shop_items/blueStar.png',
+      'imagePath': 'assets/images/shop_items/blueStar.webp',
       'glbFilePath': 'assets/web/home/blueStar_home.glb',
     },
     {
@@ -132,7 +132,7 @@ class ShopService {
       'name': 'Yellow Star',
       'description': 'Bright yellow star with ultimate features.',
       'price': 50,
-      'imagePath': 'assets/images/shop_items/yellowStar.png',
+      'imagePath': 'assets/images/shop_items/yellowStar.webp',
       'glbFilePath': 'assets/web/home/yellowstar_home.glb',
     },
   ];
